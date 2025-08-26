@@ -1,30 +1,53 @@
-// BaseDatosWindow.h
 #ifndef BASEDATOSWINDOW_H
 #define BASEDATOSWINDOW_H
 
 #include <QMainWindow>
 #include <QListWidget>
 #include <QStackedWidget>
-#include <QMenuBar>
-#include <QAction>
+#include <QMenu>
+#include <QToolBar>
 #include <QSplitter>
-#include <QLabel>
 
-class BaseDatosWindow : public QMainWindow {
+class BaseDatosWindow : public QMainWindow
+{
     Q_OBJECT
+
 public:
     BaseDatosWindow(QWidget *parent = nullptr);
 
 private slots:
     void abrirTabla(QListWidgetItem *item);
+    void toggleFiltro();
+    void mostrarRibbonInicio();
+    void mostrarRibbonCrear();
 
 private:
-    QListWidget *listaTablas;      // Barra lateral
-    QStackedWidget *zonaCentral;   // Donde se muestran tablas o formularios
-    QLabel* tituloTablas;
-    QLineEdit* barraBusqueda;
-
     void crearMenus();
+    void crearToolbars();
+    void actualizarToolbar(int pestana);
+    void crearToolbarHome();
+    void crearToolbarCrear();
+    void crearToolbarHojaDatos();
+    void limpiarToolbars();
+
+    QListWidget *listaTablas;
+    QStackedWidget *zonaCentral;
+
+    // Toolbars
+    QToolBar* toolbarInicio;
+    QToolBar *toolbarHome;
+    QToolBar *toolbarCrear;
+    QToolBar *toolbarHojaDatos;
+    QToolBar *ribbonInicio;
+    QToolBar *ribbonCrear;
+
+    // Acciones comunes
+    QAction *accionVista;
+    QAction *accionFiltro;
+
+    // Estado
+    bool vistaHojaDatos;
+    bool filtroActivo;
 };
 
 #endif // BASEDATOSWINDOW_H
