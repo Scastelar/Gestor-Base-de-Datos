@@ -16,6 +16,7 @@ public:
     int obtenerFilaPK() const;
     void establecerPK();
     QString obtenerNombrePK() const;
+    void actualizarPropiedades();
 
 private:
     QTableWidget *tablaCampos;
@@ -27,7 +28,6 @@ private:
 
     QString obtenerPropiedadesCampo(int row) const;
     void manejarCambioPK(QTableWidgetItem *item);
-    void actualizarPropiedades();
 };
 
 #endif // TABLACENTRALWIDGET_H

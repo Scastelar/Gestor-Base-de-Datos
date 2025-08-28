@@ -1,6 +1,9 @@
 #ifndef BASEDATOSWINDOW_H
 #define BASEDATOSWINDOW_H
 
+#include "tablacentralwidget.h"
+#include "DataSheetWidget.h"
+
 #include <QMainWindow>
 #include <QListWidget>
 #include <QStackedWidget>
@@ -8,6 +11,9 @@
 #include <QToolBar>
 #include <QSplitter>
 #include <QToolButton>
+#include <QComboBox>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
 
 class BaseDatosWindow : public QMainWindow
 {
@@ -21,6 +27,8 @@ private slots:
     void toggleFiltro();
     void mostrarRibbonInicio();
     void mostrarRibbonCrear();
+    void abrirRelaciones();
+    void cerrarRelacionesYVolver();
 
 private:
     void crearMenus();
@@ -30,6 +38,8 @@ private:
     void crearToolbarCrear();
     void crearToolbarHojaDatos();
     void limpiarToolbars();
+    void cambiarVista();
+    void transferirDatosVista(QWidget *origen, QWidget *destino);
 
     QListWidget *listaTablas;
     QStackedWidget *zonaCentral;
@@ -49,8 +59,27 @@ private:
     QAction *accionFiltro;
 
     // Estado
-    bool vistaHojaDatos;
+    bool vistaHojaDatos = false;
     bool filtroActivo;
+
+    QComboBox *comboVista;
+    QToolButton *btnFiltrar;
+    QToolButton *btnAscendente;
+    QToolButton *btnDescendente;
+    QToolButton *btnInsertarFila;
+    QToolButton *btnEliminarFila;
+    QToolButton *btnRelaciones;
+
+    QVBoxLayout *filasLayout;
+    QWidget *botonesFilasWidget;
+    QVBoxLayout *botonesFilasVLayout;
+    QHBoxLayout *botonesFilasHLayout;
+
+    QList<QFrame*> seccionesVistaHojaDatos;
+    QList<QFrame*> seccionesVistaDiseno;
+
+    TablaCentralWidget *tablaDesignActual = nullptr;
+    DataSheetWidget *tablaDataSheetActual = nullptr;
 };
 
 #endif // BASEDATOSWINDOW_H

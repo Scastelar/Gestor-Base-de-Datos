@@ -10,13 +10,17 @@ CONFIG += c++17
 
 SOURCES += \
     basedatoswindow.cpp \
+    datasheetwidget.cpp \
     main.cpp \
     mainwindow.cpp \
+    relacioneswidget.cpp \
     tablacentralwidget.cpp
 
 HEADERS += \
     basedatoswindow.h \
+    datasheetwidget.h \
     mainwindow.h \
+    relacioneswidget.h \
     tablacentralwidget.h
 
 # Default rules for deployment.
