@@ -13,6 +13,9 @@ class TablaCentralWidget : public QWidget {
 
 public:
     explicit TablaCentralWidget(QWidget *parent = nullptr);
+    int obtenerFilaPK() const;
+    void establecerPK();
+    QString obtenerNombrePK() const;
 
 private:
     QTableWidget *tablaCampos;
@@ -25,9 +28,6 @@ private:
     QString obtenerPropiedadesCampo(int row) const;
     void manejarCambioPK(QTableWidgetItem *item);
     void actualizarPropiedades();
-    int obtenerFilaPK() const;
-    void establecerPK();
-    QString obtenerNombrePK() const;
 };
 
 #endif // TABLACENTRALWIDGET_H

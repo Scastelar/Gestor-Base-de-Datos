@@ -7,6 +7,7 @@
 #include <QMenu>
 #include <QToolBar>
 #include <QSplitter>
+#include <QToolButton>
 
 class BaseDatosWindow : public QMainWindow
 {
@@ -32,6 +33,8 @@ private:
 
     QListWidget *listaTablas;
     QStackedWidget *zonaCentral;
+
+    QToolButton *btnLlavePrimaria;
 
     // Toolbars
     QToolBar* toolbarInicio;

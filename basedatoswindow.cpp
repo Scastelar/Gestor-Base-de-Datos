@@ -14,7 +14,6 @@
 #include <QLineEdit>
 #include <QTabWidget>
 #include <QComboBox>
-#include <QToolButton>
 #include <QMenuBar>
 #include <QMenu>
 #include <QActionGroup>
@@ -289,11 +288,13 @@ void BaseDatosWindow::crearToolbars()
     QLabel *primaryKeyTitle = new QLabel("Clave");
     primaryKeyTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
 
-    QToolButton *btnLlavePrimaria = new QToolButton();
-    btnLlavePrimaria->setIcon(QIcon(":/imgs/primary-key.png")); // Asegúrate de tener este icono
+    btnLlavePrimaria = new QToolButton();
+    btnLlavePrimaria->setIcon(QIcon(":/imgs/key.png")); // Asegúrate de tener este icono
     btnLlavePrimaria->setText("Llave Primaria");
     btnLlavePrimaria->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     btnLlavePrimaria->setStyleSheet(".ribbonButton");
+
+
 
     primaryKeyLayout->addWidget(primaryKeyTitle);
     primaryKeyLayout->addWidget(btnLlavePrimaria);
@@ -545,9 +546,18 @@ void BaseDatosWindow::toggleFiltro()
 
 void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
 {
-    QWidget *tablaDesign = new TablaCentralWidget();
+    TablaCentralWidget *tablaDesign = new TablaCentralWidget();
     zonaCentral->addWidget(tablaDesign);
     zonaCentral->setCurrentWidget(tablaDesign);
+
+    // Conectar correctamente con la instancia específica de TablaCentralWidget
+    connect(btnLlavePrimaria, &QToolButton::clicked, tablaDesign, &TablaCentralWidget::establecerPK);
+
+    // Para obtener información sobre la PK actual (esto se ejecuta inmediatamente, quizá no sea lo que quieras)
+    int filaPK = tablaDesign->obtenerFilaPK();
+    QString nombrePK = tablaDesign->obtenerNombrePK();
+
+    qDebug() << "PK actual - Fila:" << filaPK << "Nombre:" << nombrePK;
 
     // Mostrar ribbon de Inicio al abrir una tabla
     mostrarRibbonInicio();
