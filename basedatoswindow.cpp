@@ -22,6 +22,7 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QWidgetAction>
+#include <QSplitter>
 
 BaseDatosWindow::BaseDatosWindow(QWidget *parent)
     : QMainWindow(parent), vistaHojaDatos(false), filtroActivo(false)
@@ -42,11 +43,11 @@ BaseDatosWindow::BaseDatosWindow(QWidget *parent)
 
     QVBoxLayout *layoutIzq = new QVBoxLayout;
     QLabel *titulo = new QLabel("TABLAS");
-    titulo->setStyleSheet("QLabel { font-weight: bold; font-size: 12px; padding: 8px 5px; color: #2b579a; background-color: #f0f0f0; }");
+    titulo->setStyleSheet("QLabel { font-weight: bold; font-size: 12px; padding: 8px 5px; color: #000000; background-color: #f0f0f0; }");
 
     QLineEdit *busqueda = new QLineEdit;
     busqueda->setPlaceholderText("Buscar tabla...");
-    busqueda->setStyleSheet("QLineEdit { padding: 6px; margin: 5px; border: 1px solid #cccccc; border-radius: 3px; }");
+    busqueda->setStyleSheet("QLineEdit { padding: 6px; margin: 5px; border: 1px solid #cccccc; border-radius: 3px; color: #000000; background-color: #ffffff; }");
 
     connect(busqueda, &QLineEdit::textChanged, this, [=](const QString &texto) {
         for (int i = 0; i < listaTablas->count(); i++) {
@@ -63,9 +64,10 @@ BaseDatosWindow::BaseDatosWindow(QWidget *parent)
 
     // Zona central - Solo para mostrar tablas
     zonaCentral = new QStackedWidget();
-    QLabel *welcomeLabel = new QLabel("<center><h2>Bienvenido a Base de Datos</h2>"
-                                      "<p>Selecciona una tabla de la izquierda para comenzar</p></center>");
+    QLabel *welcomeLabel = new QLabel("<center><h2 style='color: #000000;'>Bienvenido a Base de Datos</h2>"
+                                      "<p style='color: #000000;'>Selecciona una tabla de la izquierda para comenzar</p></center>");
     welcomeLabel->setAlignment(Qt::AlignCenter);
+    welcomeLabel->setStyleSheet("QLabel { background-color: #ffffff; color: #000000; }"); // FONDO BLANCO, TEXTO NEGRO
     zonaCentral->addWidget(welcomeLabel);
 
     QWidget *contenedorIzq = new QWidget;
@@ -85,72 +87,87 @@ BaseDatosWindow::BaseDatosWindow(QWidget *parent)
     resize(QGuiApplication::primaryScreen()->availableSize() * 0.8);
     setMinimumSize(1000, 700);
 
-    // Estilos para la aplicación
+    // Estilos para la aplicación - FONDO BLANCO Y TEXTOS NEGROS
     QString styleSheet = R"(
         QMainWindow {
             background-color: #ffffff;
+            color: #000000;
         }
         QMenuBar {
-            background-color: #2b579a;
-            color: white;
+            background-color: #f0f0f0;
+            color: #000000;
             font-weight: bold;
             padding: 0px;
+            border-bottom: 1px solid #cccccc;
         }
         QMenuBar::item {
             background: transparent;
             padding: 8px 15px;
+            color: #000000;
         }
         QMenuBar::item:selected {
-            background: #1e3f6e;
+            background: #e0e0e0;
             border-radius: 0px;
+            color: #000000;
         }
         QMenuBar::item:pressed {
-            background: #152c4d;
+            background: #d0d0d0;
+            color: #000000;
         }
         QToolBar {
             background-color: #f0f0f0;
             border-bottom: 1px solid #cccccc;
             spacing: 3px;
             padding: 2px;
+            color: #000000;
         }
         QToolButton {
             padding: 6px 8px;
             border: 1px solid transparent;
             border-radius: 3px;
             background: transparent;
+            color: #000000;
         }
         QToolButton:hover {
             background-color: #e0e0e0;
             border: 1px solid #cccccc;
+            color: #000000;
         }
         QToolButton:pressed {
             background-color: #d0d0d0;
+            color: #000000;
         }
         QToolButton:checked {
             background-color: #d0e0f0;
             border: 1px solid #a0c0e0;
+            color: #000000;
         }
         QListWidget {
-            background-color: white;
+            background-color: #ffffff;
             border: none;
             border-top: 1px solid #cccccc;
+            color: #000000;
         }
         QListWidget::item {
             padding: 8px 5px;
             border-bottom: 1px solid #eeeeee;
             font-size: 11px;
+            color: #000000;
+            background-color: #ffffff;
         }
         QListWidget::item:selected {
             background-color: #2b579a;
-            color: white;
+            color: #ffffff;
         }
         QListWidget::item:hover {
             background-color: #f0f0f0;
+            color: #000000;
         }
         .ribbonSection {
             background-color: #ffffff;
             border-right: 1px solid #dddddd;
             padding: 5px;
+            color: #000000;
         }
         .ribbonButton {
             padding: 8px 12px;
@@ -158,9 +175,30 @@ BaseDatosWindow::BaseDatosWindow(QWidget *parent)
             border-radius: 3px;
             background: transparent;
             text-align: center;
+            color: #000000;
         }
         .ribbonButton:hover {
             background-color: #e0e0e0;
+            border: 1px solid #cccccc;
+            color: #000000;
+        }
+        QTableWidget {
+            background-color: #ffffff;
+            color: #000000;
+            gridline-color: #cccccc;
+        }
+        QTableWidget::item {
+            color: #000000;
+            background-color: #ffffff;
+        }
+        QTableWidget::item:selected {
+            background-color: #2b579a;
+            color: #ffffff;
+        }
+        QHeaderView::section {
+            background-color: #f0f0f0;
+            color: #000000;
+            padding: 4px;
             border: 1px solid #cccccc;
         }
     )";
@@ -203,19 +241,21 @@ void BaseDatosWindow::crearMenus()
     btnInicio->setChecked(true);
     btnInicio->setStyleSheet(
         "QToolButton {"
-        "   background: #2b579a;"
-        "   color: white;"
+        "   background: #f0f0f0;"
+        "   color: #000000;"
         "   padding: 8px 15px;"
         "   border: none;"
-        "   border-right: 1px solid #1e3f6e;"
+        "   border-right: 1px solid #cccccc;"
         "}"
         "QToolButton:checked {"
-        "   background: #1e3f6e;"
+        "   background: #ffffff;"
+        "   border-bottom: 2px solid #2b579a;"
         "}"
         "QToolButton:hover {"
-        "   background: #1e3f6e;"
+        "   background: #e0e0e0;"
         "}"
         );
+
     connect(btnInicio, &QToolButton::clicked, this, &BaseDatosWindow::mostrarRibbonInicio);
 
     // Botón Crear
@@ -224,18 +264,20 @@ void BaseDatosWindow::crearMenus()
     btnCrear->setCheckable(true);
     btnCrear->setStyleSheet(
         "QToolButton {"
-        "   background: #2b579a;"
-        "   color: white;"
+        "   background: #f0f0f0;"
+        "   color: #000000;"
         "   padding: 8px 15px;"
         "   border: none;"
         "}"
         "QToolButton:checked {"
-        "   background: #1e3f6e;"
+        "   background: #ffffff;"
+        "   border-bottom: 2px solid #2b579a;"
         "}"
         "QToolButton:hover {"
-        "   background: #1e3f6e;"
+        "   background: #e0e0e0;"
         "}"
         );
+
     connect(btnCrear, &QToolButton::clicked, this, &BaseDatosWindow::mostrarRibbonCrear);
 
     // Agregar botones al layout
@@ -262,17 +304,17 @@ void BaseDatosWindow::crearToolbars()
     // Sección Vista
     QFrame *vistaFrame = new QFrame();
     vistaFrame->setFrameStyle(QFrame::Box);
-    vistaFrame->setStyleSheet(".ribbonSection { background: white; }");
+    vistaFrame->setStyleSheet(".ribbonSection { background: #ffffff; border: 1px solid #dddddd; }");
     QVBoxLayout *vistaLayout = new QVBoxLayout();
 
     QLabel *vistaTitle = new QLabel("Vista");
-    vistaTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    vistaTitle->setStyleSheet("QLabel { font-weight: bold; color: #000000; }");
 
     QToolButton *btnVistaDiseno = new QToolButton();
     btnVistaDiseno->setIcon(QIcon(":/imgs/design-view.png"));
     btnVistaDiseno->setText("Vista Diseño");
     btnVistaDiseno->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnVistaDiseno->setStyleSheet(".ribbonButton");
+    btnVistaDiseno->setStyleSheet(".ribbonButton { color: #000000; }");
     connect(btnVistaDiseno, &QToolButton::clicked, this, [this]() {
         vistaHojaDatos = false;
         mostrarRibbonInicio();
@@ -282,7 +324,7 @@ void BaseDatosWindow::crearToolbars()
     btnVistaHoja->setIcon(QIcon(":/imgs/datasheet-view.png"));
     btnVistaHoja->setText("Vista Hoja");
     btnVistaHoja->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnVistaHoja->setStyleSheet(".ribbonButton");
+    btnVistaHoja->setStyleSheet(".ribbonButton { color: #000000; }");
     connect(btnVistaHoja, &QToolButton::clicked, this, [this]() {
         vistaHojaDatos = true;
         mostrarRibbonInicio();
@@ -296,23 +338,23 @@ void BaseDatosWindow::crearToolbars()
     // Sección Portapapeles
     QFrame *clipboardFrame = new QFrame();
     clipboardFrame->setFrameStyle(QFrame::Box);
-    clipboardFrame->setStyleSheet(".ribbonSection { background: white; }");
+    clipboardFrame->setStyleSheet(".ribbonSection { background: #ffffff; border: 1px solid #dddddd; }");
     QVBoxLayout *clipboardLayout = new QVBoxLayout();
 
     QLabel *clipboardTitle = new QLabel("Portapapeles");
-    clipboardTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    clipboardTitle->setStyleSheet("QLabel { font-weight: bold; color: #000000; }");
 
     QToolButton *btnPegar = new QToolButton();
     btnPegar->setIcon(QIcon(":/imgs/paste.png"));
     btnPegar->setText("Pegar");
     btnPegar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnPegar->setStyleSheet(".ribbonButton");
+    btnPegar->setStyleSheet(".ribbonButton { color: #000000; }");
 
     QToolButton *btnCopiarFormato = new QToolButton();
     btnCopiarFormato->setIcon(QIcon(":/imgs/format-painter.png"));
     btnCopiarFormato->setText("Copiar Formato");
     btnCopiarFormato->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnCopiarFormato->setStyleSheet(".ribbonButton");
+    btnCopiarFormato->setStyleSheet(".ribbonButton { color: #000000; }");
 
     clipboardLayout->addWidget(clipboardTitle);
     clipboardLayout->addWidget(btnPegar);
@@ -322,29 +364,29 @@ void BaseDatosWindow::crearToolbars()
     // Sección Ordenar y Filtrar
     QFrame *sortFilterFrame = new QFrame();
     sortFilterFrame->setFrameStyle(QFrame::Box);
-    sortFilterFrame->setStyleSheet(".ribbonSection { background: white; }");
+    sortFilterFrame->setStyleSheet(".ribbonSection { background: #ffffff; border: 1px solid #dddddd; }");
     QVBoxLayout *sortFilterLayout = new QVBoxLayout();
 
     QLabel *sortFilterTitle = new QLabel("Ordenar y Filtrar");
-    sortFilterTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    sortFilterTitle->setStyleSheet("QLabel { font-weight: bold; color: #000000; }");
 
     QToolButton *btnAscendente = new QToolButton();
     btnAscendente->setIcon(QIcon(":/imgs/sort-asc.png"));
     btnAscendente->setText("Ascendente");
     btnAscendente->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnAscendente->setStyleSheet(".ribbonButton");
+    btnAscendente->setStyleSheet(".ribbonButton { color: #000000; }");
 
     QToolButton *btnDescendente = new QToolButton();
     btnDescendente->setIcon(QIcon(":/imgs/sort-desc.png"));
     btnDescendente->setText("Descendente");
     btnDescendente->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnDescendente->setStyleSheet(".ribbonButton");
+    btnDescendente->setStyleSheet(".ribbonButton { color: #000000; }");
 
     QToolButton *btnFiltro = new QToolButton();
     btnFiltro->setIcon(QIcon(":/imgs/filter.png"));
     btnFiltro->setText("Filtro");
     btnFiltro->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnFiltro->setStyleSheet(".ribbonButton");
+    btnFiltro->setStyleSheet(".ribbonButton { color: #000000; }");
     connect(btnFiltro, &QToolButton::clicked, this, &BaseDatosWindow::toggleFiltro);
 
     sortFilterLayout->addWidget(sortFilterTitle);
@@ -356,29 +398,29 @@ void BaseDatosWindow::crearToolbars()
     // Sección Registros
     QFrame *recordsFrame = new QFrame();
     recordsFrame->setFrameStyle(QFrame::Box);
-    recordsFrame->setStyleSheet(".ribbonSection { background: white; }");
+    recordsFrame->setStyleSheet(".ribbonSection { background: #ffffff; border: 1px solid #dddddd; }");
     QVBoxLayout *recordsLayout = new QVBoxLayout();
 
     QLabel *recordsTitle = new QLabel("Registros");
-    recordsTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    recordsTitle->setStyleSheet("QLabel { font-weight: bold; color: #000000; }");
 
     QToolButton *btnNuevo = new QToolButton();
     btnNuevo->setIcon(QIcon(":/imgs/new-record.png"));
     btnNuevo->setText("Nuevo");
     btnNuevo->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnNuevo->setStyleSheet(".ribbonButton");
+    btnNuevo->setStyleSheet(".ribbonButton { color: #000000; }");
 
     QToolButton *btnGuardar = new QToolButton();
     btnGuardar->setIcon(QIcon(":/imgs/save-record.png"));
     btnGuardar->setText("Guardar");
     btnGuardar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnGuardar->setStyleSheet(".ribbonButton");
+    btnGuardar->setStyleSheet(".ribbonButton { color: #000000; }");
 
     QToolButton *btnEliminar = new QToolButton();
     btnEliminar->setIcon(QIcon(":/imgs/delete-record.png"));
     btnEliminar->setText("Eliminar");
     btnEliminar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnEliminar->setStyleSheet(".ribbonButton");
+    btnEliminar->setStyleSheet(".ribbonButton { color: #000000; }");
 
     recordsLayout->addWidget(recordsTitle);
     recordsLayout->addWidget(btnNuevo);
@@ -409,23 +451,23 @@ void BaseDatosWindow::crearToolbars()
     // Sección Tablas
     QFrame *tablasFrame = new QFrame();
     tablasFrame->setFrameStyle(QFrame::Box);
-    tablasFrame->setStyleSheet(".ribbonSection { background: white; }");
+    tablasFrame->setStyleSheet(".ribbonSection { background: #ffffff; border: 1px solid #dddddd; }");
     QVBoxLayout *tablasLayout = new QVBoxLayout();
 
     QLabel *tablasTitle = new QLabel("Tablas");
-    tablasTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    tablasTitle->setStyleSheet("QLabel { font-weight: bold; color: #000000; }");
 
     QToolButton *btnTabla = new QToolButton();
     btnTabla->setIcon(QIcon(":/imgs/table.png"));
     btnTabla->setText("Tabla");
     btnTabla->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnTabla->setStyleSheet(".ribbonButton");
+    btnTabla->setStyleSheet(".ribbonButton { color: #000000; }");
 
     QToolButton *btnDisenoTabla = new QToolButton();
     btnDisenoTabla->setIcon(QIcon(":/imgs/table-design.png"));
     btnDisenoTabla->setText("Diseño");
     btnDisenoTabla->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnDisenoTabla->setStyleSheet(".ribbonButton");
+    btnDisenoTabla->setStyleSheet(".ribbonButton { color: #000000; }");
 
     tablasLayout->addWidget(tablasTitle);
     tablasLayout->addWidget(btnTabla);
@@ -435,23 +477,23 @@ void BaseDatosWindow::crearToolbars()
     // Sección Consultas
     QFrame *queriesFrame = new QFrame();
     queriesFrame->setFrameStyle(QFrame::Box);
-    queriesFrame->setStyleSheet(".ribbonSection { background: white; }");
+    queriesFrame->setStyleSheet(".ribbonSection { background: #ffffff; border: 1px solid #dddddd; }");
     QVBoxLayout *queriesLayout = new QVBoxLayout();
 
     QLabel *queriesTitle = new QLabel("Consultas");
-    queriesTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    queriesTitle->setStyleSheet("QLabel { font-weight: bold; color: #000000; }");
 
     QToolButton *btnConsulta = new QToolButton();
     btnConsulta->setIcon(QIcon(":/imgs/query.png"));
     btnConsulta->setText("Consulta");
     btnConsulta->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnConsulta->setStyleSheet(".ribbonButton");
+    btnConsulta->setStyleSheet(".ribbonButton { color: #000000; }");
 
     QToolButton *btnDisenoConsulta = new QToolButton();
     btnDisenoConsulta->setIcon(QIcon(":/imgs/query-design.png"));
     btnDisenoConsulta->setText("Diseño");
     btnDisenoConsulta->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnDisenoConsulta->setStyleSheet(".ribbonButton");
+    btnDisenoConsulta->setStyleSheet(".ribbonButton { color: #000000; }");
 
     queriesLayout->addWidget(queriesTitle);
     queriesLayout->addWidget(btnConsulta);
@@ -461,23 +503,23 @@ void BaseDatosWindow::crearToolbars()
     // Sección Formularios
     QFrame *formsFrame = new QFrame();
     formsFrame->setFrameStyle(QFrame::Box);
-    formsFrame->setStyleSheet(".ribbonSection { background: white; }");
+    formsFrame->setStyleSheet(".ribbonSection { background: #ffffff; border: 1px solid #dddddd; }");
     QVBoxLayout *formsLayout = new QVBoxLayout();
 
     QLabel *formsTitle = new QLabel("Formularios");
-    formsTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    formsTitle->setStyleSheet("QLabel { font-weight: bold; color: #000000; }");
 
     QToolButton *btnFormulario = new QToolButton();
     btnFormulario->setIcon(QIcon(":/imgs/form.png"));
     btnFormulario->setText("Formulario");
     btnFormulario->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnFormulario->setStyleSheet(".ribbonButton");
+    btnFormulario->setStyleSheet(".ribbonButton { color: #000000; }");
 
     QToolButton *btnDisenoFormulario = new QToolButton();
     btnDisenoFormulario->setIcon(QIcon(":/imgs/form-design.png"));
     btnDisenoFormulario->setText("Diseño");
     btnDisenoFormulario->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnDisenoFormulario->setStyleSheet(".ribbonButton");
+    btnDisenoFormulario->setStyleSheet(".ribbonButton { color: #000000; }");
 
     formsLayout->addWidget(formsTitle);
     formsLayout->addWidget(btnFormulario);
@@ -487,23 +529,23 @@ void BaseDatosWindow::crearToolbars()
     // Sección Reportes
     QFrame *reportsFrame = new QFrame();
     reportsFrame->setFrameStyle(QFrame::Box);
-    reportsFrame->setStyleSheet(".ribbonSection { background: white; }");
+    reportsFrame->setStyleSheet(".ribbonSection { background: #ffffff; border: 1px solid #dddddd; }");
     QVBoxLayout *reportsLayout = new QVBoxLayout();
 
     QLabel *reportsTitle = new QLabel("Reportes");
-    reportsTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    reportsTitle->setStyleSheet("QLabel { font-weight: bold; color: #000000; }");
 
     QToolButton *btnReporte = new QToolButton();
     btnReporte->setIcon(QIcon(":/imgs/report.png"));
     btnReporte->setText("Reporte");
     btnReporte->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnReporte->setStyleSheet(".ribbonButton");
+    btnReporte->setStyleSheet(".ribbonButton { color: #000000; }");
 
     QToolButton *btnDisenoReporte = new QToolButton();
     btnDisenoReporte->setIcon(QIcon(":/imgs/report-design.png"));
     btnDisenoReporte->setText("Diseño");
     btnDisenoReporte->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnDisenoReporte->setStyleSheet(".ribbonButton");
+    btnDisenoReporte->setStyleSheet(".ribbonButton { color: #000000; }");
 
     reportsLayout->addWidget(reportsTitle);
     reportsLayout->addWidget(btnReporte);
@@ -585,3 +627,4 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
     // Mostrar ribbon de Inicio al abrir una tabla
     mostrarRibbonInicio();
 }
+

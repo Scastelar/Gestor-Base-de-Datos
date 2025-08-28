@@ -3,6 +3,7 @@
 #include <QTableWidgetItem>
 #include <QPushButton>
 #include <QComboBox>
+#include <QVBoxLayout>
 
 TablaCentralWidget::TablaCentralWidget(QWidget *parent)
     : QWidget(parent)
@@ -33,16 +34,30 @@ TablaCentralWidget::TablaCentralWidget(QWidget *parent)
     layoutPrincipal->addWidget(tablaCampos);
     layoutPrincipal->addWidget(tablaPropiedades);
     layoutPrincipal->addWidget(btnAgregar);
-
 }
 
 void TablaCentralWidget::configurarTablaCampos() {
     tablaCampos->setStyleSheet(
-        "QTableWidget::item:selected { "
-        "background-color: #f0f0f0; "
-        "color: black; }"
+        "QTableWidget {"
+        "   background-color: #ffffff;"
+        "   color: #000000;"
+        "   gridline-color: #cccccc;"
+        "}"
+        "QTableWidget::item {"
+        "   color: #000000;"
+        "   background-color: #ffffff;"
+        "}"
+        "QTableWidget::item:selected {"
+        "   background-color: #2b579a;"
+        "   color: #ffffff;"
+        "}"
+        "QHeaderView::section {"
+        "   background-color: #f0f0f0;"
+        "   color: #000000;"
+        "   padding: 4px;"
+        "   border: 1px solid #cccccc;"
+        "}"
         );
-
 
     QStringList headers;
     headers << "PK" << "Nombre de Campo" << "Tipo de Dato";
@@ -66,12 +81,35 @@ void TablaCentralWidget::configurarTablaCampos() {
     // Columna Data Type (QComboBox en la celda)
     QComboBox *tipoCombo = new QComboBox();
     tipoCombo->addItems({"TEXTO", "NUMERO", "FECHA", "MONEDA"});
+    tipoCombo->setStyleSheet("QComboBox { color: #000000; background-color: #ffffff; }");
     tablaCampos->setCellWidget(0, 2, tipoCombo);
 
     tablaCampos->horizontalHeader()->setStretchLastSection(true);
 }
 
 void TablaCentralWidget::configurarTablaPropiedades() {
+    tablaPropiedades->setStyleSheet(
+        "QTableWidget {"
+        "   background-color: #ffffff;"
+        "   color: #000000;"
+        "   gridline-color: #cccccc;"
+        "}"
+        "QTableWidget::item {"
+        "   color: #000000;"
+        "   background-color: #ffffff;"
+        "}"
+        "QTableWidget::item:selected {"
+        "   background-color: #2b579a;"
+        "   color: #ffffff;"
+        "}"
+        "QHeaderView::section {"
+        "   background-color: #f0f0f0;"
+        "   color: #000000;"
+        "   padding: 4px;"
+        "   border: 1px solid #cccccc;"
+        "}"
+        );
+
     QStringList headers;
     headers << "Propiedad" << "Valor";
     tablaPropiedades->setHorizontalHeaderLabels(headers);
@@ -94,7 +132,6 @@ void TablaCentralWidget::agregarCampo() {
     pkItem->setIcon(QIcon(":/imgs/key.png")); // tu icono de llave
     tablaCampos->setItem(row, 0, pkItem);
 
-
     // Columna Field Name (editable QTableWidgetItem)
     QTableWidgetItem *nombreItem = new QTableWidgetItem();
     tablaCampos->setItem(row, 1, nombreItem);
@@ -102,5 +139,6 @@ void TablaCentralWidget::agregarCampo() {
     // Columna Data Type (QComboBox en la celda)
     QComboBox *tipoCombo = new QComboBox();
     tipoCombo->addItems({"TEXTO", "NUMERO", "FECHA", "MONEDA"});
+    tipoCombo->setStyleSheet("QComboBox { color: #000000; background-color: #ffffff; }");
     tablaCampos->setCellWidget(row, 2, tipoCombo);
 }
