@@ -21,6 +21,13 @@ private:
     void configurarTablaCampos();
     void configurarTablaPropiedades();
     void agregarCampo();
+
+    QString obtenerPropiedadesCampo(int row) const;
+    void manejarCambioPK(QTableWidgetItem *item);
+    void actualizarPropiedades();
+    int obtenerFilaPK() const;
+    void establecerPK();
+    QString obtenerNombrePK() const;
 };
 
 #endif // TABLACENTRALWIDGET_H

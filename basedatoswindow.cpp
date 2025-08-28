@@ -182,8 +182,6 @@ void BaseDatosWindow::crearMenus()
     menuArchivo->addAction(QIcon(":/imgs/save.png"), "Guardar");
     menuArchivo->addAction(QIcon(":/imgs/save-as.png"), "Guardar Como");
     menuArchivo->addSeparator();
-    menuArchivo->addAction(QIcon(":/imgs/print.png"), "Imprimir");
-    menuArchivo->addSeparator();
     menuArchivo->addAction(QIcon(":/imgs/exit.png"), "Salir");
 
     QMenu *menuAyuda = menuBar()->addMenu("Ayuda");
@@ -259,7 +257,7 @@ void BaseDatosWindow::crearToolbars()
     inicioLayout->setSpacing(10);
     inicioLayout->setContentsMargins(15, 5, 15, 5);
 
-    // Sección Vista
+    // Sección Vista - Cambiada a ComboBox
     QFrame *vistaFrame = new QFrame();
     vistaFrame->setFrameStyle(QFrame::Box);
     vistaFrame->setStyleSheet(".ribbonSection { background: white; }");
@@ -268,135 +266,104 @@ void BaseDatosWindow::crearToolbars()
     QLabel *vistaTitle = new QLabel("Vista");
     vistaTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
 
-    QToolButton *btnVistaDiseno = new QToolButton();
-    btnVistaDiseno->setIcon(QIcon(":/imgs/design-view.png"));
-    btnVistaDiseno->setText("Vista Diseño");
-    btnVistaDiseno->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnVistaDiseno->setStyleSheet(".ribbonButton");
-    connect(btnVistaDiseno, &QToolButton::clicked, this, [this]() {
-        vistaHojaDatos = false;
-        mostrarRibbonInicio();
-    });
-
-    QToolButton *btnVistaHoja = new QToolButton();
-    btnVistaHoja->setIcon(QIcon(":/imgs/datasheet-view.png"));
-    btnVistaHoja->setText("Vista Hoja");
-    btnVistaHoja->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnVistaHoja->setStyleSheet(".ribbonButton");
-    connect(btnVistaHoja, &QToolButton::clicked, this, [this]() {
-        vistaHojaDatos = true;
+    // ComboBox para cambiar entre vistas
+    QComboBox *comboVista = new QComboBox();
+    comboVista->addItem(QIcon(":/imgs/design-view.png"), "Vista Diseño");
+    comboVista->addItem(QIcon(":/imgs/datasheet-view.png"), "Vista Hoja de Datos");
+    comboVista->setStyleSheet("QComboBox { height: 50px; }");
+    connect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
+        vistaHojaDatos = (index == 1);
         mostrarRibbonInicio();
     });
 
     vistaLayout->addWidget(vistaTitle);
-    vistaLayout->addWidget(btnVistaDiseno);
-    vistaLayout->addWidget(btnVistaHoja);
+    vistaLayout->addWidget(comboVista);
     vistaFrame->setLayout(vistaLayout);
 
-    // Sección Portapapeles
-    QFrame *clipboardFrame = new QFrame();
-    clipboardFrame->setFrameStyle(QFrame::Box);
-    clipboardFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QVBoxLayout *clipboardLayout = new QVBoxLayout();
+    // Sección Llave Primaria
+    QFrame *primaryKeyFrame = new QFrame();
+    primaryKeyFrame->setFrameStyle(QFrame::Box);
+    primaryKeyFrame->setStyleSheet(".ribbonSection { background: white; }");
+    QVBoxLayout *primaryKeyLayout = new QVBoxLayout();
 
-    QLabel *clipboardTitle = new QLabel("Portapapeles");
-    clipboardTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    QLabel *primaryKeyTitle = new QLabel("Clave");
+    primaryKeyTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
 
-    QToolButton *btnPegar = new QToolButton();
-    btnPegar->setIcon(QIcon(":/imgs/paste.png"));
-    btnPegar->setText("Pegar");
-    btnPegar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnPegar->setStyleSheet(".ribbonButton");
+    QToolButton *btnLlavePrimaria = new QToolButton();
+    btnLlavePrimaria->setIcon(QIcon(":/imgs/primary-key.png")); // Asegúrate de tener este icono
+    btnLlavePrimaria->setText("Llave Primaria");
+    btnLlavePrimaria->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    btnLlavePrimaria->setStyleSheet(".ribbonButton");
 
-    QToolButton *btnCopiarFormato = new QToolButton();
-    btnCopiarFormato->setIcon(QIcon(":/imgs/format-painter.png"));
-    btnCopiarFormato->setText("Copiar Formato");
-    btnCopiarFormato->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnCopiarFormato->setStyleSheet(".ribbonButton");
+    primaryKeyLayout->addWidget(primaryKeyTitle);
+    primaryKeyLayout->addWidget(btnLlavePrimaria);
+    primaryKeyFrame->setLayout(primaryKeyLayout);
 
-    clipboardLayout->addWidget(clipboardTitle);
-    clipboardLayout->addWidget(btnPegar);
-    clipboardLayout->addWidget(btnCopiarFormato);
-    clipboardFrame->setLayout(clipboardLayout);
+    // Sección Filas - Con VLayout para Insertar y Eliminar
+    QFrame *filasFrame = new QFrame();
+    filasFrame->setFrameStyle(QFrame::Box);
+    filasFrame->setStyleSheet(".ribbonSection { background: white; }");
+    QVBoxLayout *filasLayout = new QVBoxLayout();
 
-    // Sección Ordenar y Filtrar
-    QFrame *sortFilterFrame = new QFrame();
-    sortFilterFrame->setFrameStyle(QFrame::Box);
-    sortFilterFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QVBoxLayout *sortFilterLayout = new QVBoxLayout();
+    QLabel *filasTitle = new QLabel("Filas");
+    filasTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
 
-    QLabel *sortFilterTitle = new QLabel("Ordenar y Filtrar");
-    sortFilterTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    // Widget contenedor para los botones con VLayout
+    QWidget *botonesFilasWidget = new QWidget();
+    QVBoxLayout *botonesFilasLayout = new QVBoxLayout();
+    botonesFilasLayout->setSpacing(5);
+    botonesFilasLayout->setContentsMargins(0, 0, 0, 0);
 
-    QToolButton *btnAscendente = new QToolButton();
-    btnAscendente->setIcon(QIcon(":/imgs/sort-asc.png"));
-    btnAscendente->setText("Ascendente");
-    btnAscendente->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnAscendente->setStyleSheet(".ribbonButton");
+    QToolButton *btnInsertarFila = new QToolButton();
+    btnInsertarFila->setIcon(QIcon(":/imgs/insert-row.png")); // Asegúrate de tener este icono
+    btnInsertarFila->setText("Insertar Fila");
+    btnInsertarFila->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    btnInsertarFila->setStyleSheet(".ribbonButton");
 
-    QToolButton *btnDescendente = new QToolButton();
-    btnDescendente->setIcon(QIcon(":/imgs/sort-desc.png"));
-    btnDescendente->setText("Descendente");
-    btnDescendente->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnDescendente->setStyleSheet(".ribbonButton");
+    QToolButton *btnEliminarFila = new QToolButton();
+    btnEliminarFila->setIcon(QIcon(":/imgs/delete-row.png")); // Asegúrate de tener este icono
+    btnEliminarFila->setText("Eliminar Fila");
+    btnEliminarFila->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    btnEliminarFila->setStyleSheet(".ribbonButton");
 
-    QToolButton *btnFiltro = new QToolButton();
-    btnFiltro->setIcon(QIcon(":/imgs/filter.png"));
-    btnFiltro->setText("Filtro");
-    btnFiltro->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnFiltro->setStyleSheet(".ribbonButton");
-    connect(btnFiltro, &QToolButton::clicked, this, &BaseDatosWindow::toggleFiltro);
+    botonesFilasLayout->addWidget(btnInsertarFila);
+    botonesFilasLayout->addWidget(btnEliminarFila);
+    botonesFilasWidget->setLayout(botonesFilasLayout);
 
-    sortFilterLayout->addWidget(sortFilterTitle);
-    sortFilterLayout->addWidget(btnAscendente);
-    sortFilterLayout->addWidget(btnDescendente);
-    sortFilterLayout->addWidget(btnFiltro);
-    sortFilterFrame->setLayout(sortFilterLayout);
+    filasLayout->addWidget(filasTitle);
+    filasLayout->addWidget(botonesFilasWidget);
+    filasFrame->setLayout(filasLayout);
 
-    // Sección Registros
-    QFrame *recordsFrame = new QFrame();
-    recordsFrame->setFrameStyle(QFrame::Box);
-    recordsFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QVBoxLayout *recordsLayout = new QVBoxLayout();
+    // Sección Relaciones
+    QFrame *relacionesFrame = new QFrame();
+    relacionesFrame->setFrameStyle(QFrame::Box);
+    relacionesFrame->setStyleSheet(".ribbonSection { background: white; }");
+    QVBoxLayout *relacionesLayout = new QVBoxLayout();
 
-    QLabel *recordsTitle = new QLabel("Registros");
-    recordsTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    QLabel *relacionesTitle = new QLabel("Relaciones");
+    relacionesTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
 
-    QToolButton *btnNuevo = new QToolButton();
-    btnNuevo->setIcon(QIcon(":/imgs/new-record.png"));
-    btnNuevo->setText("Nuevo");
-    btnNuevo->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnNuevo->setStyleSheet(".ribbonButton");
+    QToolButton *btnRelaciones = new QToolButton();
+    btnRelaciones->setIcon(QIcon(":/imgs/relationships.png")); // Asegúrate de tener este icono
+    btnRelaciones->setText("Relaciones");
+    btnRelaciones->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    btnRelaciones->setStyleSheet(".ribbonButton");
 
-    QToolButton *btnGuardar = new QToolButton();
-    btnGuardar->setIcon(QIcon(":/imgs/save-record.png"));
-    btnGuardar->setText("Guardar");
-    btnGuardar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnGuardar->setStyleSheet(".ribbonButton");
+    relacionesLayout->addWidget(relacionesTitle);
+    relacionesLayout->addWidget(btnRelaciones);
+    relacionesFrame->setLayout(relacionesLayout);
 
-    QToolButton *btnEliminar = new QToolButton();
-    btnEliminar->setIcon(QIcon(":/imgs/delete-record.png"));
-    btnEliminar->setText("Eliminar");
-    btnEliminar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnEliminar->setStyleSheet(".ribbonButton");
-
-    recordsLayout->addWidget(recordsTitle);
-    recordsLayout->addWidget(btnNuevo);
-    recordsLayout->addWidget(btnGuardar);
-    recordsLayout->addWidget(btnEliminar);
-    recordsFrame->setLayout(recordsLayout);
-
+    // Agregar las secciones en el orden especificado
     inicioLayout->addWidget(vistaFrame);
-    inicioLayout->addWidget(clipboardFrame);
-    inicioLayout->addWidget(sortFilterFrame);
-    inicioLayout->addWidget(recordsFrame);
+    inicioLayout->addWidget(primaryKeyFrame);
+    inicioLayout->addWidget(filasFrame);
+    inicioLayout->addWidget(relacionesFrame);
     inicioLayout->addStretch();
 
     inicioWidget->setLayout(inicioLayout);
     ribbonInicio->addWidget(inicioWidget);
 
-
-    // Ribbon Crear
+    // Ribbon Crear - Cambiar layouts a horizontal
     ribbonCrear = new QToolBar("Ribbon Crear", this);
     ribbonCrear->setMovable(false);
     ribbonCrear->setIconSize(QSize(16, 16));
@@ -406,11 +373,11 @@ void BaseDatosWindow::crearToolbars()
     crearLayout->setSpacing(10);
     crearLayout->setContentsMargins(15, 5, 15, 5);
 
-    // Sección Tablas
+    // Sección Tablas - Cambiada a horizontal
     QFrame *tablasFrame = new QFrame();
     tablasFrame->setFrameStyle(QFrame::Box);
     tablasFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QVBoxLayout *tablasLayout = new QVBoxLayout();
+    QHBoxLayout *tablasLayout = new QHBoxLayout(); // Cambiado a horizontal
 
     QLabel *tablasTitle = new QLabel("Tablas");
     tablasTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
@@ -432,11 +399,11 @@ void BaseDatosWindow::crearToolbars()
     tablasLayout->addWidget(btnDisenoTabla);
     tablasFrame->setLayout(tablasLayout);
 
-    // Sección Consultas
+    // Sección Consultas - Cambiada a horizontal
     QFrame *queriesFrame = new QFrame();
     queriesFrame->setFrameStyle(QFrame::Box);
     queriesFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QVBoxLayout *queriesLayout = new QVBoxLayout();
+    QHBoxLayout *queriesLayout = new QHBoxLayout(); // Cambiado a horizontal
 
     QLabel *queriesTitle = new QLabel("Consultas");
     queriesTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
@@ -458,11 +425,11 @@ void BaseDatosWindow::crearToolbars()
     queriesLayout->addWidget(btnDisenoConsulta);
     queriesFrame->setLayout(queriesLayout);
 
-    // Sección Formularios
+    // Sección Formularios - Cambiada a horizontal
     QFrame *formsFrame = new QFrame();
     formsFrame->setFrameStyle(QFrame::Box);
     formsFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QVBoxLayout *formsLayout = new QVBoxLayout();
+    QHBoxLayout *formsLayout = new QHBoxLayout(); // Cambiado a horizontal
 
     QLabel *formsTitle = new QLabel("Formularios");
     formsTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
@@ -484,11 +451,11 @@ void BaseDatosWindow::crearToolbars()
     formsLayout->addWidget(btnDisenoFormulario);
     formsFrame->setLayout(formsLayout);
 
-    // Sección Reportes
+    // Sección Reportes - Cambiada a horizontal
     QFrame *reportsFrame = new QFrame();
     reportsFrame->setFrameStyle(QFrame::Box);
     reportsFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QVBoxLayout *reportsLayout = new QVBoxLayout();
+    QHBoxLayout *reportsLayout = new QHBoxLayout(); // Cambiado a horizontal
 
     QLabel *reportsTitle = new QLabel("Reportes");
     reportsTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
