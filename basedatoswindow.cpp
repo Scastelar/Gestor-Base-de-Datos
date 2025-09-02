@@ -1,9 +1,9 @@
 #include "basedatoswindow.h"
 #include "datasheetwidget.h"
 #include "relacioneswidget.h"
-
+#include "metadata.h"
+#include <QInputDialog>
 #include <QDebug>
-
 #include <QScreen>
 #include <QGuiApplication>
 #include <QWidget>
@@ -24,6 +24,7 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QWidgetAction>
+#include <QDir>
 
 BaseDatosWindow::BaseDatosWindow(QWidget *parent)
     : QMainWindow(parent), vistaHojaDatos(false), filtroActivo(false)
@@ -39,8 +40,22 @@ BaseDatosWindow::BaseDatosWindow(QWidget *parent)
 
     // Barra lateral
     listaTablas = new QListWidget();
-    listaTablas->addItem(new QListWidgetItem(iconTabla, "Tabla 1"));
     listaTablas->setIconSize(QSize(20, 20));
+
+    // Cargar todas las tablas guardadas (.meta)
+    QDir dir(QDir::currentPath() + "/tables");
+    if (!dir.exists()) {
+        dir.mkpath("."); // crear si no existe
+    }
+
+    QStringList archivosMeta = dir.entryList(QStringList() << "*.meta", QDir::Files);
+
+    for (const QString &fileName : archivosMeta) {
+        Metadata meta = Metadata::cargar(dir.filePath(fileName));
+        if (!meta.nombreTabla.isEmpty()) {
+            listaTablas->addItem(new QListWidgetItem(iconTabla, meta.nombreTabla));
+        }
+    }
 
     connect(listaTablas, &QListWidget::itemClicked, this, &BaseDatosWindow::abrirTabla);
 
@@ -473,6 +488,7 @@ void BaseDatosWindow::crearToolbars()
     btnTabla->setText("Tabla");
     btnTabla->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     btnTabla->setStyleSheet(".ribbonButton");
+    connect(btnTabla, &QToolButton::clicked, this, &BaseDatosWindow::crearNuevaTabla);
 
     QToolButton *btnDisenoTabla = new QToolButton();
     btnDisenoTabla->setIcon(QIcon(":/imgs/table-design.png"));
@@ -654,7 +670,6 @@ void BaseDatosWindow::toggleFiltro()
     // Aquí puedes cambiar el icono del botón de filtro si lo deseas
 }
 
-//VISTA DISENO
 void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
 {
     // Limpiar vistas anteriores
@@ -669,6 +684,12 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
         tablaDataSheetActual = nullptr;
     }
 
+    // Guardar nombre de la tabla actual
+    tablaActualNombre = item->text();
+
+    // Cargar metadata
+    Metadata meta = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
+
     // Crear la vista según el modo actual
     if (vistaHojaDatos) {
         tablaDataSheetActual = new DataSheetWidget();
@@ -679,6 +700,7 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
                 tablaDataSheetActual, &DataSheetWidget::establecerPK);
     } else {
         tablaDesignActual = new TablaCentralWidget();
+        tablaDesignActual->cargarCampos(meta.campos);  // ← 🔹 aquí carga campos guardados
         zonaCentral->addWidget(tablaDesignActual);
         zonaCentral->setCurrentWidget(tablaDesignActual);
 
@@ -686,7 +708,6 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
                 tablaDesignActual, &TablaCentralWidget::establecerPK);
     }
 
-    // Mostrar ribbon de Inicio al abrir una tabla
     mostrarRibbonInicio();
 }
 
@@ -696,6 +717,12 @@ void BaseDatosWindow::cambiarVista()
 
     // Obtener la tabla actualmente visible
     QWidget *tablaActual = zonaCentral->currentWidget();
+
+    if (tablaDesignActual && !tablaActualNombre.isEmpty()) {
+        Metadata meta(tablaActualNombre);
+        meta.campos = tablaDesignActual->obtenerCampos();
+        meta.guardar();
+    }
 
     if (vistaHojaDatos) {
         // Cambiar a vista hoja de datos
@@ -787,4 +814,45 @@ void BaseDatosWindow::cerrarRelacionesYVolver()
     }
 
     qDebug() << "Ventana de relaciones cerrada, volviendo a vista anterior";
+}
+void BaseDatosWindow::crearNuevaTabla() {
+    // Pide un nombre
+    bool ok;
+    QString nombreTabla = QInputDialog::getText(this, "Nueva Tabla",
+                                                "Nombre de la tabla:",
+                                                QLineEdit::Normal,
+                                                "TablaNueva", &ok);
+    if (!ok || nombreTabla.isEmpty()) return;
+
+    // Crear metadata inicial con un campo ID
+    Metadata meta(nombreTabla);
+    Campo c;
+    c.nombre = "ID";
+    c.tipo = "INT";
+    meta.campos.append(c);
+
+    // Guardar archivo .meta
+    meta.guardar();
+
+    // Agregar tabla a la lista lateral
+    QIcon iconTabla(":/imgs/table.png");
+    listaTablas->addItem(new QListWidgetItem(iconTabla, nombreTabla));
+
+    // Mostrar en vista diseño por defecto
+    if (tablaDesignActual) {
+        zonaCentral->removeWidget(tablaDesignActual);
+        delete tablaDesignActual;
+    }
+    tablaDesignActual = new TablaCentralWidget();
+    zonaCentral->addWidget(tablaDesignActual);
+    zonaCentral->setCurrentWidget(tablaDesignActual);
+
+    mostrarRibbonInicio();
+}
+BaseDatosWindow::~BaseDatosWindow() {
+    if (tablaDesignActual && !tablaActualNombre.isEmpty()) {
+        Metadata meta(tablaActualNombre);
+        meta.campos = tablaDesignActual->obtenerCampos();
+        meta.guardar();
+    }
 }

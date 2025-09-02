@@ -5,6 +5,7 @@
 #include <QComboBox>
 #include <QSpinBox>
 #include <QMessageBox>
+#include "metadata.h"
 
 TablaCentralWidget::TablaCentralWidget(QWidget *parent)
     : QWidget(parent)
@@ -229,4 +230,46 @@ QString TablaCentralWidget::obtenerPropiedadesCampo(int row) const {
     return propiedades;
 }
 
+// 🔹 Exportar todos los campos como QVector<Campo>
+QVector<Campo> TablaCentralWidget::obtenerCampos() const {
+    QVector<Campo> campos;
+    for (int row = 0; row < tablaCampos->rowCount(); ++row) {
+        Campo c;
+        if (tablaCampos->item(row, 1)) {
+            c.nombre = tablaCampos->item(row, 1)->text();
+        }
+        QComboBox *combo = qobject_cast<QComboBox*>(tablaCampos->cellWidget(row, 2));
+        if (combo) {
+            c.tipo = combo->currentText();
+        }
+        campos.append(c);
+    }
+    return campos;
+}
 
+// 🔹 Cargar campos desde Metadata
+void TablaCentralWidget::cargarCampos(const QVector<Campo>& campos) {
+    tablaCampos->setRowCount(0); // limpiar
+
+    for (const Campo& c : campos) {
+        int row = tablaCampos->rowCount();
+        tablaCampos->insertRow(row);
+
+        // Columna PK (vacía por ahora)
+        QTableWidgetItem *pkItem = new QTableWidgetItem();
+        pkItem->setFlags(pkItem->flags() & ~Qt::ItemIsEditable);
+        pkItem->setTextAlignment(Qt::AlignCenter);
+        tablaCampos->setItem(row, 0, pkItem);
+
+        // Nombre del campo
+        QTableWidgetItem *nombreItem = new QTableWidgetItem(c.nombre);
+        tablaCampos->setItem(row, 1, nombreItem);
+
+        // Tipo de dato
+        QComboBox *tipoCombo = new QComboBox();
+        tipoCombo->addItems({"TEXTO", "NUMERO", "FECHA", "MONEDA"});
+        int index = tipoCombo->findText(c.tipo);
+        if (index != -1) tipoCombo->setCurrentIndex(index);
+        tablaCampos->setCellWidget(row, 2, tipoCombo);
+    }
+}

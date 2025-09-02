@@ -21,7 +21,7 @@ class BaseDatosWindow : public QMainWindow
 
 public:
     BaseDatosWindow(QWidget *parent = nullptr);
-
+    ~BaseDatosWindow();
 private slots:
     void abrirTabla(QListWidgetItem *item);
     void toggleFiltro();
@@ -29,8 +29,10 @@ private slots:
     void mostrarRibbonCrear();
     void abrirRelaciones();
     void cerrarRelacionesYVolver();
+    void crearNuevaTabla();
 
 private:
+
     void crearMenus();
     void crearToolbars();
     void actualizarToolbar(int pestana);
@@ -40,7 +42,7 @@ private:
     void limpiarToolbars();
     void cambiarVista();
     void transferirDatosVista(QWidget *origen, QWidget *destino);
-
+    QString tablaActualNombre;
     QListWidget *listaTablas;
     QStackedWidget *zonaCentral;
 
