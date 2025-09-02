@@ -22,6 +22,7 @@ class BaseDatosWindow : public QMainWindow
 
 public:
     BaseDatosWindow(QWidget *parent = nullptr);
+     ~BaseDatosWindow();
 
 private slots:
     void abrirTabla(QListWidgetItem *item);
@@ -31,6 +32,7 @@ private slots:
     void abrirRelaciones();
     void cerrarRelacionesYVolver();
     void cerrarTab(int index); // Nuevo slot para cerrar tabs
+    void crearNuevaTabla();
 
 private:
     void crearMenus();
@@ -43,6 +45,8 @@ private:
     void cambiarVista();
     void transferirDatosVista(QWidget *origen, QWidget *destino);
     int encontrarTablaEnTabs(const QString &nombreTabla); // Nuevo método
+
+    QString tablaActualNombre;
 
     QListWidget *listaTablas;
     QTabWidget *zonaCentral; // Cambiado de QStackedWidget a QTabWidget

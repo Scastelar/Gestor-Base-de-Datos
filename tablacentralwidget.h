@@ -1,4 +1,3 @@
-// TablaCentralWidget.h
 #ifndef TABLACENTRALWIDGET_H
 #define TABLACENTRALWIDGET_H
 
@@ -7,16 +6,32 @@
 #include <QVBoxLayout>
 #include <QHeaderView>
 #include <QIcon>
+#include <QComboBox>
+#include <QSpinBox>
+#include <QPushButton>
+#include "metadata.h"   // 🔹 Para usar struct Campo
 
 class TablaCentralWidget : public QWidget {
     Q_OBJECT
 
 public:
     explicit TablaCentralWidget(QWidget *parent = nullptr);
+
+    // 🔹 Manejo de la PK
     int obtenerFilaPK() const;
     void establecerPK();
     QString obtenerNombrePK() const;
+
+    // 🔹 Manejo de propiedades de campo
     void actualizarPropiedades();
+    QString obtenerPropiedadesCampo(int row) const;
+
+    // 🔹 Guardado / carga de metadata
+    QVector<Campo> obtenerCampos() const;
+    void cargarCampos(const QVector<Campo>& campos);
+
+private slots:
+    void agregarCampo();
 
 private:
     QTableWidget *tablaCampos;
@@ -24,9 +39,6 @@ private:
 
     void configurarTablaCampos();
     void configurarTablaPropiedades();
-    void agregarCampo();
-
-    QString obtenerPropiedadesCampo(int row) const;
     void manejarCambioPK(QTableWidgetItem *item);
 };
 

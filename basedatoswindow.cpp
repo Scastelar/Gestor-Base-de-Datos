@@ -1,9 +1,10 @@
 #include "basedatoswindow.h"
 #include "datasheetwidget.h"
 #include "relacioneswidget.h"
+#include "metadata.h"
 
 #include <QDebug>
-
+#include <QInputDialog>
 #include <QScreen>
 #include <QGuiApplication>
 #include <QWidget>
@@ -24,6 +25,8 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QWidgetAction>
+#include <QDir>
+
 
 BaseDatosWindow::BaseDatosWindow(QWidget *parent)
     : QMainWindow(parent), vistaHojaDatos(false), filtroActivo(false)
@@ -37,8 +40,22 @@ BaseDatosWindow::BaseDatosWindow(QWidget *parent)
 
     // Barra lateral
     listaTablas = new QListWidget();
-    listaTablas->addItem(new QListWidgetItem(iconTabla, "Tabla 1"));
     listaTablas->setIconSize(QSize(20, 20));
+
+    // Cargar todas las tablas guardadas (.meta)
+    QDir dir(QDir::currentPath() + "/tables");
+    if (!dir.exists()) {
+        dir.mkpath("."); // crear si no existe
+    }
+
+    QStringList archivosMeta = dir.entryList(QStringList() << "*.meta", QDir::Files);
+
+    for (const QString &fileName : archivosMeta) {
+        Metadata meta = Metadata::cargar(dir.filePath(fileName));
+        if (!meta.nombreTabla.isEmpty()) {
+            listaTablas->addItem(new QListWidgetItem(iconTabla, meta.nombreTabla));
+        }
+    }
 
     connect(listaTablas, &QListWidget::itemClicked, this, &BaseDatosWindow::abrirTabla);
 
@@ -492,6 +509,8 @@ void BaseDatosWindow::crearToolbars()
     btnTabla->setText("Tabla");
     btnTabla->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
     btnTabla->setStyleSheet(".ribbonButton");
+    connect(btnTabla, &QToolButton::clicked, this, &BaseDatosWindow::crearNuevaTabla);
+
 
     QToolButton *btnDisenoTabla = new QToolButton();
     btnDisenoTabla->setIcon(QIcon(":/imgs/form-design.png"));
@@ -691,10 +710,13 @@ int BaseDatosWindow::encontrarTablaEnTabs(const QString &nombreTabla)
 //VISTA DISENO
 void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
 {
-    QString nombreTabla = item->text();
+    tablaActualNombre = item->text();
+
+    // Cargar metadata
+    Metadata meta = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
 
     // Verificar si la tabla ya está abierta en algún tab
-    int tabIndex = encontrarTablaEnTabs(nombreTabla);
+    int tabIndex = encontrarTablaEnTabs(tablaActualNombre);
 
     if (tabIndex != -1) {
         // La tabla ya está abierta, simplemente cambiar a esa pestaña
@@ -723,12 +745,14 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
         tablaStacked->setCurrentWidget(tablaDataSheet);
     } else {
         tablaStacked->setCurrentWidget(tablaDesign);
+        tablaDesign->cargarCampos(meta.campos);
+
     }
 
     containerLayout->addWidget(tablaStacked);
 
     // Añadir el nuevo tab
-    int newTabIndex = zonaCentral->addTab(tablaContainer, nombreTabla);
+    int newTabIndex = zonaCentral->addTab(tablaContainer, tablaActualNombre);
     zonaCentral->setCurrentIndex(newTabIndex);
 
     // Almacenar referencias a las vistas en propiedades del widget contenedor
@@ -775,6 +799,12 @@ void BaseDatosWindow::cambiarVista()
         tablaStacked->setCurrentWidget(tablaDesign);
     }
 
+    if (tablaDesign && !tablaActualNombre.isEmpty()) {
+        Metadata meta(tablaActualNombre);
+        meta.campos = tablaDesign->obtenerCampos();
+        meta.guardar();
+    }
+
     // Reconectar la señal
     connect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
         vistaHojaDatos = (index == 1);
@@ -797,6 +827,8 @@ void BaseDatosWindow::cambiarVista()
     // Actualizar la interfaz
     mostrarRibbonInicio();
 }
+
+
 
 void BaseDatosWindow::transferirDatosVista(QWidget *origen, QWidget *destino)
 {
@@ -861,5 +893,85 @@ void BaseDatosWindow::cerrarTab(int index)
     // Si no hay más pestañas (solo queda la de inicio), asegurarse de que esté visible
     if (zonaCentral->count() == 1 && !zonaCentral->isTabEnabled(0)) {
         zonaCentral->setCurrentIndex(0);
+    }
+}
+
+void BaseDatosWindow::crearNuevaTabla() {
+    // Pide un nombre
+    bool ok;
+    QString nombreTabla = QInputDialog::getText(this, "Nueva Tabla",
+                                                "Nombre de la tabla:",
+                                                QLineEdit::Normal,
+                                                "TablaNueva", &ok);
+    if (!ok || nombreTabla.isEmpty()) return;
+
+    // Crear metadata inicial con un campo ID
+    Metadata meta(nombreTabla);
+    Campo c;
+    c.nombre = "ID";
+    c.tipo = "INT";
+    meta.campos.append(c);
+
+    // Guardar archivo .meta
+    meta.guardar();
+
+    // Agregar tabla a la lista lateral
+    QIcon iconTabla(":/imgs/table.png");
+    listaTablas->addItem(new QListWidgetItem(iconTabla, nombreTabla));
+
+    // Crear un widget contenedor para las vistas de la tabla
+    QWidget *tablaContainer = new QWidget();
+    QVBoxLayout *containerLayout = new QVBoxLayout(tablaContainer);
+    containerLayout->setContentsMargins(0, 0, 0, 0);
+
+    // Crear stacked widget para alternar entre vista diseño y hoja de datos
+    QStackedWidget *tablaStacked = new QStackedWidget();
+
+    // Crear ambas vistas
+    TablaCentralWidget *tablaDesign = new TablaCentralWidget();
+    DataSheetWidget *tablaDataSheet = new DataSheetWidget();
+
+    // Añadir ambas vistas al stacked widget
+    tablaStacked->addWidget(tablaDesign);
+    tablaStacked->addWidget(tablaDataSheet);
+
+    // Configurar la vista inicial según el modo actual (vista diseño por defecto)
+    tablaStacked->setCurrentWidget(tablaDesign);
+
+    containerLayout->addWidget(tablaStacked);
+
+    // Añadir el nuevo tab
+    int newTabIndex = zonaCentral->addTab(tablaContainer, nombreTabla);
+    zonaCentral->setCurrentIndex(newTabIndex);
+
+    // Almacenar referencias a las vistas en propiedades del widget contenedor
+    tablaContainer->setProperty("tablaDesign", QVariant::fromValue(tablaDesign));
+    tablaContainer->setProperty("tablaDataSheet", QVariant::fromValue(tablaDataSheet));
+    tablaContainer->setProperty("tablaStacked", QVariant::fromValue(tablaStacked));
+
+    // Conectar señales según la vista actual (vista diseño)
+    disconnect(btnLlavePrimaria, &QToolButton::clicked, 0, 0);
+    connect(btnLlavePrimaria, &QToolButton::clicked,
+            tablaDesign, &TablaCentralWidget::establecerPK);
+
+    // Mostrar ribbon de Inicio
+    mostrarRibbonInicio();
+}
+
+BaseDatosWindow::~BaseDatosWindow() {
+    // Guardar los datos de todas las tablas abiertas
+    for (int i = 0; i < zonaCentral->count(); ++i) {
+        QWidget *tabWidget = zonaCentral->widget(i);
+        if (tabWidget && tabWidget != zonaCentral->widget(0)) { // No es la pestaña de inicio
+            QString nombreTabla = zonaCentral->tabText(i);
+
+            // Obtener la vista diseño de la tabla
+            TablaCentralWidget *tablaDesign = tabWidget->property("tablaDesign").value<TablaCentralWidget*>();
+            if (tablaDesign) {
+                Metadata meta(nombreTabla);
+                meta.campos = tablaDesign->obtenerCampos();
+                meta.guardar();
+            }
+        }
     }
 }

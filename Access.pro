@@ -20,6 +20,7 @@ HEADERS += \
     basedatoswindow.h \
     datasheetwidget.h \
     mainwindow.h \
+    metadata.h \
     relacioneswidget.h \
     tablacentralwidget.h
 
