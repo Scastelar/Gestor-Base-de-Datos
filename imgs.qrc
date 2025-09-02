@@ -3,5 +3,17 @@
         <file>imgs/key.png</file>
         <file>imgs/table.png</file>
         <file>imgs/access.png</file>
+        <file>imgs/datasheet-view.png</file>
+        <file>imgs/design-view.png</file>
+        <file>imgs/filter.png</file>
+        <file>imgs/insert-row.png</file>
+        <file>imgs/relationships.png</file>
+        <file>imgs/delete-row.png</file>
+        <file>imgs/form.png</file>
+        <file>imgs/form-design.png</file>
+        <file>imgs/query.png</file>
+        <file>imgs/report.png</file>
+        <file>imgs/sort-asc.png</file>
+        <file>imgs/sort-desc.png</file>
     </qresource>
 </RCC>

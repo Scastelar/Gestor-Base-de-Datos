@@ -14,6 +14,7 @@
 #include <QComboBox>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QTabWidget> // Añadir include
 
 class BaseDatosWindow : public QMainWindow
 {
@@ -29,6 +30,7 @@ private slots:
     void mostrarRibbonCrear();
     void abrirRelaciones();
     void cerrarRelacionesYVolver();
+    void cerrarTab(int index); // Nuevo slot para cerrar tabs
 
 private:
     void crearMenus();
@@ -40,9 +42,10 @@ private:
     void limpiarToolbars();
     void cambiarVista();
     void transferirDatosVista(QWidget *origen, QWidget *destino);
+    int encontrarTablaEnTabs(const QString &nombreTabla); // Nuevo método
 
     QListWidget *listaTablas;
-    QStackedWidget *zonaCentral;
+    QTabWidget *zonaCentral; // Cambiado de QStackedWidget a QTabWidget
 
     QToolButton *btnLlavePrimaria;
 
@@ -70,7 +73,7 @@ private:
     QToolButton *btnEliminarFila;
     QToolButton *btnRelaciones;
 
-    QVBoxLayout *filasLayout;
+    QHBoxLayout *filasLayout;
     QWidget *botonesFilasWidget;
     QVBoxLayout *botonesFilasVLayout;
     QHBoxLayout *botonesFilasHLayout;
@@ -78,8 +81,6 @@ private:
     QList<QFrame*> seccionesVistaHojaDatos;
     QList<QFrame*> seccionesVistaDiseno;
 
-    TablaCentralWidget *tablaDesignActual = nullptr;
-    DataSheetWidget *tablaDataSheetActual = nullptr;
 };
 
 #endif // BASEDATOSWINDOW_H
