@@ -22,7 +22,7 @@ class BaseDatosWindow : public QMainWindow {
 
 public:
     explicit BaseDatosWindow(QWidget *parent = nullptr);
-    ~BaseDatosWindow();
+
 
 private slots:
 

@@ -6,6 +6,7 @@
 #include <QDir>
 #include <QSet>
 #include <QVariant>
+#include <QMap>
 #include <stdexcept>
 
 struct Campo {
@@ -75,6 +76,7 @@ class Metadata {
 public:
     QString nombreTabla;
     QVector<Campo> campos;
+    QVector<QMap<QString, QVariant>> registros; // 🔹 ahora también almacena registros
 
     Metadata(const QString &nombre = "") : nombreTabla(nombre) {}
 
@@ -86,15 +88,17 @@ public:
         return countPK == 1;
     }
 
-    void guardar() {
-        // Validar PK antes de guardar
+    void guardar() const {
+        // 🔹 Validar PK antes de guardar
         int countPK = 0;
-        for (Campo &c : campos) {
+        for (const Campo &c : campos) {
             if (c.esPK) countPK++;
         }
 
         if (countPK == 0 && !campos.isEmpty()) {
-            campos[0].esPK = true; // 🔹 asignar PK automática al primer campo
+            // 🚨 Ojo: no podemos modificar campos aquí porque el método es const
+            // Mejor lanzar excepción o asegurarnos antes de llamar a guardar()
+            throw std::runtime_error("Debe existir exactamente una clave primaria (PK)");
         }
         else if (countPK > 1) {
             throw std::runtime_error("Solo debe existir una clave primaria (PK)");
@@ -105,9 +109,10 @@ public:
             dir.mkpath(".");
         }
 
+        // 🔹 Guardar definición (.meta)
         QFile file(dir.filePath(nombreTabla + ".meta"));
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            throw std::runtime_error("No se pudo abrir el archivo para escritura");
+            throw std::runtime_error("No se pudo abrir el archivo de metadatos para escritura");
         }
 
         QTextStream out(&file);
@@ -125,13 +130,31 @@ public:
             out << "\n";
         }
         file.close();
+
+        // 🔹 Guardar registros (.data)
+        QFile dataFile(dir.filePath(nombreTabla + ".data"));
+        if (!dataFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            throw std::runtime_error("No se pudo abrir el archivo de datos para escritura");
+        }
+
+        QTextStream outData(&dataFile);
+        for (const auto &registro : registros) {
+            QStringList valores;
+            for (const Campo &c : campos) {
+                valores << registro.value(c.nombre).toString();
+            }
+            outData << valores.join("|") << "\n";
+        }
+        dataFile.close();
     }
 
     static Metadata cargar(const QString &filePath) {
         Metadata meta;
+
+        // 🔹 Leer archivo .meta
         QFile file(filePath);
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            throw std::runtime_error("No se pudo abrir el archivo para lectura");
+            throw std::runtime_error("No se pudo abrir el archivo de metadatos para lectura");
         }
 
         QTextStream in(&file);
@@ -161,64 +184,37 @@ public:
 
             meta.campos.append(c);
         }
-
         file.close();
+
+        // 🔹 Leer archivo .data
+        QDir dir(QDir::currentPath() + "/tables");
+        QFile dataFile(dir.filePath(meta.nombreTabla + ".data"));
+        if (dataFile.exists()) {
+            if (!dataFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                throw std::runtime_error("No se pudo abrir el archivo de datos para lectura");
+            }
+
+            QTextStream inData(&dataFile);
+            while (!inData.atEnd()) {
+                QString line = inData.readLine().trimmed();
+                if (line.isEmpty()) continue;
+
+                QStringList valores = line.split("|");
+                if (valores.size() != meta.campos.size()) continue;
+
+                QMap<QString, QVariant> registro;
+                for (int i = 0; i < meta.campos.size(); i++) {
+                    registro[meta.campos[i].nombre] = valores[i];
+                }
+                meta.registros.append(registro);
+            }
+            dataFile.close();
+        }
+
         return meta;
     }
 
-    static bool eliminarTabla(const QString &nombreTabla) {
-        QDir dir(QDir::currentPath() + "/tables");
-        if (!dir.exists()) return false;
-
-        QString metaFilePath = dir.filePath(nombreTabla + ".meta");
-        QString dataFilePath = dir.filePath(nombreTabla + ".data");
-        QString availFilePath = dir.filePath("avail.list");
-
-        if (!QFile::exists(metaFilePath)) return false;
-
-        QFile availFile(availFilePath);
-        if (availFile.open(QIODevice::Append | QIODevice::Text)) {
-            QTextStream out(&availFile);
-            out << nombreTabla << "\n";
-            availFile.close();
-        }
-
-        bool metaEliminado = QFile::remove(metaFilePath);
-        bool dataEliminado = QFile::remove(dataFilePath);
-
-        return metaEliminado && dataEliminado;
-    }
-
-    static QSet<QString> obtenerTablasDisponibles() {
-        QSet<QString> disponibles;
-        QDir dir(QDir::currentPath() + "/tables");
-
-        if (!dir.exists()) return disponibles;
-
-        QString availFilePath = dir.filePath("avail.list");
-        QFile availFile(availFilePath);
-
-        if (availFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            QTextStream in(&availFile);
-            while (!in.atEnd()) {
-                QString tabla = in.readLine().trimmed();
-                if (!tabla.isEmpty()) {
-                    disponibles.insert(tabla);
-                }
-            }
-            availFile.close();
-        }
-
-        return disponibles;
-    }
-
-    static void limpiarAvailList() {
-        QDir dir(QDir::currentPath() + "/tables");
-        if (!dir.exists()) return;
-        QString availFilePath = dir.filePath("avail.list");
-        QFile::remove(availFilePath);
-    }
-
+    // Métodos auxiliares para propiedades
     bool establecerPropiedadCampo(const QString& nombreCampo, const QVariant& propiedad) {
         for (Campo &c : campos) {
             if (c.nombre == nombreCampo) {
@@ -237,4 +233,5 @@ public:
         return QVariant();
     }
 };
+
 

@@ -28,7 +28,7 @@ public:
     QString obtenerNombrePK() const;
 
     // Método para obtener todos los registros
-    QList<QMap<QString, QVariant>> obtenerRegistros() const;
+    QList<QMap<QString, QVariant>> obtenerRegistros(const QVector<Campo> &campos) const;
 
     // Métodos auxiliares
     int obtenerUltimoID() const { return ultimoID; }

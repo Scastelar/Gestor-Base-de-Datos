@@ -3,6 +3,9 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QLineEdit>
+#include <QDoubleSpinBox>
+#include <QDateTimeEdit>
 
 DataSheetWidget::DataSheetWidget(QWidget *parent)
     : QWidget(parent), indiceActual(-1), ultimoID(0)
@@ -206,23 +209,50 @@ QString DataSheetWidget::obtenerNombrePK() const
     return "";
 }
 
-QList<QMap<QString, QVariant>> DataSheetWidget::obtenerRegistros() const
+QList<QMap<QString, QVariant>> DataSheetWidget::obtenerRegistros(const QVector<Campo> &campos) const
 {
     QList<QMap<QString, QVariant>> registros;
 
     for (int row = 0; row < tablaRegistros->rowCount(); ++row) {
         QMap<QString, QVariant> registro;
 
-        // Obtener ID
-        QTableWidgetItem *idItem = tablaRegistros->item(row, 1);
-        if (idItem) {
-            registro["ID"] = idItem->text().toInt();
-        }
+        for (int col = 0; col < campos.size(); ++col) {
+            const Campo &campo = campos[col];
+            QVariant valor;
 
-        // Obtener Campo1
-        QTableWidgetItem *campo1Item = tablaRegistros->item(row, 2);
-        if (campo1Item) {
-            registro["Campo1"] = campo1Item->text();
+            QWidget *editor = tablaRegistros->cellWidget(row, col + 2); // +2 por *, ID
+
+            if (campo.tipo == "TEXTO") {
+                QLineEdit *lineEdit = qobject_cast<QLineEdit*>(editor);
+                if (lineEdit) {
+                    QString texto = lineEdit->text();
+                    int maxLen = campo.obtenerPropiedad().toInt();
+                    if (texto.size() > maxLen) {
+                        texto = texto.left(maxLen);
+                    }
+                    valor = texto;
+                }
+            }
+            else if (campo.tipo == "NUMERO") {
+                QLineEdit *edit = qobject_cast<QLineEdit*>(editor);
+                if (edit) {
+                    valor = edit->text().toDouble();
+                }
+            }
+            else if (campo.tipo == "MONEDA") {
+                QDoubleSpinBox *doubleSpin = qobject_cast<QDoubleSpinBox*>(editor);
+                if (doubleSpin) {
+                    valor = doubleSpin->value();
+                }
+            }
+            else if (campo.tipo == "FECHA") {
+                QDateTimeEdit *dateEdit = qobject_cast<QDateTimeEdit*>(editor);
+                if (dateEdit) {
+                    valor = dateEdit->dateTime();
+                }
+            }
+
+            registro[campo.nombre] = valor;
         }
 
         registros.append(registro);
@@ -230,10 +260,13 @@ QList<QMap<QString, QVariant>> DataSheetWidget::obtenerRegistros() const
 
     return registros;
 }
-void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta) {
+
+
+void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta)
+{
     tablaRegistros->clear();
     tablaRegistros->setRowCount(0);
-    tablaRegistros->setColumnCount(meta.campos.size() + 2); // * y ID extra
+    tablaRegistros->setColumnCount(meta.campos.size() + 2);
 
     QStringList headers;
     headers << "*" << "ID";
@@ -245,9 +278,54 @@ void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta) {
     ultimoID = 0;
     indiceActual = -1;
 
-    // Crear fila inicial vacía
-    agregarRegistro();
+    // 🔹 Cargar registros desde Metadata
+    for (const auto &registro : meta.registros) {
+        int row = tablaRegistros->rowCount();
+        tablaRegistros->insertRow(row);
+
+        // Asterisco
+        QTableWidgetItem *asteriscoItem = new QTableWidgetItem();
+        asteriscoItem->setFlags(asteriscoItem->flags() & ~Qt::ItemIsEditable);
+        tablaRegistros->setItem(row, 0, asteriscoItem);
+
+        // ID
+        QTableWidgetItem *idItem = new QTableWidgetItem(QString::number(++ultimoID));
+        idItem->setFlags(idItem->flags() & ~Qt::ItemIsEditable);
+        tablaRegistros->setItem(row, 1, idItem);
+
+        // Campos
+        for (int i = 0; i < meta.campos.size(); i++) {
+            const Campo &campo = meta.campos[i];
+            QVariant valor = registro.value(campo.nombre);
+
+            if (campo.tipo == "TEXTO") {
+                QLineEdit *edit = new QLineEdit(valor.toString());
+                edit->setMaxLength(campo.obtenerPropiedad().toInt());
+                tablaRegistros->setCellWidget(row, i + 2, edit);
+            }
+            else if (campo.tipo == "NUMERO") {
+                QLineEdit *edit = new QLineEdit(QString::number(valor.toDouble()));
+                edit->setValidator(new QDoubleValidator(edit));
+                tablaRegistros->setCellWidget(row, i + 2, edit);
+            }
+            else if (campo.tipo == "MONEDA") {
+                QDoubleSpinBox *spin = new QDoubleSpinBox();
+                spin->setPrefix(campo.obtenerPropiedad().toString() + " ");
+                spin->setMaximum(1e9);
+                spin->setValue(valor.toDouble());
+                tablaRegistros->setCellWidget(row, i + 2, spin);
+            }
+            else if (campo.tipo == "FECHA") {
+                QDateTimeEdit *edit = new QDateTimeEdit();
+                edit->setDisplayFormat(campo.obtenerPropiedad().toString());
+                edit->setDateTime(valor.toDateTime());
+                tablaRegistros->setCellWidget(row, i + 2, edit);
+            }
+        }
+    }
 }
+
+
 
 
 

@@ -770,41 +770,47 @@ void BaseDatosWindow::cambiarVista()
 
     if (!tablaStacked) return;
 
-    // 🔹 Guardar metadata actual antes de cambiar vista
+    // 🔹 Crear metadata con lo que esté actualmente en memoria
     Metadata meta(tablaActualNombre);
+
     if (tablaDesign) {
         meta.campos = tablaDesign->obtenerCampos();
     }
+    if (tablaDataSheet) {
+        meta.registros = tablaDataSheet->obtenerRegistros(meta.campos);
+    }
+
     try {
-        meta.guardar();
+        meta.guardar();  // guarda estructura + datos en .meta y .data
     } catch (const std::runtime_error &e) {
         QMessageBox::warning(this, "Error al guardar", e.what());
         return;
     }
 
-    // Desconectar el combo temporalmente para evitar bucles
+    // 🔹 Desconectar combo temporalmente para evitar loops
     disconnect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), 0, 0);
 
     if (vistaHojaDatos) {
         comboVista->setCurrentIndex(1);
 
         if (tablaDataSheet) {
-            // 🔹 Recargar estructura desde metadata
-            tablaDataSheet->cargarDesdeMetadata(meta);
+            // Recargar desde disco (ya trae campos + registros)
+            Metadata recargada = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
+            tablaDataSheet->cargarDesdeMetadata(recargada);
             tablaStacked->setCurrentWidget(tablaDataSheet);
         }
     } else {
         comboVista->setCurrentIndex(0);
 
         if (tablaDesign) {
-            // 🔹 Recargar estructura desde metadata
-            tablaDesign->cargarCampos(meta.campos);
+            Metadata recargada = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
+            tablaDesign->cargarCampos(recargada.campos);
             tablaStacked->setCurrentWidget(tablaDesign);
             tablaDesign->actualizarPropiedades();
         }
     }
 
-    // Reconectar el combo
+    // 🔹 Reconectar combo
     connect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
         vistaHojaDatos = (index == 1);
         cambiarVista();
@@ -813,6 +819,7 @@ void BaseDatosWindow::cambiarVista()
     actualizarConexionesBotones();
     mostrarRibbonInicio();
 }
+
 
 
 void BaseDatosWindow::transferirDatosVista(QWidget *origen, QWidget *destino)
@@ -864,38 +871,38 @@ void BaseDatosWindow::cerrarRelacionesYVolver()
 
 void BaseDatosWindow::cerrarTab(int index)
 {
-    // No permitir cerrar la pestaña de inicio
     if (index == 0 && !zonaCentral->isTabEnabled(0)) {
         return;
     }
 
-    // Obtener el contenedor de la tabla que se quiere cerrar
     QWidget *tablaContainer = zonaCentral->widget(index);
     if (tablaContainer) {
-        // Recuperar referencias desde las propiedades
         TablaCentralWidget *tablaDesign = tablaContainer->property("tablaDesign").value<TablaCentralWidget*>();
+        DataSheetWidget *tablaDataSheet = tablaContainer->property("tablaDataSheet").value<DataSheetWidget*>();
+
+        Metadata meta(zonaCentral->tabText(index));
 
         if (tablaDesign) {
-            // Crear metadata con los campos actuales
-            Metadata meta(zonaCentral->tabText(index)); // nombre = título del tab
             meta.campos = tablaDesign->obtenerCampos();
+        }
+        if (tablaDataSheet) {
+            meta.registros = tablaDataSheet->obtenerRegistros(meta.campos);
+        }
 
-            try {
-                meta.guardar();
-            } catch (const std::runtime_error &e) {
-                QMessageBox::warning(this, "Error al guardar", e.what());
-            }
+        try {
+            meta.guardar();   // guarda estructura + registros en disco
+        } catch (const std::runtime_error &e) {
+            QMessageBox::warning(this, "Error al guardar", e.what());
         }
     }
 
-    // Remover la pestaña
     zonaCentral->removeTab(index);
 
-    // Si no hay más pestañas (solo queda la de inicio), asegurarse de que esté visible
     if (zonaCentral->count() == 1 && !zonaCentral->isTabEnabled(0)) {
         zonaCentral->setCurrentIndex(0);
     }
 }
+
 
 
 bool BaseDatosWindow::nombreTablaEsUnico(const QString &nombreTabla) {
@@ -981,10 +988,6 @@ void BaseDatosWindow::crearNuevaTabla() {
     mostrarRibbonInicio();
 }
 
-BaseDatosWindow::~BaseDatosWindow()
-{
-    guardarTablasAbiertas();
-}
 
 void BaseDatosWindow::guardarTablasAbiertas()
 {
