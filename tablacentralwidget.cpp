@@ -6,6 +6,7 @@
 #include <QSpinBox>
 #include <QMessageBox>
 
+//Comentario para que me deje push
 TablaCentralWidget::TablaCentralWidget(QWidget *parent)
     : QWidget(parent)
 {
@@ -39,6 +40,7 @@ TablaCentralWidget::TablaCentralWidget(QWidget *parent)
     layoutPrincipal->addWidget(tablaPropiedades);
     layoutPrincipal->addWidget(btnAgregar);
 }
+
 
 void TablaCentralWidget::configurarTablaCampos() {
     tablaCampos->setStyleSheet(
