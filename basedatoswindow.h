@@ -45,7 +45,6 @@ private slots:
     void insertarFilaActual();
     void eliminarFilaActual();
     void cambiarVista();
-    void transferirDatosVista(QWidget *origen, QWidget *destino);
 
     void abrirRelaciones();
     void cerrarRelacionesYVolver();

@@ -145,8 +145,8 @@ BaseDatosWindow::BaseDatosWindow(QWidget *parent)
     });
 
     // Conectar botones de insertar y eliminar fila
-    connect(btnInsertarFila, &QToolButton::clicked, this, &BaseDatosWindow::insertarFilaActual);
-    connect(btnEliminarFila, &QToolButton::clicked, this, &BaseDatosWindow::eliminarFilaActual);
+   // connect(btnInsertarFila, &QToolButton::clicked, this, &BaseDatosWindow::insertarFilaActual);
+   // connect(btnEliminarFila, &QToolButton::clicked, this, &BaseDatosWindow::eliminarFilaActual);
 }
 
 void BaseDatosWindow::aplicarEstilos()
@@ -676,7 +676,8 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
     tablaContainer->setProperty("tablaStacked", QVariant::fromValue(tablaStacked));
 
     // Conectar botón de PK a la vista activa
-    disconnect(btnLlavePrimaria, &QToolButton::clicked, 0, 0);
+    //disconnect(btnLlavePrimaria, &QToolButton::clicked, 0, 0);
+    actualizarConexionesBotones();
     if (comboVista->currentIndex() == 1) {
         connect(btnLlavePrimaria, &QToolButton::clicked,
                 tablaDataSheet, &DataSheetWidget::establecerPK);
@@ -713,8 +714,8 @@ void BaseDatosWindow::actualizarConexionesBotones()
 
     // Desconectar todas las conexiones previas
     disconnect(btnLlavePrimaria, &QToolButton::clicked, 0, 0);
-    //disconnect(btnInsertarFila, &QToolButton::clicked, 0, 0);
-    //disconnect(btnEliminarFila, &QToolButton::clicked, 0, 0);
+    disconnect(btnInsertarFila, &QToolButton::clicked, 0, 0);
+    disconnect(btnEliminarFila, &QToolButton::clicked, 0, 0);
 
     // Obtener las vistas de la tabla actual
     TablaCentralWidget *tablaDesign = tablaActual->property("tablaDesign").value<TablaCentralWidget*>();
