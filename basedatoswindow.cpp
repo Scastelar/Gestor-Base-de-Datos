@@ -963,7 +963,7 @@ void BaseDatosWindow::crearNuevaTabla() {
     tablaContainer->setProperty("tablaStacked", QVariant::fromValue(tablaStacked));
 
     // Conectar señales según la vista actual (vista diseño)
-    disconnect(btnLlavePrimaria, &QToolButton::clicked, 0, 0);
+    actualizarConexionesBotones();
     connect(btnLlavePrimaria, &QToolButton::clicked,
             tablaDesign, &TablaCentralWidget::establecerPK);
 

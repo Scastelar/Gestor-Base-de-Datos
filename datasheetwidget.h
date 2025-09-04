@@ -34,6 +34,12 @@ public:
     int obtenerUltimoID() const { return ultimoID; }
     int obtenerCantidadRegistros() const { return tablaRegistros->rowCount(); }
 
+    void configurarEditorFecha(QTableWidgetItem *item, const QString &formato);
+    QString formatearFecha(const QDateTime &fecha, const QString &formato) const;
+    void mostrarSelectorFecha(int row, int col, const QString &formato);
+    QString formatearFechaSegunFormato(const QDate &fecha, const QString &formato) const;
+    void onCellDoubleClicked(int row, int column);
+
 signals:
     void registroAgregado(int id, const QString &campo1);
     void registroModificado(int fila);
@@ -48,6 +54,7 @@ private:
 
     QTableWidget *tablaRegistros;
     int indiceActual;
+     QVector<Campo> camposMetadata;
     int ultimoID; // Contador para IDs automáticos
 };
 
