@@ -326,7 +326,7 @@ void BaseDatosWindow::crearRibbonInicio()
     inicioLayout->setContentsMargins(15, 5, 15, 5);
 
     // Sección Vista
-    QFrame *vistaFrame = crearSeccionRibbon("Holaa");
+    QFrame *vistaFrame = crearSeccionRibbon("Vista");
     QVBoxLayout *vistaLayout = new QVBoxLayout(vistaFrame);
 
     comboVista = new QComboBox();
@@ -409,13 +409,9 @@ void BaseDatosWindow::crearRibbonInicio()
 
     // Agregar secciones
     inicioLayout->addWidget(vistaFrame);
-    //inicioLayout->addLayout(vistaLayout);
     inicioLayout->addWidget(filtrosFrame);
-    //inicioLayout->addLayout(ordenLayout);
     inicioLayout->addWidget(ordenFrame);
-    //inicioLayout->addLayout(primaryKeyLayout);
     inicioLayout->addWidget(separador);
-    //inicioLayout->addLayout(vistaLayout);
     inicioLayout->addWidget(primaryKeyFrame);
     inicioLayout->addWidget(filasFrame);
     inicioLayout->addWidget(relacionesFrame);
@@ -717,20 +713,24 @@ void BaseDatosWindow::actualizarConexionesBotones()
 
     // Desconectar todas las conexiones previas
     disconnect(btnLlavePrimaria, &QToolButton::clicked, 0, 0);
-    disconnect(btnInsertarFila, &QToolButton::clicked, 0, 0);
-    disconnect(btnEliminarFila, &QToolButton::clicked, 0, 0);
+    //disconnect(btnInsertarFila, &QToolButton::clicked, 0, 0);
+    //disconnect(btnEliminarFila, &QToolButton::clicked, 0, 0);
 
     // Obtener las vistas de la tabla actual
     TablaCentralWidget *tablaDesign = tablaActual->property("tablaDesign").value<TablaCentralWidget*>();
     DataSheetWidget *tablaDataSheet = tablaActual->property("tablaDataSheet").value<DataSheetWidget*>();
 
     if (vistaHojaDatos && tablaDataSheet) {
+        connect(btnLlavePrimaria, &QToolButton::clicked, tablaDataSheet, &DataSheetWidget::establecerPK);
         connect(btnInsertarFila, &QToolButton::clicked, tablaDataSheet, &DataSheetWidget::agregarRegistro);
+        //connect(btnEliminarFila, &QToolButton::clicked, tablaDataSheet, &DataSheetWidget::eliminarRegistro);
     } else if (tablaDesign) {
         connect(btnLlavePrimaria, &QToolButton::clicked, tablaDesign, &TablaCentralWidget::establecerPK);
         connect(btnInsertarFila, &QToolButton::clicked, tablaDesign, &TablaCentralWidget::agregarCampo);
         connect(btnEliminarFila, &QToolButton::clicked, tablaDesign, &TablaCentralWidget::eliminarCampo);
     }
+
+
 }
 
 void BaseDatosWindow::insertarFilaActual()
@@ -752,13 +752,13 @@ void BaseDatosWindow::eliminarFilaActual()
 
     if (vistaHojaDatos) {
         DataSheetWidget *tablaDataSheet = tablaActual->property("tablaDataSheet").value<DataSheetWidget*>();
-        // Implementar eliminación en DataSheetWidget si es necesario
-        qWarning() << "Eliminar fila en hoja de datos no implementado aún";
+       // if (tablaDataSheet) tablaDataSheet->eliminarRegistro();
     } else {
         TablaCentralWidget *tablaDesign = tablaActual->property("tablaDesign").value<TablaCentralWidget*>();
         if (tablaDesign) tablaDesign->eliminarCampo();
     }
 }
+
 
 void BaseDatosWindow::cambiarVista()
 {
@@ -818,22 +818,6 @@ void BaseDatosWindow::cambiarVista()
 
     actualizarConexionesBotones();
     mostrarRibbonInicio();
-}
-
-
-
-void BaseDatosWindow::transferirDatosVista(QWidget *origen, QWidget *destino)
-{
-    // Implementación básica - adaptar según necesidades
-    if (TablaCentralWidget *origenDesign = qobject_cast<TablaCentralWidget*>(origen)) {
-        if (DataSheetWidget *destinoDataSheet = qobject_cast<DataSheetWidget*>(destino)) {
-            // Transferir datos de diseño a hoja de datos
-        }
-    } else if (DataSheetWidget *origenDataSheet = qobject_cast<DataSheetWidget*>(origen)) {
-        if (TablaCentralWidget *destinoDesign = qobject_cast<TablaCentralWidget*>(destino)) {
-            // Transferir datos de hoja de datos a diseño
-        }
-    }
 }
 
 void BaseDatosWindow::abrirRelaciones()
@@ -902,8 +886,6 @@ void BaseDatosWindow::cerrarTab(int index)
         zonaCentral->setCurrentIndex(0);
     }
 }
-
-
 
 bool BaseDatosWindow::nombreTablaEsUnico(const QString &nombreTabla) {
     QDir dir(QDir::currentPath() + "/tables");
@@ -987,7 +969,6 @@ void BaseDatosWindow::crearNuevaTabla() {
     // Mostrar ribbon de Inicio
     mostrarRibbonInicio();
 }
-
 
 void BaseDatosWindow::guardarTablasAbiertas()
 {

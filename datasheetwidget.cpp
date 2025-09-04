@@ -109,11 +109,13 @@ void DataSheetWidget::agregarRegistro()
     idItem->setText(QString::number(++ultimoID));
     tablaRegistros->setItem(row, 1, idItem);
 
-    // Columna Campo1
-    QTableWidgetItem *campo1Item = new QTableWidgetItem("Valor");
-    tablaRegistros->setItem(row, 2, campo1Item);
+    // Campos de datos - valores por defecto vacíos en lugar de "Valor"
+    for (int col = 2; col < tablaRegistros->columnCount(); col++) {
+        QTableWidgetItem *item = new QTableWidgetItem("");
+        tablaRegistros->setItem(row, col, item);
+    }
 
-    emit registroAgregado(ultimoID, "Valor");
+    emit registroAgregado(ultimoID, "");
 }
 
 void DataSheetWidget::actualizarAsteriscoIndice(int nuevaFila, int viejaFila)
@@ -216,43 +218,38 @@ QList<QMap<QString, QVariant>> DataSheetWidget::obtenerRegistros(const QVector<C
     for (int row = 0; row < tablaRegistros->rowCount(); ++row) {
         QMap<QString, QVariant> registro;
 
+        // Obtener el ID
+        QTableWidgetItem *idItem = tablaRegistros->item(row, 1);
+        if (idItem) {
+            registro["ID"] = idItem->text().toInt();
+        }
+
         for (int col = 0; col < campos.size(); ++col) {
             const Campo &campo = campos[col];
-            QVariant valor;
 
-            QWidget *editor = tablaRegistros->cellWidget(row, col + 2); // +2 por *, ID
+            // Saltar el campo ID ya que lo manejamos arriba
+            if (campo.nombre == "ID") continue;
 
-            if (campo.tipo == "TEXTO") {
-                QLineEdit *lineEdit = qobject_cast<QLineEdit*>(editor);
-                if (lineEdit) {
-                    QString texto = lineEdit->text();
-                    int maxLen = campo.obtenerPropiedad().toInt();
-                    if (texto.size() > maxLen) {
-                        texto = texto.left(maxLen);
-                    }
-                    valor = texto;
-                }
-            }
-            else if (campo.tipo == "NUMERO") {
-                QLineEdit *edit = qobject_cast<QLineEdit*>(editor);
-                if (edit) {
-                    valor = edit->text().toDouble();
-                }
-            }
-            else if (campo.tipo == "MONEDA") {
-                QDoubleSpinBox *doubleSpin = qobject_cast<QDoubleSpinBox*>(editor);
-                if (doubleSpin) {
-                    valor = doubleSpin->value();
-                }
-            }
-            else if (campo.tipo == "FECHA") {
-                QDateTimeEdit *dateEdit = qobject_cast<QDateTimeEdit*>(editor);
-                if (dateEdit) {
-                    valor = dateEdit->dateTime();
-                }
-            }
+            QTableWidgetItem *item = tablaRegistros->item(row, col + 2); // +2 por *, ID
 
-            registro[campo.nombre] = valor;
+            if (item) {
+                QVariant valor;
+
+                if (campo.tipo == "TEXTO") {
+                    valor = item->text();
+                }
+                else if (campo.tipo == "NUMERO" || campo.tipo == "MONEDA") {
+                    valor = item->text().toDouble();
+                }
+                else if (campo.tipo == "FECHA") {
+                    valor = QDateTime::fromString(item->text(), "yyyy-MM-dd HH:mm:ss");
+                }
+                else {
+                    valor = item->text();
+                }
+
+                registro[campo.nombre] = valor;
+            }
         }
 
         registros.append(registro);
@@ -264,9 +261,14 @@ QList<QMap<QString, QVariant>> DataSheetWidget::obtenerRegistros(const QVector<C
 
 void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta)
 {
-    tablaRegistros->clear();
+    // Desconectar temporalmente para evitar señales durante la carga
+    disconnect(tablaRegistros, &QTableWidget::cellChanged, this, &DataSheetWidget::onCellChanged);
+
+    // Limpiar la tabla pero mantener la estructura básica
     tablaRegistros->setRowCount(0);
-    tablaRegistros->setColumnCount(meta.campos.size() + 2);
+
+    // Configurar columnas según los campos de metadata
+    tablaRegistros->setColumnCount(meta.campos.size() + 2); // +2 para * e ID
 
     QStringList headers;
     headers << "*" << "ID";
@@ -274,6 +276,14 @@ void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta)
         headers << c.nombre;
     }
     tablaRegistros->setHorizontalHeaderLabels(headers);
+
+    // Configurar anchos de columnas
+    tablaRegistros->setColumnWidth(0, 30);  // Columna del asterisco
+    tablaRegistros->setColumnWidth(1, 80);  // Columna del ID
+
+    for (int i = 0; i < meta.campos.size(); i++) {
+        tablaRegistros->setColumnWidth(i + 2, 150); // Ancho para campos de datos
+    }
 
     ultimoID = 0;
     indiceActual = -1;
@@ -286,43 +296,60 @@ void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta)
         // Asterisco
         QTableWidgetItem *asteriscoItem = new QTableWidgetItem();
         asteriscoItem->setFlags(asteriscoItem->flags() & ~Qt::ItemIsEditable);
+        asteriscoItem->setTextAlignment(Qt::AlignCenter);
         tablaRegistros->setItem(row, 0, asteriscoItem);
 
-        // ID
-        QTableWidgetItem *idItem = new QTableWidgetItem(QString::number(++ultimoID));
+        // ID - usar el ID real del registro si existe, sino autoincremental
+        QVariant idValor = registro.value("ID");
+        int id = idValor.isValid() ? idValor.toInt() : ++ultimoID;
+
+        QTableWidgetItem *idItem = new QTableWidgetItem(QString::number(id));
         idItem->setFlags(idItem->flags() & ~Qt::ItemIsEditable);
+        idItem->setTextAlignment(Qt::AlignCenter);
         tablaRegistros->setItem(row, 1, idItem);
 
-        // Campos
+        if (id > ultimoID) {
+            ultimoID = id; // Mantener el último ID actualizado
+        }
+
+        // Campos de datos
         for (int i = 0; i < meta.campos.size(); i++) {
             const Campo &campo = meta.campos[i];
             QVariant valor = registro.value(campo.nombre);
 
+            // Si el campo es ID, ya lo manejamos arriba, saltar
+            if (campo.nombre == "ID") continue;
+
+            QTableWidgetItem *item = new QTableWidgetItem();
+
             if (campo.tipo == "TEXTO") {
-                QLineEdit *edit = new QLineEdit(valor.toString());
-                edit->setMaxLength(campo.obtenerPropiedad().toInt());
-                tablaRegistros->setCellWidget(row, i + 2, edit);
+                item->setText(valor.isValid() ? valor.toString() : "");
             }
-            else if (campo.tipo == "NUMERO") {
-                QLineEdit *edit = new QLineEdit(QString::number(valor.toDouble()));
-                edit->setValidator(new QDoubleValidator(edit));
-                tablaRegistros->setCellWidget(row, i + 2, edit);
-            }
-            else if (campo.tipo == "MONEDA") {
-                QDoubleSpinBox *spin = new QDoubleSpinBox();
-                spin->setPrefix(campo.obtenerPropiedad().toString() + " ");
-                spin->setMaximum(1e9);
-                spin->setValue(valor.toDouble());
-                tablaRegistros->setCellWidget(row, i + 2, spin);
+            else if (campo.tipo == "NUMERO" || campo.tipo == "MONEDA") {
+                item->setText(valor.isValid() ? QString::number(valor.toDouble()) : "0");
+                item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             }
             else if (campo.tipo == "FECHA") {
-                QDateTimeEdit *edit = new QDateTimeEdit();
-                edit->setDisplayFormat(campo.obtenerPropiedad().toString());
-                edit->setDateTime(valor.toDateTime());
-                tablaRegistros->setCellWidget(row, i + 2, edit);
+                item->setText(valor.isValid() ? valor.toDateTime().toString("yyyy-MM-dd HH:mm:ss") : "");
             }
+            else {
+                item->setText(valor.isValid() ? valor.toString() : "");
+            }
+
+            tablaRegistros->setItem(row, i + 2, item);
         }
     }
+
+    // Si no hay registros, agregar uno vacío
+    if (tablaRegistros->rowCount() == 0) {
+        agregarRegistro();
+    } else {
+        // Marcar la primera fila como actual
+        actualizarAsteriscoIndice(0, -1);
+    }
+
+    // Reconectar la señal
+    connect(tablaRegistros, &QTableWidget::cellChanged, this, &DataSheetWidget::onCellChanged);
 }
 
 
