@@ -141,7 +141,15 @@ public:
         for (const auto &registro : registros) {
             QStringList valores;
             for (const Campo &c : campos) {
-                valores << registro.value(c.nombre).toString();
+                QVariant valor = registro.value(c.nombre);
+
+                // Convertir a string según el tipo de campo
+                if (c.tipo == "FECHA" && valor.canConvert<QDateTime>()) {
+                    // Guardar fecha en formato ISO para consistencia
+                    valores << valor.toDateTime().toString(Qt::ISODate);
+                } else {
+                    valores << valor.toString();
+                }
             }
             outData << valores.join("|") << "\n";
         }
@@ -204,7 +212,28 @@ public:
 
                 QMap<QString, QVariant> registro;
                 for (int i = 0; i < meta.campos.size(); i++) {
-                    registro[meta.campos[i].nombre] = valores[i];
+                    const Campo &campo = meta.campos[i];
+                    QString valorStr = valores[i];
+
+                    // Convertir string al tipo de dato correcto
+                    if (campo.tipo == "NUMERO" || campo.tipo == "MONEDA") {
+                        bool ok;
+                        double valorNum = valorStr.toDouble(&ok);
+                        registro[campo.nombre] = ok ? valorNum : 0.0;
+                    }
+                    else if (campo.tipo == "FECHA") {
+                        // Intentar parsear como fecha ISO
+                        QDateTime fecha = QDateTime::fromString(valorStr, Qt::ISODate);
+                        if (fecha.isValid()) {
+                            registro[campo.nombre] = fecha;
+                        } else {
+                            // Fallback: usar fecha actual
+                            registro[campo.nombre] = QDateTime::currentDateTime();
+                        }
+                    }
+                    else {
+                        registro[campo.nombre] = valorStr;
+                    }
                 }
                 meta.registros.append(registro);
             }

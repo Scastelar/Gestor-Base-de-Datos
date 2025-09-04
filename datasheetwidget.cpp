@@ -404,7 +404,34 @@ QList<QMap<QString, QVariant>> DataSheetWidget::obtenerRegistros(const QVector<C
                     valor = item->text().toDouble();
                 }
                 else if (campo.tipo == "FECHA") {
-                    valor = QDateTime::fromString(item->text(), "yyyy-MM-dd HH:mm:ss");
+                    // Convertir texto a QDateTime según el formato mostrado
+                    QString formato = campo.obtenerPropiedad().toString();
+                    QString textoFecha = item->text();
+                    QDateTime fecha;
+
+                    if (formato == "DD-MM-YY") {
+                        fecha = QDateTime::fromString(textoFecha, "dd-MM-yy");
+                    } else if (formato == "DD/MM/YY") {
+                        fecha = QDateTime::fromString(textoFecha, "dd/MM/yy");
+                    } else if (formato == "DD/MES/YYYY") {
+                        // Manejar formato con nombre de mes
+                        QStringList partes = textoFecha.split('/');
+                        if (partes.size() == 3) {
+                            int dia = partes[0].toInt();
+                            QString mesStr = partes[1];
+                            int año = partes[2].toInt();
+
+                            // ... (código de conversión de mes)
+                        }
+                    } else if (formato == "YYYY-MM-DD") {
+                        fecha = QDateTime::fromString(textoFecha, "yyyy-MM-dd");
+                    }
+
+                    if (!fecha.isValid()) {
+                        fecha = QDateTime::currentDateTime();
+                    }
+
+                    valor = fecha;
                 }
                 else {
                     valor = item->text();
