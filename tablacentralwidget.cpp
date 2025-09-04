@@ -27,6 +27,11 @@ TablaCentralWidget::TablaCentralWidget(QWidget *parent)
     // Conectar señal de cambio de selección
     connect(tablaCampos, &QTableWidget::itemSelectionChanged, this, &TablaCentralWidget::actualizarPropiedades);
 
+    connect(tablaCampos, &QTableWidget::currentCellChanged,
+            this, &TablaCentralWidget::on_tablaCampos_currentCellChanged);
+    connect(tablaCampos, &QTableWidget::cellChanged,
+            this, &TablaCentralWidget::on_tablaCampos_cellChanged);
+
     tablaPropiedades = new QTableWidget(0, 2, this);
     configurarTablaPropiedades();
 
@@ -132,52 +137,6 @@ void TablaCentralWidget::eliminarCampo() {
     }
 }
 
-void TablaCentralWidget::actualizarPropiedades() {
-    tablaPropiedades->clearContents();
-    tablaPropiedades->setRowCount(0);
-
-    int currentRow = tablaCampos->currentRow();
-    if (currentRow == -1) return;
-
-    QComboBox *tipoCombo = qobject_cast<QComboBox*>(tablaCampos->cellWidget(currentRow, 2));
-    if (!tipoCombo) return;
-
-    QString tipoDato = tipoCombo->currentText();
-
-    if (tipoDato == "TEXTO") {
-        tablaPropiedades->setRowCount(1);
-        tablaPropiedades->setItem(0, 0, new QTableWidgetItem("Tamaño de campo"));
-
-        QSpinBox *spinBox = new QSpinBox();
-        spinBox->setRange(1, 255);
-        spinBox->setValue(50);
-        tablaPropiedades->setCellWidget(0, 1, spinBox);
-    }
-    else if (tipoDato == "NUMERO") {
-        tablaPropiedades->setRowCount(1);
-        tablaPropiedades->setItem(0, 0, new QTableWidgetItem("Tipo de número"));
-
-        QComboBox *numeroCombo = new QComboBox();
-        numeroCombo->addItems({"Entero", "Decimal", "Doble", "Byte"});
-        tablaPropiedades->setCellWidget(0, 1, numeroCombo);
-    }
-    else if (tipoDato == "MONEDA") {
-        tablaPropiedades->setRowCount(1);
-        tablaPropiedades->setItem(0, 0, new QTableWidgetItem("Formato"));
-
-        QComboBox *monedaCombo = new QComboBox();
-        monedaCombo->addItems({"Moneda Lps", "Dólar", "Euros", "Millares"});
-        tablaPropiedades->setCellWidget(0, 1, monedaCombo);
-    }
-    else if (tipoDato == "FECHA") {
-        tablaPropiedades->setRowCount(1);
-        tablaPropiedades->setItem(0, 0, new QTableWidgetItem("Formato"));
-
-        QComboBox *fechaCombo = new QComboBox();
-        fechaCombo->addItems({"DD-MM-YY", "DD/MM/YY", "DD/MES/YYYY", "YYYY-MM-DD"});
-        tablaPropiedades->setCellWidget(0, 1, fechaCombo);
-    }
-}
 
 // Método público para establecer PK desde otra clase
 void TablaCentralWidget::establecerPK() {
@@ -227,7 +186,7 @@ QString TablaCentralWidget::obtenerNombrePK() const {
     return "";
 }
 
-// 🔹 Exportar todos los campos como QVector<Campo>
+// 🔹 Exportar todos los campos como QVector<Campo> con propiedades
 QVector<Campo> TablaCentralWidget::obtenerCampos() const {
     QVector<Campo> campos;
     for (int row = 0; row < tablaCampos->rowCount(); ++row) {
@@ -250,16 +209,49 @@ QVector<Campo> TablaCentralWidget::obtenerCampos() const {
             c.esPK = (pkItem->text() == "🔑");
         }
 
+        // Obtener propiedad según el tipo
+        if (c.tipo == "TEXTO") {
+            // Buscar en tabla de propiedades
+            if (propiedadesPorFila.contains(row)) {
+                c.propiedad = propiedadesPorFila.value(row);
+            } else {
+                c.propiedad = 255; // Valor por defecto
+            }
+        }
+        else if (c.tipo == "NUMERO") {
+            if (propiedadesPorFila.contains(row)) {
+                c.propiedad = propiedadesPorFila.value(row);
+            } else {
+                c.propiedad = "entero"; // Valor por defecto
+            }
+        }
+        else if (c.tipo == "MONEDA") {
+            if (propiedadesPorFila.contains(row)) {
+                c.propiedad = propiedadesPorFila.value(row);
+            } else {
+                c.propiedad = "Moneda Lps"; // Valor por defecto
+            }
+        }
+        else if (c.tipo == "FECHA") {
+            if (propiedadesPorFila.contains(row)) {
+                c.propiedad = propiedadesPorFila.value(row);
+            } else {
+                c.propiedad = "DD-MM-YY"; // Valor por defecto
+            }
+        }
+
         campos.append(c);
     }
     return campos;
 }
 
-// 🔹 Cargar campos desde Metadata
+// 🔹 Cargar campos desde Metadata con propiedades
 void TablaCentralWidget::cargarCampos(const QVector<Campo>& campos) {
     tablaCampos->setRowCount(0); // limpiar
+    propiedadesPorFila.clear();
 
-    for (const Campo& c : campos) {
+    for (int i = 0; i < campos.size(); i++) {
+        const Campo& c = campos[i];
         int row = tablaCampos->rowCount();
         tablaCampos->insertRow(row);
 
@@ -285,12 +277,177 @@ void TablaCentralWidget::cargarCampos(const QVector<Campo>& campos) {
         connect(tipoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, &TablaCentralWidget::actualizarPropiedades);
         tablaCampos->setCellWidget(row, 2, tipoCombo);
+
+        // Guardar propiedad en el mapa
+        if (c.propiedad.isValid()) {
+            propiedadesPorFila[row] = c.propiedad;
+        } else {
+            // Establecer propiedad por defecto según el tipo
+            if (c.tipo == "TEXTO") {
+                propiedadesPorFila[row] = 255;
+            } else if (c.tipo == "NUMERO") {
+                propiedadesPorFila[row] = "entero";
+            } else if (c.tipo == "MONEDA") {
+                propiedadesPorFila[row] = "Moneda Lps";
+            } else if (c.tipo == "FECHA") {
+                propiedadesPorFila[row] = "DD-MM-YY";
+            }
+        }
     }
 
     // Forzar actualización de propiedades para la primera fila
     if (tablaCampos->rowCount() > 0) {
         tablaCampos->setCurrentCell(0, 1);
         actualizarPropiedades();
+    }
+}
+
+// 🔹 Actualizar propiedades cuando cambia el tipo de dato
+void TablaCentralWidget::actualizarPropiedades() {
+    tablaPropiedades->clearContents();
+    tablaPropiedades->setRowCount(0);
+
+    int currentRow = tablaCampos->currentRow();
+    if (currentRow == -1) return;
+
+    QComboBox *tipoCombo = qobject_cast<QComboBox*>(tablaCampos->cellWidget(currentRow, 2));
+    if (!tipoCombo) return;
+
+    QString tipoDato = tipoCombo->currentText();
+
+    if (tipoDato == "TEXTO") {
+        tablaPropiedades->setRowCount(1);
+        tablaPropiedades->setItem(0, 0, new QTableWidgetItem("Tamaño de campo"));
+
+        QSpinBox *spinBox = new QSpinBox();
+        spinBox->setRange(1, 255);
+
+        // Cargar valor guardado o usar valor por defecto
+        int valor = propiedadesPorFila.value(currentRow, 255).toInt();
+        spinBox->setValue(valor);
+
+        connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged),
+                [this, currentRow](int value) {
+                    propiedadesPorFila[currentRow] = value;
+                });
+
+        tablaPropiedades->setCellWidget(0, 1, spinBox);
+    }
+    else if (tipoDato == "NUMERO") {
+        tablaPropiedades->setRowCount(1);
+        tablaPropiedades->setItem(0, 0, new QTableWidgetItem("Tipo de número"));
+
+        QComboBox *numeroCombo = new QComboBox();
+        numeroCombo->addItems({"entero", "decimal", "doble", "byte"});
+
+        // Cargar valor guardado o usar valor por defecto
+        QString valor = propiedadesPorFila.value(currentRow, "entero").toString();
+        int index = numeroCombo->findText(valor);
+        if (index != -1) numeroCombo->setCurrentIndex(index);
+
+        connect(numeroCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                [this, currentRow, numeroCombo](int index) {
+                    propiedadesPorFila[currentRow] = numeroCombo->currentText();
+                });
+
+        tablaPropiedades->setCellWidget(0, 1, numeroCombo);
+    }
+    else if (tipoDato == "MONEDA") {
+        tablaPropiedades->setRowCount(1);
+        tablaPropiedades->setItem(0, 0, new QTableWidgetItem("Formato"));
+
+        QComboBox *monedaCombo = new QComboBox();
+        monedaCombo->addItems({"Moneda Lps", "Dólar", "Euros", "Millares"});
+
+        // Cargar valor guardado o usar valor por defecto
+        QString valor = propiedadesPorFila.value(currentRow, "Moneda Lps").toString();
+        int index = monedaCombo->findText(valor);
+        if (index != -1) monedaCombo->setCurrentIndex(index);
+
+        connect(monedaCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                [this, currentRow, monedaCombo](int index) {
+                    propiedadesPorFila[currentRow] = monedaCombo->currentText();
+                });
+
+        tablaPropiedades->setCellWidget(0, 1, monedaCombo);
+    }
+    else if (tipoDato == "FECHA") {
+        tablaPropiedades->setRowCount(1);
+        tablaPropiedades->setItem(0, 0, new QTableWidgetItem("Formato"));
+
+        QComboBox *fechaCombo = new QComboBox();
+        fechaCombo->addItems({"DD-MM-YY", "DD/MM/YY", "DD/MES/YYYY", "YYYY-MM-DD"});
+
+        // Cargar valor guardado o usar valor por defecto
+        QString valor = propiedadesPorFila.value(currentRow, "DD-MM-YY").toString();
+        int index = fechaCombo->findText(valor);
+        if (index != -1) fechaCombo->setCurrentIndex(index);
+
+        connect(fechaCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                [this, currentRow, fechaCombo](int index) {
+                    propiedadesPorFila[currentRow] = fechaCombo->currentText();
+                });
+
+        tablaPropiedades->setCellWidget(0, 1, fechaCombo);
+    }
+}
+
+// 🔹 Guardar propiedad actual cuando cambia de fila
+void TablaCentralWidget::on_tablaCampos_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn) {
+    Q_UNUSED(currentColumn);
+    Q_UNUSED(previousColumn);
+
+    // Guardar propiedad de la fila anterior
+    if (previousRow != -1) {
+        guardarPropiedadFila(previousRow);
+    }
+
+    // Actualizar propiedades para la nueva fila seleccionada
+    if (currentRow != -1) {
+        actualizarPropiedades();
+    }
+}
+
+// 🔹 Método auxiliar para guardar propiedad de una fila específica
+void TablaCentralWidget::guardarPropiedadFila(int row) {
+    if (tablaPropiedades->rowCount() == 0) return;
+
+    QComboBox *tipoCombo = qobject_cast<QComboBox*>(tablaCampos->cellWidget(row, 2));
+    if (!tipoCombo) return;
+
+    QString tipoDato = tipoCombo->currentText();
+
+    if (tipoDato == "TEXTO") {
+        QSpinBox *spinBox = qobject_cast<QSpinBox*>(tablaPropiedades->cellWidget(0, 1));
+        if (spinBox) {
+            propiedadesPorFila[row] = spinBox->value();
+        }
+    }
+    else if (tipoDato == "NUMERO") {
+        QComboBox *combo = qobject_cast<QComboBox*>(tablaPropiedades->cellWidget(0, 1));
+        if (combo) {
+            propiedadesPorFila[row] = combo->currentText();
+        }
+    }
+    else if (tipoDato == "MONEDA") {
+        QComboBox *combo = qobject_cast<QComboBox*>(tablaPropiedades->cellWidget(0, 1));
+        if (combo) {
+            propiedadesPorFila[row] = combo->currentText();
+        }
+    }
+    else if (tipoDato == "FECHA") {
+        QComboBox *combo = qobject_cast<QComboBox*>(tablaPropiedades->cellWidget(0, 1));
+        if (combo) {
+            propiedadesPorFila[row] = combo->currentText();
+        }
+    }
+}
+
+// 🔹 Limpiar propiedades cuando se elimina una fila
+void TablaCentralWidget::on_tablaCampos_cellChanged(int row, int column) {
+    // Si se elimina una fila, remover su propiedad
+    if (column == 0 && row >= tablaCampos->rowCount()) {
+        propiedadesPorFila.remove(row);
     }
 }
 

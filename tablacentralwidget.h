@@ -31,12 +31,17 @@ public:
     void cargarCampos(const QVector<Campo>& campos);
     void eliminarCampo();
     void agregarCampo();
+    void guardarPropiedadesActuales();
+    void on_tablaCampos_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn);
+    void on_tablaCampos_cellChanged(int row, int column);
+    void guardarPropiedadFila(int row);
 private slots:
 
 
 private:
     QTableWidget *tablaCampos;
     QTableWidget *tablaPropiedades;
+    QMap<int, QVariant> propiedadesPorFila;
 
     void configurarTablaCampos();
     void configurarTablaPropiedades();
