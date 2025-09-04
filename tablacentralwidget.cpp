@@ -229,7 +229,7 @@ QVector<Campo> TablaCentralWidget::obtenerCampos() const {
             if (propiedadesPorFila.contains(row)) {
                 c.propiedad = propiedadesPorFila.value(row);
             } else {
-                c.propiedad = "Moneda Lps"; // Valor por defecto
+                c.propiedad = "Lempira"; // Valor por defecto
             }
         }
         else if (c.tipo == "FECHA") {
@@ -288,7 +288,7 @@ void TablaCentralWidget::cargarCampos(const QVector<Campo>& campos) {
             } else if (c.tipo == "NUMERO") {
                 propiedadesPorFila[row] = "entero";
             } else if (c.tipo == "MONEDA") {
-                propiedadesPorFila[row] = "Moneda Lps";
+                propiedadesPorFila[row] = "Lempira";
             } else if (c.tipo == "FECHA") {
                 propiedadesPorFila[row] = "DD-MM-YY";
             }
@@ -357,10 +357,10 @@ void TablaCentralWidget::actualizarPropiedades() {
         tablaPropiedades->setItem(0, 0, new QTableWidgetItem("Formato"));
 
         QComboBox *monedaCombo = new QComboBox();
-        monedaCombo->addItems({"Moneda Lps", "Dólar", "Euros", "Millares"});
+        monedaCombo->addItems({"Lempira", "Dólar", "Euros", "Millares"});
 
         // Cargar valor guardado o usar valor por defecto
-        QString valor = propiedadesPorFila.value(currentRow, "Moneda Lps").toString();
+        QString valor = propiedadesPorFila.value(currentRow, "Lempira").toString();
         int index = monedaCombo->findText(valor);
         if (index != -1) monedaCombo->setCurrentIndex(index);
 

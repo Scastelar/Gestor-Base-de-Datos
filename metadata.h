@@ -23,7 +23,7 @@ struct Campo {
             return propiedad.isValid() ? propiedad : "entero";
         }
         else if (tipo == "MONEDA") {
-            return propiedad.isValid() ? propiedad : "Moneda Lps";
+            return propiedad.isValid() ? propiedad : "Lempira";
         }
         else if (tipo == "FECHA") {
             return propiedad.isValid() ? propiedad : "DD-MM-YY";
@@ -52,7 +52,7 @@ struct Campo {
         }
         else if (tipo == "MONEDA") {
             QString moneda = nuevaPropiedad.toString();
-            if (moneda == "Moneda Lps" || moneda == "Dólar" ||
+            if (moneda == "Lempira" || moneda == "Dólar" ||
                 moneda == "Euros" || moneda == "Millares") {
                 propiedad = moneda;
                 return true;

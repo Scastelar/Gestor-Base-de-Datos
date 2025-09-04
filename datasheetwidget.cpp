@@ -311,10 +311,21 @@ void DataSheetWidget::onCurrentCellChanged(int currentRow, int currentColumn, in
 
 void DataSheetWidget::onCellChanged(int row, int column)
 {
-    if (column == 2) { // Si cambió el valor de Campo1
-        QTableWidgetItem *item = tablaRegistros->item(row, 2);
+    if (column >= 2) { // Si cambió un campo de datos
+        QTableWidgetItem *item = tablaRegistros->item(row, column);
         if (item && item->text().isEmpty()) {
-            item->setText("Valor");
+            // Para campos MONEDA, establecer "0.00" en lugar de "Valor"
+            int campoIndex = column - 2;
+            if (campoIndex >= 0 && campoIndex < camposMetadata.size()) {
+                const Campo &campo = camposMetadata[campoIndex];
+                if (campo.tipo == "MONEDA") {
+                    item->setText("0.00");
+                } else {
+                    item->setText("Valor");
+                }
+            } else {
+                item->setText("Valor");
+            }
         }
         emit registroModificado(row);
     }
@@ -400,11 +411,27 @@ QList<QMap<QString, QVariant>> DataSheetWidget::obtenerRegistros(const QVector<C
                 if (campo.tipo == "TEXTO") {
                     valor = item->text();
                 }
-                else if (campo.tipo == "NUMERO" || campo.tipo == "MONEDA") {
+                else if (campo.tipo == "NUMERO") {
                     valor = item->text().toDouble();
                 }
+                else if (campo.tipo == "MONEDA") {
+                    // Para moneda, guardar solo el valor numérico (sin símbolo)
+                    QString texto = item->text();
+
+                    // Remover símbolos de moneda comunes para obtener el valor numérico
+                    texto.remove("Lps");
+                    texto.remove("$");
+                    texto.remove("€");
+                    texto.remove("₡");
+                    texto.remove(","); // Remover separadores de miles
+                    texto = texto.trimmed();
+
+                    bool ok;
+                    double valorNum = texto.toDouble(&ok);
+                    valor = ok ? valorNum : 0.0;
+                }
                 else if (campo.tipo == "FECHA") {
-                    // Convertir texto a QDateTime según el formato mostrado
+                    // ... (código existente para FECHA)
                     QString formato = campo.obtenerPropiedad().toString();
                     QString textoFecha = item->text();
                     QDateTime fecha;
@@ -421,7 +448,21 @@ QList<QMap<QString, QVariant>> DataSheetWidget::obtenerRegistros(const QVector<C
                             QString mesStr = partes[1];
                             int año = partes[2].toInt();
 
-                            // ... (código de conversión de mes)
+                            int mes = 1;
+                            if (mesStr == "Enero") mes = 1;
+                            else if (mesStr == "Febrero") mes = 2;
+                            else if (mesStr == "Marzo") mes = 3;
+                            else if (mesStr == "Abril") mes = 4;
+                            else if (mesStr == "Mayo") mes = 5;
+                            else if (mesStr == "Junio") mes = 6;
+                            else if (mesStr == "Julio") mes = 7;
+                            else if (mesStr == "Agosto") mes = 8;
+                            else if (mesStr == "Septiembre") mes = 9;
+                            else if (mesStr == "Octubre") mes = 10;
+                            else if (mesStr == "Noviembre") mes = 11;
+                            else if (mesStr == "Diciembre") mes = 12;
+
+                            fecha = QDateTime(QDate(año, mes, dia), QTime(0, 0));
                         }
                     } else if (formato == "YYYY-MM-DD") {
                         fecha = QDateTime::fromString(textoFecha, "yyyy-MM-dd");
@@ -516,8 +557,36 @@ void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta)
             if (campo.tipo == "TEXTO") {
                 item->setText(valor.isValid() ? valor.toString() : "");
             }
-            else if (campo.tipo == "NUMERO" || campo.tipo == "MONEDA") {
+            else if (campo.tipo == "NUMERO") {
                 item->setText(valor.isValid() ? QString::number(valor.toDouble()) : "0");
+                item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            }
+            else if (campo.tipo == "MONEDA") {
+                if (valor.isValid()) {
+                    double valorNum = valor.toDouble();
+                    QString simbolo = campo.obtenerPropiedad().toString();
+                    QString textoMoneda;
+
+                    if (simbolo == "Lempira") {
+                        textoMoneda = QString("Lps %1").arg(valorNum, 0, 'f', 2);
+                    }
+                    else if (simbolo == "Dólar") {
+                        textoMoneda = QString("$%1").arg(valorNum, 0, 'f', 2);
+                    }
+                    else if (simbolo == "Euros") {
+                        textoMoneda = QString("€%1").arg(valorNum, 0, 'f', 2);
+                    }
+                    else if (simbolo == "Millares") {
+                        textoMoneda = QString("₡%1").arg(valorNum, 0, 'f', 2);
+                    }
+                    else {
+                        textoMoneda = QString::number(valorNum, 'f', 2);
+                    }
+
+                    item->setText(textoMoneda);
+                } else {
+                    item->setText("0.00");
+                }
                 item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             }
             else if (campo.tipo == "FECHA") {
@@ -570,7 +639,18 @@ void DataSheetWidget::agregarRegistro()
 
     // Campos de datos - valores por defecto
     for (int col = 2; col < tablaRegistros->columnCount(); col++) {
+        int campoIndex = col - 2;
         QTableWidgetItem *item = new QTableWidgetItem("");
+
+        // Inicializar campos MONEDA con "0.00"
+        if (campoIndex >= 0 && campoIndex < camposMetadata.size()) {
+            const Campo &campo = camposMetadata[campoIndex];
+            if (campo.tipo == "MONEDA") {
+                item->setText("0.00");
+                item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
+            }
+        }
+
         tablaRegistros->setItem(row, col, item);
     }
 
@@ -583,24 +663,79 @@ void DataSheetWidget::onCellDoubleClicked(int row, int column)
 
     // Verificar si tenemos metadata de campos
     if (camposMetadata.isEmpty()) {
-        // Si no hay metadata, usar edición normal
         return;
     }
 
-    // Calcular el índice del campo en la metadata (restar 2 por columnas * e ID)
     int campoIndex = column - 2;
     if (campoIndex < 0 || campoIndex >= camposMetadata.size()) {
         return;
     }
 
     const Campo &campo = camposMetadata[campoIndex];
+    QTableWidgetItem *item = tablaRegistros->item(row, column);
 
-    // Manejar diferentes tipos de campo
     if (campo.tipo == "FECHA") {
         QString formato = campo.obtenerPropiedad().toString();
         mostrarSelectorFecha(row, column, formato);
     }
-    // Puedes agregar más tipos aquí si es necesario
+    else if (campo.tipo == "MONEDA") {
+        // Para moneda, editar solo el valor numérico (sin símbolo)
+        if (item) {
+            QString texto = item->text();
+
+            // Remover símbolos de moneda para edición
+            texto.remove("Lps");
+            texto.remove("$");
+            texto.remove("€");
+            texto.remove("₡");
+            texto.remove(",");
+            texto = texto.trimmed();
+
+            // Crear editor para el valor numérico
+            QLineEdit *editor = new QLineEdit(texto);
+            editor->setValidator(new QDoubleValidator(0, 999999999, 2, editor));
+            editor->selectAll();
+
+            connect(editor, &QLineEdit::editingFinished, this, [this, row, column, &campo, editor]() {
+                QString nuevoTexto = editor->text();
+                bool ok;
+                double valor = nuevoTexto.toDouble(&ok);
+
+                if (ok) {
+                    QString simbolo = campo.obtenerPropiedad().toString();
+                    QString textoMoneda;
+
+                    if (simbolo == "Lempira") {
+                        textoMoneda = QString("Lps %1").arg(valor, 0, 'f', 2);
+                    }
+                    else if (simbolo == "Dólar") {
+                        textoMoneda = QString("$%1").arg(valor, 0, 'f', 2);
+                    }
+                    else if (simbolo == "Euros") {
+                        textoMoneda = QString("€%1").arg(valor, 0, 'f', 2);
+                    }
+                    else if (simbolo == "Millares") {
+                        textoMoneda = QString("₡%1").arg(valor, 0, 'f', 2);
+                    }
+                    else {
+                        textoMoneda = QString::number(valor, 'f', 2);
+                    }
+
+                    QTableWidgetItem *item = tablaRegistros->item(row, column);
+                    if (item) {
+                        item->setText(textoMoneda);
+                        emit registroModificado(row);
+                    }
+                }
+
+                tablaRegistros->setCellWidget(row, column, nullptr);
+                editor->deleteLater();
+            });
+
+            tablaRegistros->setCellWidget(row, column, editor);
+            editor->setFocus();
+        }
+    }
 }
 
 
