@@ -5,6 +5,7 @@
 #include <QTableWidget>
 #include <QMap>
 #include <QVariant>
+#include "metadata.h"
 
 class QTableWidget;
 class QTableWidgetItem;
@@ -17,6 +18,9 @@ class DataSheetWidget : public QWidget
 public:
     explicit DataSheetWidget(QWidget *parent = nullptr);
 
+    // 🔹 Nueva función: crear columnas según metadata
+    void cargarDesdeMetadata(const Metadata &meta);
+
     // Métodos para manipular registros
     void agregarRegistro();
     void establecerPK();
@@ -26,11 +30,9 @@ public:
     // Método para obtener todos los registros
     QList<QMap<QString, QVariant>> obtenerRegistros() const;
 
-    // Métodos para obtener datos específicos
+    // Métodos auxiliares
     int obtenerUltimoID() const { return ultimoID; }
     int obtenerCantidadRegistros() const { return tablaRegistros->rowCount(); }
-
-    void actualizarPropiedades();
 
 signals:
     void registroAgregado(int id, const QString &campo1);

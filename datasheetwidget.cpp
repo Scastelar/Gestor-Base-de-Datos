@@ -230,5 +230,24 @@ QList<QMap<QString, QVariant>> DataSheetWidget::obtenerRegistros() const
 
     return registros;
 }
+void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta) {
+    tablaRegistros->clear();
+    tablaRegistros->setRowCount(0);
+    tablaRegistros->setColumnCount(meta.campos.size() + 2); // * y ID extra
+
+    QStringList headers;
+    headers << "*" << "ID";
+    for (const Campo &c : meta.campos) {
+        headers << c.nombre;
+    }
+    tablaRegistros->setHorizontalHeaderLabels(headers);
+
+    ultimoID = 0;
+    indiceActual = -1;
+
+    // Crear fila inicial vacía
+    agregarRegistro();
+}
+
 
 

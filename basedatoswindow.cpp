@@ -2,7 +2,7 @@
 #include "datasheetwidget.h"
 #include "relacioneswidget.h"
 #include "metadata.h"
-
+#include "tablacentralwidget.h"
 #include <QDebug>
 #include <QInputDialog>
 #include <QScreen>
@@ -636,7 +636,6 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
 
     // Verificar si la tabla ya está abierta
     int tabIndex = encontrarTablaEnTabs(tablaActualNombre);
-
     if (tabIndex != -1) {
         zonaCentral->setCurrentIndex(tabIndex);
         return;
@@ -654,16 +653,19 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
     TablaCentralWidget *tablaDesign = new TablaCentralWidget();
     DataSheetWidget *tablaDataSheet = new DataSheetWidget();
 
+    // Cargar estructura en ambas vistas
+    tablaDesign->cargarCampos(meta.campos);
+    tablaDataSheet->cargarDesdeMetadata(meta);
+
     // Añadir ambas vistas al stacked widget
     tablaStacked->addWidget(tablaDesign);
     tablaStacked->addWidget(tablaDataSheet);
 
-    // Configurar la vista inicial
+    // Configurar la vista inicial según comboVista
     if (comboVista->currentIndex() == 1) {
         tablaStacked->setCurrentWidget(tablaDataSheet);
     } else {
         tablaStacked->setCurrentWidget(tablaDesign);
-        tablaDesign->cargarCampos(meta.campos);
     }
 
     containerLayout->addWidget(tablaStacked);
@@ -672,12 +674,12 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
     int newTabIndex = zonaCentral->addTab(tablaContainer, tablaActualNombre);
     zonaCentral->setCurrentIndex(newTabIndex);
 
-    // Almacenar referencias
+    // Guardar referencias dentro del tab
     tablaContainer->setProperty("tablaDesign", QVariant::fromValue(tablaDesign));
     tablaContainer->setProperty("tablaDataSheet", QVariant::fromValue(tablaDataSheet));
     tablaContainer->setProperty("tablaStacked", QVariant::fromValue(tablaStacked));
 
-    // Conectar señales según la vista actual
+    // Conectar botón de PK a la vista activa
     disconnect(btnLlavePrimaria, &QToolButton::clicked, 0, 0);
     if (comboVista->currentIndex() == 1) {
         connect(btnLlavePrimaria, &QToolButton::clicked,
@@ -768,19 +770,41 @@ void BaseDatosWindow::cambiarVista()
 
     if (!tablaStacked) return;
 
+    // 🔹 Guardar metadata actual antes de cambiar vista
+    Metadata meta(tablaActualNombre);
+    if (tablaDesign) {
+        meta.campos = tablaDesign->obtenerCampos();
+    }
+    try {
+        meta.guardar();
+    } catch (const std::runtime_error &e) {
+        QMessageBox::warning(this, "Error al guardar", e.what());
+        return;
+    }
+
+    // Desconectar el combo temporalmente para evitar bucles
     disconnect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), 0, 0);
 
     if (vistaHojaDatos) {
         comboVista->setCurrentIndex(1);
-        if (tablaDataSheet) tablaStacked->setCurrentWidget(tablaDataSheet);
+
+        if (tablaDataSheet) {
+            // 🔹 Recargar estructura desde metadata
+            tablaDataSheet->cargarDesdeMetadata(meta);
+            tablaStacked->setCurrentWidget(tablaDataSheet);
+        }
     } else {
         comboVista->setCurrentIndex(0);
+
         if (tablaDesign) {
+            // 🔹 Recargar estructura desde metadata
+            tablaDesign->cargarCampos(meta.campos);
             tablaStacked->setCurrentWidget(tablaDesign);
             tablaDesign->actualizarPropiedades();
         }
     }
 
+    // Reconectar el combo
     connect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
         vistaHojaDatos = (index == 1);
         cambiarVista();
@@ -789,6 +813,7 @@ void BaseDatosWindow::cambiarVista()
     actualizarConexionesBotones();
     mostrarRibbonInicio();
 }
+
 
 void BaseDatosWindow::transferirDatosVista(QWidget *origen, QWidget *destino)
 {
@@ -844,6 +869,26 @@ void BaseDatosWindow::cerrarTab(int index)
         return;
     }
 
+    // Obtener el contenedor de la tabla que se quiere cerrar
+    QWidget *tablaContainer = zonaCentral->widget(index);
+    if (tablaContainer) {
+        // Recuperar referencias desde las propiedades
+        TablaCentralWidget *tablaDesign = tablaContainer->property("tablaDesign").value<TablaCentralWidget*>();
+
+        if (tablaDesign) {
+            // Crear metadata con los campos actuales
+            Metadata meta(zonaCentral->tabText(index)); // nombre = título del tab
+            meta.campos = tablaDesign->obtenerCampos();
+
+            try {
+                meta.guardar();
+            } catch (const std::runtime_error &e) {
+                QMessageBox::warning(this, "Error al guardar", e.what());
+            }
+        }
+    }
+
+    // Remover la pestaña
     zonaCentral->removeTab(index);
 
     // Si no hay más pestañas (solo queda la de inicio), asegurarse de que esté visible
@@ -851,6 +896,7 @@ void BaseDatosWindow::cerrarTab(int index)
         zonaCentral->setCurrentIndex(0);
     }
 }
+
 
 bool BaseDatosWindow::nombreTablaEsUnico(const QString &nombreTabla) {
     QDir dir(QDir::currentPath() + "/tables");
