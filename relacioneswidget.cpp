@@ -285,3 +285,4 @@ void RelacionesWidget::closeEvent(QCloseEvent *event)
     event->accept(); // Aceptar el evento de cierre
 
 }
+

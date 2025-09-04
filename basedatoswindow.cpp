@@ -26,14 +26,26 @@
 #include <QHBoxLayout>
 #include <QWidgetAction>
 #include <QDir>
-
+#include <QMessageBox>
 
 BaseDatosWindow::BaseDatosWindow(QWidget *parent)
-    : QMainWindow(parent), vistaHojaDatos(false), filtroActivo(false)
+    : QMainWindow(parent), vistaHojaDatos(false), filtroActivo(false), tablaActual(nullptr),
+    listaTablas(nullptr), zonaCentral(nullptr), ribbonInicio(nullptr), ribbonCrear(nullptr),
+    btnLlavePrimaria(nullptr), btnFiltrar(nullptr), btnAscendente(nullptr), btnDescendente(nullptr),
+    btnInsertarFila(nullptr), btnEliminarFila(nullptr), btnRelaciones(nullptr), comboVista(nullptr),
+    filasLayout(nullptr), botonesFilasWidget(nullptr), botonesFilasVLayout(nullptr), botonesFilasHLayout(nullptr)
 {
     QIcon iconTabla(":/imgs/table.png");
     QIcon icon(":/imgs/access.png");
     this->setWindowIcon(icon);
+
+    // Inicializar layouts para botones de filas
+    botonesFilasVLayout = new QVBoxLayout();
+    botonesFilasHLayout = new QHBoxLayout();
+    botonesFilasVLayout->setSpacing(5);
+    botonesFilasVLayout->setContentsMargins(0, 0, 0, 0);
+    botonesFilasHLayout->setSpacing(5);
+    botonesFilasHLayout->setContentsMargins(0, 0, 0, 0);
 
     crearMenus();
     crearToolbars();
@@ -80,28 +92,27 @@ BaseDatosWindow::BaseDatosWindow(QWidget *parent)
     layoutIzq->setSpacing(0);
     layoutIzq->setContentsMargins(0, 0, 0, 0);
 
-    // Zona central - QTabWidget en lugar de QStackedWidget
+    // Zona central - QTabWidget
     zonaCentral = new QTabWidget();
-    zonaCentral->setTabsClosable(true); // Permitir cerrar tabs
-    zonaCentral->setMovable(true); // Permitir mover tabs
+    zonaCentral->setTabsClosable(true);
+    zonaCentral->setMovable(true);
 
-    // Conectar señal de cierre de tab
+    // Conectar señales
     connect(zonaCentral, &QTabWidget::tabCloseRequested, this, &BaseDatosWindow::cerrarTab);
+    connect(zonaCentral, &QTabWidget::currentChanged, this, &BaseDatosWindow::cambiarTablaActual);
 
     // Widget de bienvenida inicial
     QLabel *welcomeLabel = new QLabel("<center><h2>Bienvenido a Base de Datos</h2>"
                                       "<p>Selecciona una tabla de la izquierda para comenzar</p></center>");
     welcomeLabel->setAlignment(Qt::AlignCenter);
 
-    // Crear un widget contenedor para el mensaje de bienvenida
     QWidget *welcomeWidget = new QWidget();
     QVBoxLayout *welcomeLayout = new QVBoxLayout(welcomeWidget);
     welcomeLayout->addWidget(welcomeLabel);
     welcomeWidget->setLayout(welcomeLayout);
 
-    // Añadir el widget de bienvenida como primera pestaña
     zonaCentral->addTab(welcomeWidget, "Inicio");
-    zonaCentral->setTabEnabled(0, false); // Deshabilitar la pestaña de inicio
+    zonaCentral->setTabEnabled(0, false);
 
     QWidget *contenedorIzq = new QWidget;
     contenedorIzq->setLayout(layoutIzq);
@@ -121,6 +132,25 @@ BaseDatosWindow::BaseDatosWindow(QWidget *parent)
     setMinimumSize(1000, 700);
 
     // Estilos para la aplicación
+    aplicarEstilos();
+
+    // Mostrar ribbon inicial (Inicio)
+    mostrarRibbonInicio();
+    addToolBar(Qt::TopToolBarArea, ribbonInicio);
+    ribbonCrear->setVisible(false);
+
+    connect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
+        vistaHojaDatos = (index == 1);
+        cambiarVista();
+    });
+
+    // Conectar botones de insertar y eliminar fila
+    connect(btnInsertarFila, &QToolButton::clicked, this, &BaseDatosWindow::insertarFilaActual);
+    connect(btnEliminarFila, &QToolButton::clicked, this, &BaseDatosWindow::eliminarFilaActual);
+}
+
+void BaseDatosWindow::aplicarEstilos()
+{
     QString styleSheet = R"(
         QMainWindow {
             background-color: #ffffff;
@@ -201,23 +231,12 @@ BaseDatosWindow::BaseDatosWindow(QWidget *parent)
     )";
 
     menuBar()->setStyleSheet(styleSheet);
-    ribbonInicio->setStyleSheet(styleSheet);
-    ribbonCrear->setStyleSheet(styleSheet);
-
-    // Mostrar ribbon inicial (Inicio)
-    mostrarRibbonInicio();
-    addToolBar(Qt::TopToolBarArea, ribbonInicio);
-    ribbonCrear->setVisible(false);
-
-    connect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
-        vistaHojaDatos = (index == 1);
-        cambiarVista(); // Llamar al método que cambia la vista
-    });
+    if (ribbonInicio) ribbonInicio->setStyleSheet(styleSheet);
+    if (ribbonCrear) ribbonCrear->setStyleSheet(styleSheet);
 }
 
 void BaseDatosWindow::crearMenus()
 {
-    // Crear menús en el orden correcto: Archivo primero, Ayuda último
     QMenu *menuArchivo = menuBar()->addMenu("Archivo");
     menuArchivo->addAction(QIcon(":/imgs/new.png"), "Nueva Base de Datos");
     menuArchivo->addAction(QIcon(":/imgs/open.png"), "Abrir");
@@ -226,7 +245,15 @@ void BaseDatosWindow::crearMenus()
     menuArchivo->addSeparator();
     menuArchivo->addAction(QIcon(":/imgs/exit.png"), "Salir");
 
-    // Crear un widget personalizado para los botones del ribbon
+    crearRibbonTabs();
+
+    QMenu *menuAyuda = menuBar()->addMenu("Ayuda");
+    menuAyuda->addAction(QIcon(":/imgs/help.png"), "Ayuda");
+    menuAyuda->addAction(QIcon(":/imgs/about.png"), "Acerca de");
+}
+
+void BaseDatosWindow::crearRibbonTabs()
+{
     QWidget *ribbonTabWidget = new QWidget();
     QHBoxLayout *ribbonTabLayout = new QHBoxLayout(ribbonTabWidget);
     ribbonTabLayout->setSpacing(0);
@@ -274,23 +301,21 @@ void BaseDatosWindow::crearMenus()
         );
     connect(btnCrear, &QToolButton::clicked, this, &BaseDatosWindow::mostrarRibbonCrear);
 
-    // Agregar botones al layout
     ribbonTabLayout->addWidget(btnInicio);
     ribbonTabLayout->addWidget(btnCrear);
     ribbonTabLayout->addStretch();
 
-    // Agregar el widget de pestañas al menú como un widget de esquina
     menuBar()->setCornerWidget(ribbonTabWidget, Qt::TopLeftCorner);
-
-    // Crear menú Ayuda al final
-    QMenu *menuAyuda = menuBar()->addMenu("Ayuda");
-    menuAyuda->addAction(QIcon(":/imgs/help.png"), "Ayuda");
-    menuAyuda->addAction(QIcon(":/imgs/about.png"), "Acerca de");
 }
 
 void BaseDatosWindow::crearToolbars()
 {
-    // Ribbon Inicio
+    crearRibbonInicio();
+    crearRibbonCrear();
+}
+
+void BaseDatosWindow::crearRibbonInicio()
+{
     ribbonInicio = new QToolBar("Ribbon Inicio", this);
     ribbonInicio->setMovable(false);
     ribbonInicio->setIconSize(QSize(16, 16));
@@ -300,140 +325,69 @@ void BaseDatosWindow::crearToolbars()
     inicioLayout->setSpacing(10);
     inicioLayout->setContentsMargins(15, 5, 15, 5);
 
-    // Sección Vista - Cambiada a ComboBox
-    QFrame *vistaFrame = new QFrame();
-    vistaFrame->setFrameStyle(QFrame::Box);
-    vistaFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QVBoxLayout *vistaLayout = new QVBoxLayout();
+    // Sección Vista
+    QFrame *vistaFrame = crearSeccionRibbon("Holaa");
+    QVBoxLayout *vistaLayout = new QVBoxLayout(vistaFrame);
 
-    QLabel *vistaTitle = new QLabel("Vista");
-    vistaTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
-
-    // ComboBox para cambiar entre vistas
-    comboVista = new QComboBox(); // Hacerlo miembro de la clase para poder acceder desde otros métodos
+    comboVista = new QComboBox();
     comboVista->addItem(QIcon(":/imgs/design-view.png"), "Vista Diseño");
     comboVista->addItem(QIcon(":/imgs/datasheet-view.png"), "Vista Hoja de Datos");
     comboVista->setStyleSheet("QComboBox { height: 50px; }");
-    connect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
-        vistaHojaDatos = (index == 1);
-        mostrarRibbonInicio(); // Actualizar la interfaz cuando cambia la vista
-    });
 
-    vistaLayout->addWidget(vistaTitle);
     vistaLayout->addWidget(comboVista);
     vistaFrame->setLayout(vistaLayout);
 
-    // Sección Filtros (solo visible en Vista Hoja de Datos)
-    QFrame *filtrosFrame = new QFrame();
-    filtrosFrame->setFrameStyle(QFrame::Box);
-    filtrosFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QVBoxLayout *filtrosLayout = new QVBoxLayout();
+    // Sección Filtros
+    QFrame *filtrosFrame = crearSeccionRibbon("Filtros");
+    QVBoxLayout *filtrosLayout = new QVBoxLayout(filtrosFrame);
 
-    QLabel *filtrosTitle = new QLabel("Filtros");
-    filtrosTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
-
-    btnFiltrar = new QToolButton();
-    btnFiltrar->setIcon(QIcon(":/imgs/filter.png"));
-    btnFiltrar->setText("Filtrar");
-    btnFiltrar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnFiltrar->setStyleSheet(".ribbonButton");
-
-    filtrosLayout->addWidget(filtrosTitle);
+    btnFiltrar = crearBotonRibbon(":/imgs/filter.png", "Filtrar");
     filtrosLayout->addWidget(btnFiltrar);
-    filtrosFrame->setLayout(filtrosLayout);
-    filtrosFrame->setVisible(false); // Oculto por defecto
+    filtrosFrame->setVisible(false);
 
-    // Sección Orden (solo visible en Vista Hoja de Datos)
-    QFrame *ordenFrame = new QFrame();
-    ordenFrame->setFrameStyle(QFrame::Box);
-    ordenFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QHBoxLayout *ordenLayout = new QHBoxLayout();
+    // Sección Orden
+    QFrame *ordenFrame = crearSeccionRibbon("Orden");
+    QHBoxLayout *ordenLayout = new QHBoxLayout(ordenFrame);
 
-    QLabel *ordenTitle = new QLabel("Orden");
-    ordenTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    btnAscendente = crearBotonRibbon(":/imgs/sort-asc.png", "Ascendente");
+    btnDescendente = crearBotonRibbon(":/imgs/sort-desc.png", "Descendente");
 
-    // Widget contenedor para los botones de orden con VLayout
-    QWidget *botonesOrdenWidget = new QWidget();
-    QHBoxLayout *botonesOrdenLayout = new QHBoxLayout();
-    botonesOrdenLayout->setSpacing(5);
-    botonesOrdenLayout->setContentsMargins(0, 0, 0, 0);
+    ordenLayout->addWidget(btnAscendente);
+    ordenLayout->addWidget(btnDescendente);
+    ordenFrame->setVisible(false);
 
-    btnAscendente = new QToolButton();
-    btnAscendente->setIcon(QIcon(":/imgs/sort-asc.png"));
-    btnAscendente->setText("Ascendente");
-    btnAscendente->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnAscendente->setStyleSheet(".ribbonButton");
-
-    btnDescendente = new QToolButton();
-    btnDescendente->setIcon(QIcon(":/imgs/sort-desc.png"));
-    btnDescendente->setText("Descendente");
-    btnDescendente->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnDescendente->setStyleSheet(".ribbonButton");
-
-    botonesOrdenLayout->addWidget(btnAscendente);
-    botonesOrdenLayout->addWidget(btnDescendente);
-    botonesOrdenWidget->setLayout(botonesOrdenLayout);
-
-    ordenLayout->addWidget(ordenTitle);
-    ordenLayout->addWidget(botonesOrdenWidget);
-    ordenFrame->setLayout(ordenLayout);
-    ordenFrame->setVisible(false); // Oculto por defecto
-
-    // Separador (solo visible en Vista Hoja de Datos)
+    // Separador
     QFrame *separador = new QFrame();
     separador->setFrameShape(QFrame::VLine);
     separador->setFrameShadow(QFrame::Sunken);
     separador->setStyleSheet("background-color: #d0d0d0;");
-    separador->setVisible(false); // Oculto por defecto
+    separador->setVisible(false);
 
-    // Sección Llave Primaria (solo visible en Vista Diseño)
-    QFrame *primaryKeyFrame = new QFrame();
-    primaryKeyFrame->setFrameStyle(QFrame::Box);
-    primaryKeyFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QVBoxLayout *primaryKeyLayout = new QVBoxLayout();
+    // Sección Llave Primaria
+    QFrame *primaryKeyFrame = crearSeccionRibbon("Clave");
+    QVBoxLayout *primaryKeyLayout = new QVBoxLayout(primaryKeyFrame);
 
-    QLabel *primaryKeyTitle = new QLabel("Clave");
-    primaryKeyTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
-
-    btnLlavePrimaria = new QToolButton();
-    btnLlavePrimaria->setIcon(QIcon(":/imgs/key.png"));
-    btnLlavePrimaria->setText("Llave Primaria");
-    btnLlavePrimaria->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnLlavePrimaria->setStyleSheet(".ribbonButton");
-
-    primaryKeyLayout->addWidget(primaryKeyTitle);
+    btnLlavePrimaria = crearBotonRibbon(":/imgs/key.png", "Llave Primaria");
     primaryKeyLayout->addWidget(btnLlavePrimaria);
-    primaryKeyFrame->setLayout(primaryKeyLayout);
 
-    // Sección Filas (visible en ambas vistas pero con layout diferente)
-    QFrame *filasFrame = new QFrame();
-    filasFrame->setFrameStyle(QFrame::Box);
-    filasFrame->setStyleSheet(".ribbonSection { background: white; }");
-    filasLayout = new QHBoxLayout(); // Hacerlo miembro para poder cambiar entre V y H
+    // Sección Filas - CORREGIDA
+    QFrame *filasFrame = crearSeccionRibbon("Filas");
+    QVBoxLayout *filasMainLayout = new QVBoxLayout(filasFrame);
 
-    QLabel *filasTitle = new QLabel("Filas");
-    filasTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    // Crear los botones
+    btnInsertarFila = crearBotonRibbon(":/imgs/insert-row.png", "Insertar Fila");
+    btnEliminarFila = crearBotonRibbon(":/imgs/delete-row.png", "Eliminar Fila");
 
-    // Widget contenedor para los botones con layout dinámico
+    // Crear widget contenedor y layouts
     botonesFilasWidget = new QWidget();
-    botonesFilasVLayout = new QVBoxLayout(); // Layout vertical
-    botonesFilasHLayout = new QHBoxLayout(); // Layout horizontal
+    botonesFilasVLayout = new QVBoxLayout(botonesFilasWidget);
+    botonesFilasHLayout = new QHBoxLayout();
+
+    // Configurar layouts
     botonesFilasVLayout->setSpacing(5);
     botonesFilasVLayout->setContentsMargins(0, 0, 0, 0);
     botonesFilasHLayout->setSpacing(5);
     botonesFilasHLayout->setContentsMargins(0, 0, 0, 0);
-
-    btnInsertarFila = new QToolButton();
-    btnInsertarFila->setIcon(QIcon(":/imgs/insert-row.png"));
-    btnInsertarFila->setText("Insertar Fila");
-    btnInsertarFila->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnInsertarFila->setStyleSheet(".ribbonButton");
-
-    btnEliminarFila = new QToolButton();
-    btnEliminarFila->setIcon(QIcon(":/imgs/delete-row.png"));
-    btnEliminarFila->setText("Eliminar Fila");
-    btnEliminarFila->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnEliminarFila->setStyleSheet(".ribbonButton");
 
     // Agregar botones a ambos layouts
     botonesFilasVLayout->addWidget(btnInsertarFila);
@@ -442,37 +396,26 @@ void BaseDatosWindow::crearToolbars()
     botonesFilasHLayout->addWidget(btnEliminarFila);
 
     // Usar layout vertical por defecto
-    botonesFilasWidget->setLayout(botonesFilasHLayout);
+    botonesFilasWidget->setLayout(botonesFilasVLayout);
+    filasMainLayout->addWidget(botonesFilasWidget);
 
-    filasLayout->addWidget(filasTitle);
-    filasLayout->addWidget(botonesFilasWidget);
-    filasFrame->setLayout(filasLayout);
+    // Sección Relaciones
+    QFrame *relacionesFrame = crearSeccionRibbon("Relaciones");
+    QVBoxLayout *relacionesLayout = new QVBoxLayout(relacionesFrame);
 
-    // Sección Relaciones (solo visible en Vista Diseño)
-    QFrame *relacionesFrame = new QFrame();
-    relacionesFrame->setFrameStyle(QFrame::Box);
-    relacionesFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QVBoxLayout *relacionesLayout = new QVBoxLayout();
-
-    QLabel *relacionesTitle = new QLabel("Relaciones");
-    relacionesTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
-
-    btnRelaciones = new QToolButton();
-    btnRelaciones->setIcon(QIcon(":/imgs/relationships.png"));
-    btnRelaciones->setText("Relaciones");
-    btnRelaciones->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnRelaciones->setStyleSheet(".ribbonButton");
+    btnRelaciones = crearBotonRibbon(":/imgs/relationships.png", "Relaciones");
     connect(btnRelaciones, &QToolButton::clicked, this, &BaseDatosWindow::abrirRelaciones);
-
-    relacionesLayout->addWidget(relacionesTitle);
     relacionesLayout->addWidget(btnRelaciones);
-    relacionesFrame->setLayout(relacionesLayout);
 
-    // Agregar las secciones en el orden especificado
+    // Agregar secciones
     inicioLayout->addWidget(vistaFrame);
+    //inicioLayout->addLayout(vistaLayout);
     inicioLayout->addWidget(filtrosFrame);
+    //inicioLayout->addLayout(ordenLayout);
     inicioLayout->addWidget(ordenFrame);
+    //inicioLayout->addLayout(primaryKeyLayout);
     inicioLayout->addWidget(separador);
+    //inicioLayout->addLayout(vistaLayout);
     inicioLayout->addWidget(primaryKeyFrame);
     inicioLayout->addWidget(filasFrame);
     inicioLayout->addWidget(relacionesFrame);
@@ -481,11 +424,13 @@ void BaseDatosWindow::crearToolbars()
     inicioWidget->setLayout(inicioLayout);
     ribbonInicio->addWidget(inicioWidget);
 
-    // Guardar referencias a los widgets para poder mostrarlos/ocultarlos
+    // Guardar referencias
     seccionesVistaHojaDatos << filtrosFrame << ordenFrame << separador;
     seccionesVistaDiseno << primaryKeyFrame << relacionesFrame;
+}
 
-    // Ribbon Crear - Cambiar layouts a horizontal
+void BaseDatosWindow::crearRibbonCrear()
+{
     ribbonCrear = new QToolBar("Ribbon Crear", this);
     ribbonCrear->setMovable(false);
     ribbonCrear->setIconSize(QSize(16, 16));
@@ -495,111 +440,46 @@ void BaseDatosWindow::crearToolbars()
     crearLayout->setSpacing(10);
     crearLayout->setContentsMargins(15, 5, 15, 5);
 
-    // Sección Tablas - Cambiada a horizontal
-    QFrame *tablasFrame = new QFrame();
-    tablasFrame->setFrameStyle(QFrame::Box);
-    tablasFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QHBoxLayout *tablasLayout = new QHBoxLayout(); // Cambiado a horizontal
+    // Sección Tablas
+    QFrame *tablasFrame = crearSeccionRibbon("Tablas");
+    QHBoxLayout *tablasLayout = new QHBoxLayout(tablasFrame);
 
-    QLabel *tablasTitle = new QLabel("Tablas");
-    tablasTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
-
-    QToolButton *btnTabla = new QToolButton();
-    btnTabla->setIcon(QIcon(":/imgs/table.png"));
-    btnTabla->setText("Tabla");
-    btnTabla->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnTabla->setStyleSheet(".ribbonButton");
+    QToolButton *btnTabla = crearBotonRibbon(":/imgs/table.png", "Tabla");
+    QToolButton *btnDisenoTabla = crearBotonRibbon(":/imgs/form-design.png", "Diseño");
     connect(btnTabla, &QToolButton::clicked, this, &BaseDatosWindow::crearNuevaTabla);
 
-
-    QToolButton *btnDisenoTabla = new QToolButton();
-    btnDisenoTabla->setIcon(QIcon(":/imgs/form-design.png"));
-    btnDisenoTabla->setText("Diseño");
-    btnDisenoTabla->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnDisenoTabla->setStyleSheet(".ribbonButton");
-
-    tablasLayout->addWidget(tablasTitle);
     tablasLayout->addWidget(btnTabla);
     tablasLayout->addWidget(btnDisenoTabla);
-    tablasFrame->setLayout(tablasLayout);
 
-    // Sección Consultas - Cambiada a horizontal
-    QFrame *queriesFrame = new QFrame();
-    queriesFrame->setFrameStyle(QFrame::Box);
-    queriesFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QHBoxLayout *queriesLayout = new QHBoxLayout(); // Cambiado a horizontal
+    // Sección Consultas
+    QFrame *queriesFrame = crearSeccionRibbon("Consultas");
+    QHBoxLayout *queriesLayout = new QHBoxLayout(queriesFrame);
 
-    QLabel *queriesTitle = new QLabel("Consultas");
-    queriesTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    QToolButton *btnConsulta = crearBotonRibbon(":/imgs/query.png", "Consulta");
+    QToolButton *btnDisenoConsulta = crearBotonRibbon(":/imgs/form-design.png", "Diseño");
 
-    QToolButton *btnConsulta = new QToolButton();
-    btnConsulta->setIcon(QIcon(":/imgs/query.png"));
-    btnConsulta->setText("Consulta");
-    btnConsulta->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnConsulta->setStyleSheet(".ribbonButton");
-
-    QToolButton *btnDisenoConsulta = new QToolButton();
-    btnDisenoConsulta->setIcon(QIcon(":/imgs/form-design.png"));
-    btnDisenoConsulta->setText("Diseño");
-    btnDisenoConsulta->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnDisenoConsulta->setStyleSheet(".ribbonButton");
-
-    queriesLayout->addWidget(queriesTitle);
     queriesLayout->addWidget(btnConsulta);
     queriesLayout->addWidget(btnDisenoConsulta);
-    queriesFrame->setLayout(queriesLayout);
 
-    // Sección Formularios - Cambiada a horizontal
-    QFrame *formsFrame = new QFrame();
-    formsFrame->setFrameStyle(QFrame::Box);
-    formsFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QHBoxLayout *formsLayout = new QHBoxLayout(); // Cambiado a horizontal
+    // Sección Formularios
+    QFrame *formsFrame = crearSeccionRibbon("Formularios");
+    QHBoxLayout *formsLayout = new QHBoxLayout(formsFrame);
 
-    QLabel *formsTitle = new QLabel("Formularios");
-    formsTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    QToolButton *btnFormulario = crearBotonRibbon(":/imgs/form.png", "Formulario");
+    QToolButton *btnDisenoFormulario = crearBotonRibbon(":/imgs/form-design.png", "Diseño");
 
-    QToolButton *btnFormulario = new QToolButton();
-    btnFormulario->setIcon(QIcon(":/imgs/form.png"));
-    btnFormulario->setText("Formulario");
-    btnFormulario->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnFormulario->setStyleSheet(".ribbonButton");
-
-    QToolButton *btnDisenoFormulario = new QToolButton();
-    btnDisenoFormulario->setIcon(QIcon(":/imgs/form-design.png"));
-    btnDisenoFormulario->setText("Diseño");
-    btnDisenoFormulario->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnDisenoFormulario->setStyleSheet(".ribbonButton");
-
-    formsLayout->addWidget(formsTitle);
     formsLayout->addWidget(btnFormulario);
     formsLayout->addWidget(btnDisenoFormulario);
-    formsFrame->setLayout(formsLayout);
 
-    // Sección Reportes - Cambiada a horizontal
-    QFrame *reportsFrame = new QFrame();
-    reportsFrame->setFrameStyle(QFrame::Box);
-    reportsFrame->setStyleSheet(".ribbonSection { background: white; }");
-    QHBoxLayout *reportsLayout = new QHBoxLayout(); // Cambiado a horizontal
+    // Sección Reportes
+    QFrame *reportsFrame = crearSeccionRibbon("Reportes");
+    QHBoxLayout *reportsLayout = new QHBoxLayout(reportsFrame);
 
-    QLabel *reportsTitle = new QLabel("Reportes");
-    reportsTitle->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; }");
+    QToolButton *btnReporte = crearBotonRibbon(":/imgs/report.png", "Reporte");
+    QToolButton *btnDisenoReporte = crearBotonRibbon(":/imgs/form-design.png", "Diseño");
 
-    QToolButton *btnReporte = new QToolButton();
-    btnReporte->setIcon(QIcon(":/imgs/report.png"));
-    btnReporte->setText("Reporte");
-    btnReporte->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnReporte->setStyleSheet(".ribbonButton");
-
-    QToolButton *btnDisenoReporte = new QToolButton();
-    btnDisenoReporte->setIcon(QIcon(":/imgs/form-design.png"));
-    btnDisenoReporte->setText("Diseño");
-    btnDisenoReporte->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-    btnDisenoReporte->setStyleSheet(".ribbonButton");
-
-    reportsLayout->addWidget(reportsTitle);
     reportsLayout->addWidget(btnReporte);
     reportsLayout->addWidget(btnDisenoReporte);
-    reportsFrame->setLayout(reportsLayout);
 
     crearLayout->addWidget(tablasFrame);
     crearLayout->addWidget(queriesFrame);
@@ -611,47 +491,90 @@ void BaseDatosWindow::crearToolbars()
     ribbonCrear->addWidget(crearWidget);
 }
 
+QFrame* BaseDatosWindow::crearSeccionRibbon(const QString &titulo)
+{
+    QFrame *frame = new QFrame();
+    frame->setFrameStyle(QFrame::Box);
+    frame->setStyleSheet("QFrame { background: white; border: 1px solid #d0d0d0; border-radius: 3px; }");
+    frame->setMinimumWidth(100);
+
+    QLabel *titleLabel = new QLabel(titulo);
+    titleLabel->setStyleSheet("QLabel { font-weight: bold; color: #2b579a; padding: 2px; }");
+    titleLabel->setAlignment(Qt::AlignCenter);
+    return frame;
+}
+
+QToolButton* BaseDatosWindow::crearBotonRibbon(const QString &iconPath, const QString &texto)
+{
+    QToolButton *btn = new QToolButton();
+    btn->setIcon(QIcon(iconPath));
+    btn->setText(texto);
+    btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+    btn->setStyleSheet(".ribbonButton");
+    return btn;
+}
+
 void BaseDatosWindow::mostrarRibbonInicio()
 {
     // Ocultar todos los ribbons primero
-    if (ribbonCrear->isVisible()) {
+    if (ribbonCrear && ribbonCrear->isVisible()) {
         removeToolBar(ribbonCrear);
         ribbonCrear->setVisible(false);
     }
 
     // Mostrar el ribbon de Inicio si no está visible
-    if (!ribbonInicio->isVisible()) {
+    if (ribbonInicio && !ribbonInicio->isVisible()) {
         addToolBar(Qt::TopToolBarArea, ribbonInicio);
         ribbonInicio->setVisible(true);
     }
 
-    // Usar el estado actual del combo box en lugar de la variable vistaHojaDatos
-    bool esHojaDatos = (comboVista->currentIndex() == 1);
+    // Usar el estado actual del combo box
+    bool esHojaDatos = (comboVista && comboVista->currentIndex() == 1);
 
     // Mostrar/ocultar secciones según la vista
     foreach(QFrame *frame, seccionesVistaHojaDatos) {
-        frame->setVisible(esHojaDatos);
+        if (frame) frame->setVisible(esHojaDatos);
     }
 
     foreach(QFrame *frame, seccionesVistaDiseno) {
-        frame->setVisible(!esHojaDatos);
+        if (frame) frame->setVisible(!esHojaDatos);
     }
 
     // Cambiar layout de botones de filas según la vista
-    if (esHojaDatos) {
-        // En Vista Hoja de Datos: layout horizontal
-        botonesFilasWidget->setLayout(botonesFilasHLayout);
-    } else {
-        // En Vista Diseño: layout vertical
-        botonesFilasWidget->setLayout(botonesFilasVLayout);
+    if (botonesFilasWidget) {
+        // Limpiar el layout actual
+        QLayout *layoutActual = botonesFilasWidget->layout();
+        if (layoutActual) {
+            QLayoutItem *item;
+            while ((item = layoutActual->takeAt(0)) != nullptr) {
+                delete item;
+            }
+            delete layoutActual;
+        }
 
-        // Actualizar propiedades para la vista diseño si existe una tabla abierta
-        QWidget *currentTab = zonaCentral->currentWidget();
-        if (currentTab && currentTab != zonaCentral->widget(0)) { // No es la pestaña de inicio
-            // Obtener la vista diseño de la tabla actual
-            TablaCentralWidget *tablaDesign = currentTab->property("tablaDesign").value<TablaCentralWidget*>();
-            if (tablaDesign) {
-                tablaDesign->actualizarPropiedades();
+        // Crear nuevo layout según la vista
+        if (esHojaDatos) {
+            // En Vista Hoja de Datos: layout horizontal
+            QHBoxLayout *nuevoLayout = new QHBoxLayout(botonesFilasWidget);
+            nuevoLayout->addWidget(btnInsertarFila);
+            nuevoLayout->addWidget(btnEliminarFila);
+            nuevoLayout->setSpacing(5);
+            nuevoLayout->setContentsMargins(0, 0, 0, 0);
+        } else {
+            // En Vista Diseño: layout vertical
+            QVBoxLayout *nuevoLayout = new QVBoxLayout(botonesFilasWidget);
+            nuevoLayout->addWidget(btnInsertarFila);
+            nuevoLayout->addWidget(btnEliminarFila);
+            nuevoLayout->setSpacing(5);
+            nuevoLayout->setContentsMargins(0, 0, 0, 0);
+
+            // Actualizar propiedades para la vista diseño si existe una tabla abierta
+            QWidget *currentTab = zonaCentral->currentWidget();
+            if (currentTab && currentTab != zonaCentral->widget(0)) {
+                TablaCentralWidget *tablaDesign = currentTab->property("tablaDesign").value<TablaCentralWidget*>();
+                if (tablaDesign) {
+                    tablaDesign->actualizarPropiedades();
+                }
             }
         }
     }
@@ -661,8 +584,8 @@ void BaseDatosWindow::mostrarRibbonInicio()
     if (cornerWidget) {
         QList<QToolButton*> buttons = cornerWidget->findChildren<QToolButton*>();
         if (buttons.size() >= 2) {
-            buttons[0]->setChecked(true);  // Botón Inicio
-            buttons[1]->setChecked(false); // Botón Crear
+            buttons[0]->setChecked(true);
+            buttons[1]->setChecked(false);
         }
     }
 }
@@ -670,13 +593,13 @@ void BaseDatosWindow::mostrarRibbonInicio()
 void BaseDatosWindow::mostrarRibbonCrear()
 {
     // Ocultar todos los ribbons primero
-    if (ribbonInicio->isVisible()) {
+    if (ribbonInicio && ribbonInicio->isVisible()) {
         removeToolBar(ribbonInicio);
         ribbonInicio->setVisible(false);
     }
 
     // Mostrar el ribbon de Crear si no está visible
-    if (!ribbonCrear->isVisible()) {
+    if (ribbonCrear && !ribbonCrear->isVisible()) {
         addToolBar(Qt::TopToolBarArea, ribbonCrear);
         ribbonCrear->setVisible(true);
     }
@@ -686,40 +609,35 @@ void BaseDatosWindow::mostrarRibbonCrear()
     if (cornerWidget) {
         QList<QToolButton*> buttons = cornerWidget->findChildren<QToolButton*>();
         if (buttons.size() >= 2) {
-            buttons[0]->setChecked(false); // Botón Inicio
-            buttons[1]->setChecked(true);  // Botón Crear
+            buttons[0]->setChecked(false);
+            buttons[1]->setChecked(true);
         }
     }
 }
 
-void BaseDatosWindow::toggleFiltro()
-{
-    filtroActivo = !filtroActivo;
-}
-
-int BaseDatosWindow::encontrarTablaEnTabs(const QString &nombreTabla)
+int BaseDatosWindow::encontrarTablaEnTabs(const QString &nombreTabla) const
 {
     for (int i = 0; i < zonaCentral->count(); ++i) {
         if (zonaCentral->tabText(i) == nombreTabla) {
             return i;
         }
     }
-    return -1; // No encontrado
+    return -1;
 }
 
-//VISTA DISENO
 void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
 {
+    if (!item) return;
+
     tablaActualNombre = item->text();
 
     // Cargar metadata
     Metadata meta = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
 
-    // Verificar si la tabla ya está abierta en algún tab
+    // Verificar si la tabla ya está abierta
     int tabIndex = encontrarTablaEnTabs(tablaActualNombre);
 
     if (tabIndex != -1) {
-        // La tabla ya está abierta, simplemente cambiar a esa pestaña
         zonaCentral->setCurrentIndex(tabIndex);
         return;
     }
@@ -740,13 +658,12 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
     tablaStacked->addWidget(tablaDesign);
     tablaStacked->addWidget(tablaDataSheet);
 
-    // Configurar la vista inicial según el modo actual (sincronizado con comboVista)
-    if (comboVista->currentIndex() == 1) { // Usar el valor actual del combo box
+    // Configurar la vista inicial
+    if (comboVista->currentIndex() == 1) {
         tablaStacked->setCurrentWidget(tablaDataSheet);
     } else {
         tablaStacked->setCurrentWidget(tablaDesign);
         tablaDesign->cargarCampos(meta.campos);
-
     }
 
     containerLayout->addWidget(tablaStacked);
@@ -755,7 +672,7 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
     int newTabIndex = zonaCentral->addTab(tablaContainer, tablaActualNombre);
     zonaCentral->setCurrentIndex(newTabIndex);
 
-    // Almacenar referencias a las vistas en propiedades del widget contenedor
+    // Almacenar referencias
     tablaContainer->setProperty("tablaDesign", QVariant::fromValue(tablaDesign));
     tablaContainer->setProperty("tablaDataSheet", QVariant::fromValue(tablaDataSheet));
     tablaContainer->setProperty("tablaStacked", QVariant::fromValue(tablaStacked));
@@ -770,78 +687,119 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
                 tablaDesign, &TablaCentralWidget::establecerPK);
     }
 
-    // Mostrar ribbon de Inicio al abrir una tabla
+    // Mostrar ribbon de Inicio
     mostrarRibbonInicio();
+}
+
+void BaseDatosWindow::cambiarTablaActual(int index)
+{
+    // Si es la pestaña de inicio o no hay pestañas, limpiar referencia
+    if (index == 0 || zonaCentral->count() <= 1) {
+        tablaActual = nullptr;
+        tablaActualNombre.clear();
+        return;
+    }
+
+    // Obtener la tabla actual
+    QWidget *currentTab = zonaCentral->widget(index);
+    tablaActual = currentTab;
+    tablaActualNombre = zonaCentral->tabText(index);
+
+    // Actualizar conexiones de botones para la tabla actual
+    actualizarConexionesBotones();
+}
+
+void BaseDatosWindow::actualizarConexionesBotones()
+{
+    if (!tablaActual) return;
+
+    // Desconectar todas las conexiones previas
+    disconnect(btnLlavePrimaria, &QToolButton::clicked, 0, 0);
+    disconnect(btnInsertarFila, &QToolButton::clicked, 0, 0);
+    disconnect(btnEliminarFila, &QToolButton::clicked, 0, 0);
+
+    // Obtener las vistas de la tabla actual
+    TablaCentralWidget *tablaDesign = tablaActual->property("tablaDesign").value<TablaCentralWidget*>();
+    DataSheetWidget *tablaDataSheet = tablaActual->property("tablaDataSheet").value<DataSheetWidget*>();
+
+    if (vistaHojaDatos && tablaDataSheet) {
+        connect(btnInsertarFila, &QToolButton::clicked, tablaDataSheet, &DataSheetWidget::agregarRegistro);
+    } else if (tablaDesign) {
+        connect(btnLlavePrimaria, &QToolButton::clicked, tablaDesign, &TablaCentralWidget::establecerPK);
+        connect(btnInsertarFila, &QToolButton::clicked, tablaDesign, &TablaCentralWidget::agregarCampo);
+        connect(btnEliminarFila, &QToolButton::clicked, tablaDesign, &TablaCentralWidget::eliminarCampo);
+    }
+}
+
+void BaseDatosWindow::insertarFilaActual()
+{
+    if (!tablaActual) return;
+
+    if (vistaHojaDatos) {
+        DataSheetWidget *tablaDataSheet = tablaActual->property("tablaDataSheet").value<DataSheetWidget*>();
+        if (tablaDataSheet) tablaDataSheet->agregarRegistro();
+    } else {
+        TablaCentralWidget *tablaDesign = tablaActual->property("tablaDesign").value<TablaCentralWidget*>();
+        if (tablaDesign) tablaDesign->agregarCampo();
+    }
+}
+
+void BaseDatosWindow::eliminarFilaActual()
+{
+    if (!tablaActual) return;
+
+    if (vistaHojaDatos) {
+        DataSheetWidget *tablaDataSheet = tablaActual->property("tablaDataSheet").value<DataSheetWidget*>();
+        // Implementar eliminación en DataSheetWidget si es necesario
+        qWarning() << "Eliminar fila en hoja de datos no implementado aún";
+    } else {
+        TablaCentralWidget *tablaDesign = tablaActual->property("tablaDesign").value<TablaCentralWidget*>();
+        if (tablaDesign) tablaDesign->eliminarCampo();
+    }
 }
 
 void BaseDatosWindow::cambiarVista()
 {
-    // Obtener el widget actual (tabla abierta)
-    QWidget *currentTab = zonaCentral->currentWidget();
-    if (!currentTab || currentTab == zonaCentral->widget(0)) return; // No hay tabla abierta o es la pestaña de inicio
+    if (!tablaActual) return;
 
-    // Obtener el stacked widget y las vistas de la tabla actual
-    QStackedWidget *tablaStacked = currentTab->property("tablaStacked").value<QStackedWidget*>();
-    TablaCentralWidget *tablaDesign = currentTab->property("tablaDesign").value<TablaCentralWidget*>();
-    DataSheetWidget *tablaDataSheet = currentTab->property("tablaDataSheet").value<DataSheetWidget*>();
+    QStackedWidget *tablaStacked = tablaActual->property("tablaStacked").value<QStackedWidget*>();
+    TablaCentralWidget *tablaDesign = tablaActual->property("tablaDesign").value<TablaCentralWidget*>();
+    DataSheetWidget *tablaDataSheet = tablaActual->property("tablaDataSheet").value<DataSheetWidget*>();
 
-    if (!tablaStacked || !tablaDesign || !tablaDataSheet) return;
+    if (!tablaStacked) return;
 
-    // Desconectar señales temporariamente para evitar loops infinitos
     disconnect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), 0, 0);
 
-    // Sincronizar el combo box con el estado actual
     if (vistaHojaDatos) {
-        comboVista->setCurrentIndex(1); // Vista Hoja de Datos
-        tablaStacked->setCurrentWidget(tablaDataSheet);
+        comboVista->setCurrentIndex(1);
+        if (tablaDataSheet) tablaStacked->setCurrentWidget(tablaDataSheet);
     } else {
-        comboVista->setCurrentIndex(0); // Vista Diseño
-        tablaStacked->setCurrentWidget(tablaDesign);
+        comboVista->setCurrentIndex(0);
+        if (tablaDesign) {
+            tablaStacked->setCurrentWidget(tablaDesign);
+            tablaDesign->actualizarPropiedades();
+        }
     }
 
-    if (tablaDesign && !tablaActualNombre.isEmpty()) {
-        Metadata meta(tablaActualNombre);
-        meta.campos = tablaDesign->obtenerCampos();
-        meta.guardar();
-    }
-
-    // Reconectar la señal
     connect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
         vistaHojaDatos = (index == 1);
         cambiarVista();
     });
 
-    // Desconectar y reconectar señales del botón de llave primaria
-    disconnect(btnLlavePrimaria, &QToolButton::clicked, 0, 0);
-    if (vistaHojaDatos) {
-        connect(btnLlavePrimaria, &QToolButton::clicked,
-                tablaDataSheet, &DataSheetWidget::establecerPK);
-    } else {
-        connect(btnLlavePrimaria, &QToolButton::clicked,
-                tablaDesign, &TablaCentralWidget::establecerPK);
-
-        // Actualizar propiedades para la vista diseño
-        tablaDesign->actualizarPropiedades();
-    }
-
-    // Actualizar la interfaz
+    actualizarConexionesBotones();
     mostrarRibbonInicio();
 }
 
-
-
 void BaseDatosWindow::transferirDatosVista(QWidget *origen, QWidget *destino)
 {
-    // Esta es una implementación básica - necesitarás adaptarla según tus necesidades
+    // Implementación básica - adaptar según necesidades
     if (TablaCentralWidget *origenDesign = qobject_cast<TablaCentralWidget*>(origen)) {
         if (DataSheetWidget *destinoDataSheet = qobject_cast<DataSheetWidget*>(destino)) {
             // Transferir datos de diseño a hoja de datos
-            // Implementar según la estructura de tus datos
         }
     } else if (DataSheetWidget *origenDataSheet = qobject_cast<DataSheetWidget*>(origen)) {
         if (TablaCentralWidget *destinoDesign = qobject_cast<TablaCentralWidget*>(destino)) {
             // Transferir datos de hoja de datos a diseño
-            // Implementar según la estructura de tus datos
         }
     }
 }
@@ -871,7 +829,6 @@ void BaseDatosWindow::cerrarRelacionesYVolver()
     for (int i = 0; i < zonaCentral->count(); ++i) {
         QWidget *tabWidget = zonaCentral->widget(i);
         if (qobject_cast<RelacionesWidget*>(tabWidget)) {
-            // Cerrar la pestaña de relaciones
             zonaCentral->removeTab(i);
             break;
         }
@@ -887,13 +844,27 @@ void BaseDatosWindow::cerrarTab(int index)
         return;
     }
 
-    // Remover la pestaña (esto eliminará el widget automáticamente)
     zonaCentral->removeTab(index);
 
     // Si no hay más pestañas (solo queda la de inicio), asegurarse de que esté visible
     if (zonaCentral->count() == 1 && !zonaCentral->isTabEnabled(0)) {
         zonaCentral->setCurrentIndex(0);
     }
+}
+
+bool BaseDatosWindow::nombreTablaEsUnico(const QString &nombreTabla) {
+    QDir dir(QDir::currentPath() + "/tables");
+    if (!dir.exists()) {
+        return true;
+    }
+
+    QStringList archivos = dir.entryList(QStringList() << "*.meta", QDir::Files);
+    foreach (const QString &archivo, archivos) {
+        if (archivo == nombreTabla + ".meta") {
+            return false;
+        }
+    }
+    return true;
 }
 
 void BaseDatosWindow::crearNuevaTabla() {
@@ -904,6 +875,12 @@ void BaseDatosWindow::crearNuevaTabla() {
                                                 QLineEdit::Normal,
                                                 "TablaNueva", &ok);
     if (!ok || nombreTabla.isEmpty()) return;
+
+    // Validar nombre único
+    if (!nombreTablaEsUnico(nombreTabla)) {
+        QMessageBox::critical(this, "Tabla NO creada", "Nombre ya registrado, ingrese uno diferente.");
+        return;
+    }
 
     // Crear metadata inicial con un campo ID
     Metadata meta(nombreTabla);
@@ -958,14 +935,17 @@ void BaseDatosWindow::crearNuevaTabla() {
     mostrarRibbonInicio();
 }
 
-BaseDatosWindow::~BaseDatosWindow() {
-    // Guardar los datos de todas las tablas abiertas
+BaseDatosWindow::~BaseDatosWindow()
+{
+    guardarTablasAbiertas();
+}
+
+void BaseDatosWindow::guardarTablasAbiertas()
+{
     for (int i = 0; i < zonaCentral->count(); ++i) {
         QWidget *tabWidget = zonaCentral->widget(i);
-        if (tabWidget && tabWidget != zonaCentral->widget(0)) { // No es la pestaña de inicio
+        if (tabWidget && tabWidget != zonaCentral->widget(0)) {
             QString nombreTabla = zonaCentral->tabText(i);
-
-            // Obtener la vista diseño de la tabla
             TablaCentralWidget *tablaDesign = tabWidget->property("tablaDesign").value<TablaCentralWidget*>();
             if (tablaDesign) {
                 Metadata meta(nombreTabla);

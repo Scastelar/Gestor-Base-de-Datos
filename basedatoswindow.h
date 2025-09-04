@@ -1,75 +1,79 @@
 #ifndef BASEDATOSWINDOW_H
 #define BASEDATOSWINDOW_H
 
-#include "tablacentralwidget.h"
-#include "DataSheetWidget.h"
-
 #include <QMainWindow>
 #include <QListWidget>
-#include <QStackedWidget>
-#include <QMenu>
+#include <QTabWidget>
 #include <QToolBar>
-#include <QSplitter>
 #include <QToolButton>
 #include <QComboBox>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QTabWidget> // Añadir include
+#include <QFrame>
+#include <QSplitter>
+#include <QList>
 
-class BaseDatosWindow : public QMainWindow
-{
+#include "tablacentralwidget.h"
+#include "datasheetwidget.h"
+#include "relacioneswidget.h"
+
+class BaseDatosWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    BaseDatosWindow(QWidget *parent = nullptr);
-     ~BaseDatosWindow();
+    explicit BaseDatosWindow(QWidget *parent = nullptr);
+    ~BaseDatosWindow();
 
 private slots:
-    void abrirTabla(QListWidgetItem *item);
-    void toggleFiltro();
+
+    void aplicarEstilos();
+    void crearMenus();
+    void crearRibbonTabs();
+    void crearToolbars();
+    void crearRibbonInicio();
+    void crearRibbonCrear();
+
+    QFrame* crearSeccionRibbon(const QString &titulo);
+    QToolButton* crearBotonRibbon(const QString &iconPath, const QString &texto);
+
     void mostrarRibbonInicio();
     void mostrarRibbonCrear();
-    void abrirRelaciones();
-    void cerrarRelacionesYVolver();
-    void cerrarTab(int index); // Nuevo slot para cerrar tabs
-    void crearNuevaTabla();
 
-private:
-    void crearMenus();
-    void crearToolbars();
-    void actualizarToolbar(int pestana);
-    void crearToolbarHome();
-    void crearToolbarCrear();
-    void crearToolbarHojaDatos();
-    void limpiarToolbars();
+    void abrirTabla(QListWidgetItem *item);
+    void cambiarTablaActual(int index);
+    void actualizarConexionesBotones();
+    void insertarFilaActual();
+    void eliminarFilaActual();
     void cambiarVista();
     void transferirDatosVista(QWidget *origen, QWidget *destino);
-    int encontrarTablaEnTabs(const QString &nombreTabla); // Nuevo método
 
+    void abrirRelaciones();
+    void cerrarRelacionesYVolver();
+    void cerrarTab(int index);
+
+    bool nombreTablaEsUnico(const QString &nombreTabla);
+    void crearNuevaTabla();
+    void guardarTablasAbiertas();
+
+private:
+    // Estado
+    bool vistaHojaDatos;
+    bool filtroActivo;
+
+    // Referencias de tabla actual
+    QWidget *tablaActual;
     QString tablaActualNombre;
 
+    // UI principal
     QListWidget *listaTablas;
-    QTabWidget *zonaCentral; // Cambiado de QStackedWidget a QTabWidget
+    QTabWidget *zonaCentral;
 
-    QToolButton *btnLlavePrimaria;
-
-    // Toolbars
-    QToolBar* toolbarInicio;
-    QToolBar *toolbarHome;
-    QToolBar *toolbarCrear;
-    QToolBar *toolbarHojaDatos;
+    // Ribbon toolbars
     QToolBar *ribbonInicio;
     QToolBar *ribbonCrear;
 
-    // Acciones comunes
-    QAction *accionVista;
-    QAction *accionFiltro;
-
-    // Estado
-    bool vistaHojaDatos = false;
-    bool filtroActivo;
-
-    QComboBox *comboVista;
+    // Botones
+    QToolButton *btnLlavePrimaria;
     QToolButton *btnFiltrar;
     QToolButton *btnAscendente;
     QToolButton *btnDescendente;
@@ -77,14 +81,17 @@ private:
     QToolButton *btnEliminarFila;
     QToolButton *btnRelaciones;
 
-    QHBoxLayout *filasLayout;
+    QComboBox *comboVista;
+    int encontrarTablaEnTabs(const QString &nombreTabla) const;
+    // Layouts
+    QVBoxLayout *filasLayout;
     QWidget *botonesFilasWidget;
     QVBoxLayout *botonesFilasVLayout;
     QHBoxLayout *botonesFilasHLayout;
 
+    // Listas de secciones del ribbon
     QList<QFrame*> seccionesVistaHojaDatos;
     QList<QFrame*> seccionesVistaDiseno;
-
 };
 
 #endif // BASEDATOSWINDOW_H

@@ -16,7 +16,7 @@ class TablaCentralWidget : public QWidget {
 
 public:
     explicit TablaCentralWidget(QWidget *parent = nullptr);
-
+    bool validarPK() const;
     // 🔹 Manejo de la PK
     int obtenerFilaPK() const;
     void establecerPK();
@@ -29,9 +29,10 @@ public:
     // 🔹 Guardado / carga de metadata
     QVector<Campo> obtenerCampos() const;
     void cargarCampos(const QVector<Campo>& campos);
-
-private slots:
+    void eliminarCampo();
     void agregarCampo();
+private slots:
+
 
 private:
     QTableWidget *tablaCampos;
