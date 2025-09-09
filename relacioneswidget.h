@@ -2,9 +2,10 @@
 #define RELACIONESWIDGET_H
 
 #include <QWidget>
-#include <QTableWidget>
-#include <QLabel>
 #include <QVBoxLayout>
+#include <QListWidget>
+#include "metadata.h"
+
 class RelacionesWidget : public QWidget
 {
     Q_OBJECT
@@ -18,16 +19,16 @@ signals:
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
+
 private:
+    void cargarListaTablas();                 // 🔹 cargar lista en el panel izquierdo
+    void crearCardTabla(const Metadata &meta);// 🔹 crear card en el área central
     void crearToolbar();
     void crearLayoutPrincipal();
-    void crearPanelTablas();
-    void crearAreaRelaciones();
-    void crearCardTabla(const QString &nombreTabla); // Función para crear cards de tablas
 
-    QTableWidget *tablaRelaciones;
-    QWidget *areaCards; // Área donde se mostrarán las cards de tablas
-    QVBoxLayout *cardsLayout; // Layout para organizar las cards
+    QListWidget *listaTablas;    // 🔹 lista de tablas en el panel izquierdo
+    QVBoxLayout *cardsLayout;    // layout para organizar las cards
 };
 
 #endif // RELACIONESWIDGET_H
+

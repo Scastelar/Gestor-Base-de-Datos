@@ -423,6 +423,7 @@ void BaseDatosWindow::crearRibbonInicio()
     // Guardar referencias
     seccionesVistaHojaDatos << filtrosFrame << ordenFrame << separador;
     seccionesVistaDiseno << primaryKeyFrame << relacionesFrame;
+
 }
 
 void BaseDatosWindow::crearRibbonCrear()
@@ -834,7 +835,7 @@ void BaseDatosWindow::abrirRelaciones()
     connect(relacionesWidget, &RelacionesWidget::cerrada,
             this, &BaseDatosWindow::cerrarRelacionesYVolver);
 
-    // Mostrar ribbon de Inicio
+    // Mostrar ribbon de Inicio (para mantener la UI consistente)
     mostrarRibbonInicio();
 
     qDebug() << "Ventana de relaciones abierta en nueva pestaña";
