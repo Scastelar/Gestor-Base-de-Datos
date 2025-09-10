@@ -1,10 +1,17 @@
 #ifndef RELACIONESWIDGET_H
 #define RELACIONESWIDGET_H
 
+#include "metadata.h"
 #include <QWidget>
 #include <QVBoxLayout>
+#include <QLabel>
 #include <QListWidget>
-#include "metadata.h"
+#include <QGraphicsView>
+#include <QGraphicsScene>
+#include <QGraphicsLineItem>
+#include <QGraphicsRectItem>
+#include <QGraphicsTextItem>
+#include <QMouseEvent>
 
 class RelacionesWidget : public QWidget
 {
@@ -12,9 +19,12 @@ class RelacionesWidget : public QWidget
 
 public:
     explicit RelacionesWidget(QWidget *parent = nullptr);
+    ~RelacionesWidget();
 
 signals:
     void cerrada();
+    void relacionCreada(const QString &tabla1, const QString &campo1,
+                        const QString &tabla2, const QString &campo2);
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
@@ -28,6 +38,27 @@ private:
 
     QListWidget *listaTablas;    // 🔹 lista de tablas en el panel izquierdo
     QVBoxLayout *cardsLayout;    // layout para organizar las cards
+
+    // Nuevos miembros para el sistema de relaciones
+    QGraphicsScene *scene;
+    QGraphicsView *view;
+    QMap<QString, QGraphicsRectItem*> tablaItems;
+    QMap<QString, QMap<QString, QGraphicsTextItem*>> campoItems;
+
+    QString tablaOrigen;
+    QString campoOrigen;
+    bool seleccionandoOrigen;
+
+    QList<QGraphicsLineItem*> lineasRelaciones;
+
+    void agregarTablaAScene(const Metadata &meta);
+
+
+    void crearSistemaRelaciones();
+    void procesarClickTabla(const QString &tablaNombre, const QString &campoNombre);
+    void dibujarRelacion(const QString &tabla1, const QString &campo1,
+                         const QString &tabla2, const QString &campo2);
+    void mostrarInfoCampo(const Metadata &meta, QLabel *labelCampo, const Campo &campo);
 };
 
 #endif // RELACIONESWIDGET_H

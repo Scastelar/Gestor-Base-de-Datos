@@ -824,21 +824,34 @@ void BaseDatosWindow::cambiarVista()
 
 void BaseDatosWindow::abrirRelaciones()
 {
-    // Crear el widget de relaciones
     RelacionesWidget *relacionesWidget = new RelacionesWidget();
-
-    // Añadir como nueva pestaña
     int tabIndex = zonaCentral->addTab(relacionesWidget, "Relaciones");
     zonaCentral->setCurrentIndex(tabIndex);
 
-    // Conectar la señal de cierre
     connect(relacionesWidget, &RelacionesWidget::cerrada,
             this, &BaseDatosWindow::cerrarRelacionesYVolver);
 
-    // Mostrar ribbon de Inicio (para mantener la UI consistente)
-    mostrarRibbonInicio();
+    // Conectar la señal de relación creada
+    connect(relacionesWidget, &RelacionesWidget::relacionCreada,
+            this, &BaseDatosWindow::guardarRelacionEnBD);
 
-    qDebug() << "Ventana de relaciones abierta en nueva pestaña";
+    mostrarRibbonInicio();
+}
+
+void BaseDatosWindow::guardarRelacionEnBD(const QString &tabla1, const QString &campo1,
+                                          const QString &tabla2, const QString &campo2)
+{
+    // Aquí implementarías la lógica para guardar la relación en tu base de datos
+    qDebug() << "Relación creada:" << tabla1 << "." << campo1
+             << "->" << tabla2 << "." << campo2;
+
+    // Ejemplo: guardar en un archivo de relaciones
+    QFile relacionesFile("relationships.dat");
+    if (relacionesFile.open(QIODevice::Append)) {
+        QTextStream stream(&relacionesFile);
+        stream << tabla1 << "|" << campo1 << "|" << tabla2 << "|" << campo2 << "\n";
+        relacionesFile.close();
+    }
 }
 
 void BaseDatosWindow::cerrarRelacionesYVolver()

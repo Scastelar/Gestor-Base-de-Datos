@@ -48,6 +48,8 @@ private slots:
 
     void abrirRelaciones();
     void cerrarRelacionesYVolver();
+    void guardarRelacionEnBD(const QString &tabla1, const QString &campo1,
+                                              const QString &tabla2, const QString &campo2);
     void cerrarTab(int index);
 
     bool nombreTablaEsUnico(const QString &nombreTabla);
