@@ -29,8 +29,9 @@ signals:
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
-
+     void resizeEvent(QResizeEvent *event) override;
 private:
+
     void cargarListaTablas();                 // 🔹 cargar lista en el panel izquierdo
     void crearCardTabla(const Metadata &meta);// 🔹 crear card en el área central
     void crearToolbar();
@@ -42,7 +43,8 @@ private:
     // Nuevos miembros para el sistema de relaciones
     QGraphicsScene *scene;
     QGraphicsView *view;
-    QMap<QString, QGraphicsRectItem*> tablaItems;
+    QMap<QString, QGraphicsItemGroup*> tablaItems;
+
     QMap<QString, QMap<QString, QGraphicsTextItem*>> campoItems;
 
     QString tablaOrigen;
