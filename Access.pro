@@ -14,7 +14,9 @@ SOURCES += \
     main.cpp \
     mainwindow.cpp \
     relacioneswidget.cpp \
-    tablacentralwidget.cpp
+    relationitem.cpp \
+    tablacentralwidget.cpp \
+    tableitem.cpp
 
 HEADERS += \
     basedatoswindow.h \
@@ -22,7 +24,9 @@ HEADERS += \
     mainwindow.h \
     metadata.h \
     relacioneswidget.h \
-    tablacentralwidget.h
+    relationitem.h \
+    tablacentralwidget.h \
+    tableitem.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

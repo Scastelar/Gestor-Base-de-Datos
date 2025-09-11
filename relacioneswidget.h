@@ -2,13 +2,13 @@
 #define RELACIONESWIDGET_H
 
 #include <QWidget>
-#include <QGraphicsScene>
 #include <QGraphicsView>
-#include <QMap>
-#include <QList>
+#include <QGraphicsScene>
 #include <QListWidget>
-
+#include <QMap>
 #include "metadata.h"
+#include "tableitem.h"
+#include "relationitem.h"
 
 class RelacionesWidget : public QWidget
 {
@@ -20,47 +20,33 @@ public:
 
 signals:
     void cerrada();
-    void relacionCreada(const QString &tablaOrigen, const QString &campoOrigen,
-                        const QString &tablaDestino, const QString &campoDestino,
-                        const QString &tipoRelacion);
+    void relacionCreada(const QString &tabla1,
+                        const QString &campo1,
+                        const QString &tabla2,
+                        const QString &campo2);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
-    void resizeEvent(QResizeEvent *event) override;
-    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private slots:
-    void actualizarLineas();
+    void agregarTabla();
+    void limpiarTodo();
 
 private:
     void crearToolbar();
     void crearLayoutPrincipal();
-    void crearSistemaRelaciones();
     void cargarListaTablas();
-    void agregarTablaAScene(const Metadata &meta);
-    void procesarDragAndDrop(const QString &tablaOrigen, const QString &campoOrigen,
-                             const QString &tablaDestino, const QString &campoDestino);
-    void dibujarRelacion(const QString &tabla1, const QString &campo1,
-                         const QString &tabla2, const QString &campo2,
-                         const QString &tipoRelacion);
-    QString determinarTipoRelacion(const QString &tabla1, const QString &campo1,
-                                   const QString &tabla2, const QString &campo2);
-    void mostrarMensajePersonalizado(const QString &titulo, const QString &mensaje, bool esError = false);
 
     QGraphicsScene *scene;
     QGraphicsView *view;
     QListWidget *listaTablas;
 
-    QMap<QString, QGraphicsItemGroup*> tablaItems;
-    QMap<QString, QMap<QString, QGraphicsTextItem*>> campoItems;
-    QMap<QPair<QString, QString>, QGraphicsLineItem*> lineasRelaciones;
-    QMap<QGraphicsLineItem*, QPair<QString, QString>> relacionInfo;
+    QMap<QString, TableItem*> tablas;
+    QList<RelationItem*> relaciones;
 
-    bool arrastrando;
-    QString tablaArrastre;
-    QString campoArrastre;
-    QGraphicsTextItem *campoArrastreItem;
-    QPointF posicionInicialArrastre;
+    QString tablaOrigen;
+    QString campoOrigen;
+    bool esperandoDestino = false;
 };
 
 #endif // RELACIONESWIDGET_H
