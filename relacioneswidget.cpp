@@ -209,10 +209,14 @@ void RelacionesWidget::agregarTabla()
 
     TableItem *tablaItem = new TableItem(meta);
     scene->addItem(tablaItem);
+    tablaItem->update();
+    scene->update();
 
-    int x = QRandomGenerator::global()->bounded(-200, 200);
-    int y = QRandomGenerator::global()->bounded(-200, 200);
-    tablaItem->setPos(x, y);
+    int index = tablas.size();
+    int gridX = (index % 5) * 200;   // máximo 5 por fila
+    int gridY = (index / 5) * 200;
+    tablaItem->setPos(gridX, gridY);
+
 
     tablas[tablaSeleccionada] = tablaItem;
 
@@ -225,6 +229,11 @@ void RelacionesWidget::agregarTabla()
 
                 lineaTemporal = scene->addLine(QLineF(pos, pos), QPen(Qt::gray, 1, Qt::DashLine));
             });
+
+    for (RelationItem *rel : relaciones) {
+        rel->updatePosition();
+    }
+
 }
 
 void RelacionesWidget::limpiarTodo()
@@ -262,9 +271,12 @@ void RelacionesWidget::cargarRelacionesPrevias()
                 TableItem *tablaItem = new TableItem(meta);
                 scene->addItem(tablaItem);
 
-                int x = QRandomGenerator::global()->bounded(-200, 200);
-                int y = QRandomGenerator::global()->bounded(-200, 200);
-                tablaItem->setPos(x, y);
+                int index = tablas.size();
+                int gridX = (index % 5) * 50;
+                int gridY = (index / 5) * 50;
+                tablaItem->setPos(gridX, gridY);
+                tablaItem->update();
+                scene->update();
 
                 tablas[t] = tablaItem;
 
@@ -305,12 +317,18 @@ void RelacionesWidget::cargarRelacionesPrevias()
             RelationItem *relItem = new RelationItem(tablas[t1], c1,
                                                      tablas[t2], c2, tipo);
             scene->addItem(relItem);
+            relItem->updatePosition();   // 🔹 recalcular al instante
             relaciones.append(relItem);
+
 
             qDebug() << "[DEBUG] Relación cargada:" << t1 << "." << c1
                      << "->" << t2 << "." << c2;
         }
     }
+    for (RelationItem *rel : relaciones) {
+        rel->updatePosition();
+    }
+
 }
 
 

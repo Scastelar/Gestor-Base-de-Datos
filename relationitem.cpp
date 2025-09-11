@@ -47,7 +47,8 @@ void RelationItem::updatePosition()
 {
     if (!source || !dest) return;
 
-    QPointF p1, p2;
+    QPointF p1 = source->mapToScene(source->boundingRect().center());
+    QPointF p2 = dest->mapToScene(dest->boundingRect().center());
 
     for (const CampoVisual &cv : source->getCamposVisuales()) {
         if (cv.nombre == campoSource) {
@@ -72,3 +73,4 @@ void RelationItem::updatePosition()
     labelSrc->setPos(p1.x() - 10, p1.y() - 10);
     labelDst->setPos(p2.x() - 10, p2.y() - 10);
 }
+
