@@ -13,6 +13,7 @@
 #include <QInputDialog>
 #include <QMouseEvent>
 #include <QDebug>
+#include "relaciondialog.h"
 
 RelacionesWidget::RelacionesWidget(QWidget *parent)
     : QWidget(parent)
@@ -64,20 +65,35 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
             return;
         }
 
-        QStringList tipos = {"Uno a Uno", "Uno a Muchos", "Muchos a Muchos"};
-        bool ok;
-        QString tipoSeleccionado = QInputDialog::getItem(this, "Tipo de Relación",
-                                                         "Seleccione el tipo de relación:",
-                                                         tipos, 1, false, &ok);
-        if (!ok) return;
+        // Determinar tipo automáticamente según PK
+        bool origenEsPK = false, destinoEsPK = false;
+        for (const Campo &c : tablas[tablaDrag]->getMetadata().campos) {
+            if (c.nombre == campoDrag) { origenEsPK = c.esPK; break; }
+        }
+        for (const Campo &c : tablas[tablaDestino]->getMetadata().campos) {
+            if (c.nombre == campoDestino) { destinoEsPK = c.esPK; break; }
+        }
 
+        QString tipoTexto;
         TipoRelacion tipo;
-        if (tipoSeleccionado == "Uno a Uno")
+        if (origenEsPK && destinoEsPK) {
             tipo = TipoRelacion::UnoAUno;
-        else if (tipoSeleccionado == "Uno a Muchos")
+            tipoTexto = "Uno a Uno";
+        } else if (origenEsPK || destinoEsPK) {
             tipo = TipoRelacion::UnoAMuchos;
-        else
+            tipoTexto = "Uno a Varios";
+        } else {
             tipo = TipoRelacion::MuchosAMuchos;
+            tipoTexto = "Varios a Varios";
+        }
+
+        // Mostrar cuadro estilo Access
+        RelacionDialog dlg(tablaDrag, campoDrag, tablaDestino, campoDestino, tipoTexto, this);
+        if (dlg.exec() != QDialog::Accepted) {
+            qDebug() << "[DEBUG] Usuario canceló la creación de relación.";
+            return;
+        }
+
 
         RelationItem *rel = new RelationItem(tablas[tablaDrag], campoDrag,
                                              tablas[tablaDestino], campoDestino,
