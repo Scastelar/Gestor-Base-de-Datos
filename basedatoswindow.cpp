@@ -144,6 +144,8 @@ BaseDatosWindow::BaseDatosWindow(QWidget *parent)
         cambiarVista();
     });
 
+
+
     // Conectar botones de insertar y eliminar fila
    // connect(btnInsertarFila, &QToolButton::clicked, this, &BaseDatosWindow::insertarFilaActual);
    // connect(btnEliminarFila, &QToolButton::clicked, this, &BaseDatosWindow::eliminarFilaActual);
@@ -653,6 +655,7 @@ void BaseDatosWindow::abrirTabla(QListWidgetItem *item)
     // Cargar estructura en ambas vistas
     tablaDesign->cargarCampos(meta.campos);
     tablaDataSheet->cargarDesdeMetadata(meta);
+    tablaDataSheet->cargarRelaciones("relationships.dat");
 
     // Añadir ambas vistas al stacked widget
     tablaStacked->addWidget(tablaDesign);
@@ -725,6 +728,8 @@ void BaseDatosWindow::actualizarConexionesBotones()
     if (vistaHojaDatos && tablaDataSheet) {
         connect(btnLlavePrimaria, &QToolButton::clicked, tablaDataSheet, &DataSheetWidget::establecerPK);
         connect(btnInsertarFila, &QToolButton::clicked, tablaDataSheet, &DataSheetWidget::agregarRegistro);
+        connect(tablaDataSheet, &DataSheetWidget::solicitarDatosRelacionados,
+                this, &BaseDatosWindow::onSolicitarDatosRelacionados);
         //connect(btnEliminarFila, &QToolButton::clicked, tablaDataSheet, &DataSheetWidget::eliminarRegistro);
     } else if (tablaDesign) {
         connect(btnLlavePrimaria, &QToolButton::clicked, tablaDesign, &TablaCentralWidget::establecerPK);
@@ -761,6 +766,17 @@ void BaseDatosWindow::eliminarFilaActual()
     }
 }
 
+void BaseDatosWindow::onSolicitarDatosRelacionados(const QString &tabla, const QString &campo, const QString &valor)
+{
+    // Si quieres cargar datos existentes además de permitir edición:
+    //QList<QMap<QString, QVariant>> datosExistentes = baseDeDatos.obtenerRelacionesExistentes(tabla, campo, valor);
+
+    // Enviar datos existentes al widget
+    // dataSheetWidget->onDatosRelacionadosRecibidos(datosExistentes);
+
+    qDebug() << "Solicitando datos relacionados para:" << tabla << campo << valor;
+}
+
 
 void BaseDatosWindow::cambiarVista()
 {
@@ -769,6 +785,7 @@ void BaseDatosWindow::cambiarVista()
     QStackedWidget *tablaStacked = tablaActual->property("tablaStacked").value<QStackedWidget*>();
     TablaCentralWidget *tablaDesign = tablaActual->property("tablaDesign").value<TablaCentralWidget*>();
     DataSheetWidget *tablaDataSheet = tablaActual->property("tablaDataSheet").value<DataSheetWidget*>();
+    tablaDataSheet->cargarRelaciones("relationships.dat");
 
     if (!tablaStacked) return;
 

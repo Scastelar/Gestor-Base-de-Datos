@@ -33,6 +33,8 @@ private slots:
     void crearRibbonInicio();
     void crearRibbonCrear();
 
+    void onSolicitarDatosRelacionados(const QString &tabla, const QString &campo, const QString &valor);
+
     QFrame* crearSeccionRibbon(const QString &titulo);
     QToolButton* crearBotonRibbon(const QString &iconPath, const QString &texto);
 
