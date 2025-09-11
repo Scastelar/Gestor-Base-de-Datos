@@ -1,6 +1,7 @@
 #include "relationitem.h"
 #include <QPen>
 #include <QPainterPath>
+#include <QFont>
 
 RelationItem::RelationItem(TableItem *src, const QString &campoSrc,
                            TableItem *dst, const QString &campoDst,
@@ -9,8 +10,37 @@ RelationItem::RelationItem(TableItem *src, const QString &campoSrc,
     campoSource(campoSrc), campoDest(campoDst),
     tipoRelacion(tipo)
 {
-    aplicarEstilo();
+    QPen pen(Qt::black, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
+    setPen(pen);
+
+    labelSrc = new QGraphicsSimpleTextItem(this);
+    labelDst = new QGraphicsSimpleTextItem(this);
+
+    configurarEtiquetas();
     updatePosition();
+}
+
+void RelationItem::configurarEtiquetas()
+{
+    switch (tipoRelacion) {
+    case TipoRelacion::UnoAUno:
+        labelSrc->setText("1");
+        labelDst->setText("1");
+        break;
+    case TipoRelacion::UnoAMuchos:
+        labelSrc->setText("1");
+        labelDst->setText("∞");
+        break;
+    case TipoRelacion::MuchosAMuchos:
+        labelSrc->setText("∞");
+        labelDst->setText("∞");
+        break;
+    }
+    QFont font;
+    font.setPointSize(10);
+    font.setBold(true);
+    labelSrc->setFont(font);
+    labelDst->setFont(font);
 }
 
 void RelationItem::updatePosition()
@@ -37,28 +67,8 @@ void RelationItem::updatePosition()
     QPointF ctrl1(p1.x() + 40, p1.y());
     QPointF ctrl2(p2.x() - 40, p2.y());
     path.cubicTo(ctrl1, ctrl2, p2);
-
     setPath(path);
-}
 
-void RelationItem::aplicarEstilo()
-{
-    QPen pen;
-    pen.setWidth(2);
-    pen.setCapStyle(Qt::RoundCap);
-    pen.setJoinStyle(Qt::RoundJoin);
-
-    switch (tipoRelacion) {
-    case TipoRelacion::UnoAUno:
-        pen.setColor(Qt::blue);
-        break;
-    case TipoRelacion::UnoAMuchos:
-        pen.setColor(Qt::darkGreen);
-        break;
-    case TipoRelacion::MuchosAMuchos:
-        pen.setColor(Qt::red);
-        pen.setStyle(Qt::DashLine);
-        break;
-    }
-    setPen(pen);
+    labelSrc->setPos(p1.x() - 10, p1.y() - 10);
+    labelDst->setPos(p2.x() - 10, p2.y() - 10);
 }

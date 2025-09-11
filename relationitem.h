@@ -2,6 +2,7 @@
 #define RELATIONITEM_H
 
 #include <QGraphicsPathItem>
+#include <QGraphicsSimpleTextItem>
 #include "tableitem.h"
 
 enum class TipoRelacion {
@@ -31,7 +32,10 @@ private:
     QString campoDest;
     TipoRelacion tipoRelacion;
 
-    void aplicarEstilo();
+    QGraphicsSimpleTextItem *labelSrc;
+    QGraphicsSimpleTextItem *labelDst;
+
+    void configurarEtiquetas();
 };
 
 #endif // RELATIONITEM_H

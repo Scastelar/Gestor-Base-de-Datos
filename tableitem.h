@@ -24,14 +24,16 @@ public:
 
     QString getTableName() const { return meta.nombreTabla; }
     QVector<CampoVisual> getCamposVisuales() const { return camposVisuales; }
+    const Metadata& getMetadata() const { return meta; }
 
 signals:
-    void campoSeleccionado(const QString &tabla,
-                           const QString &campo,
-                           const QPointF &posScene);
+    void iniciarDragCampo(const QString &tabla,
+                          const QString &campo,
+                          const QPointF &posScene);
 
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+    void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     QVariant itemChange(GraphicsItemChange change,
                         const QVariant &value) override;
 
@@ -43,3 +45,5 @@ private:
 };
 
 #endif // TABLEITEM_H
+
+

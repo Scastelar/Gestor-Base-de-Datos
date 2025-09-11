@@ -2,13 +2,13 @@
 #define RELACIONESWIDGET_H
 
 #include <QWidget>
-#include <QGraphicsView>
 #include <QGraphicsScene>
 #include <QListWidget>
 #include <QMap>
 #include "metadata.h"
 #include "tableitem.h"
 #include "relationitem.h"
+#include "relacionesview.h"
 
 class RelacionesWidget : public QWidget
 {
@@ -38,15 +38,18 @@ private:
     void cargarListaTablas();
 
     QGraphicsScene *scene;
-    QGraphicsView *view;
+    RelacionesView *view;
     QListWidget *listaTablas;
 
     QMap<QString, TableItem*> tablas;
     QList<RelationItem*> relaciones;
 
-    QString tablaOrigen;
-    QString campoOrigen;
-    bool esperandoDestino = false;
+    // Drag temporal
+    QGraphicsLineItem *lineaTemporal = nullptr;
+    QString tablaDrag;
+    QString campoDrag;
+    QPointF puntoDrag;
+    bool arrastrando = false;
 };
 
 #endif // RELACIONESWIDGET_H

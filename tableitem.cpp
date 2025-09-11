@@ -5,7 +5,6 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsScene>
 
-
 TableItem::TableItem(const Metadata &m, QGraphicsItem *parent)
     : QGraphicsObject(parent), meta(m), width(140)
 {
@@ -64,15 +63,32 @@ void TableItem::paint(QPainter *p, const QStyleOptionGraphicsItem *, QWidget *)
 
 void TableItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
-    QPointF pos = event->pos();
-    for (const CampoVisual &cv : camposVisuales) {
-        if (cv.rect.contains(pos)) {
-            QPointF scenePos = mapToScene(cv.rect.center());
-            emit campoSeleccionado(meta.nombreTabla, cv.nombre, scenePos);
-            return;
+    // ✅ Detectar doble click en un campo
+    if (event->button() == Qt::LeftButton &&
+        event->type() == QEvent::GraphicsSceneMouseDoubleClick) {
+        QPointF pos = event->pos();
+        for (const CampoVisual &cv : camposVisuales) {
+            if (cv.rect.contains(pos)) {
+                QPointF scenePos = mapToScene(cv.rect.center());
+                emit iniciarDragCampo(meta.nombreTabla, cv.nombre, scenePos);
+
+                // Bloquear movimiento durante el drag de relación
+                setFlag(ItemIsMovable, false);
+                event->accept();
+                return;
+            }
         }
     }
+
+    // Normal → mover card
     QGraphicsObject::mousePressEvent(event);
+}
+
+void TableItem::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
+{
+    // Restaurar movimiento de la card
+    setFlag(ItemIsMovable, true);
+    QGraphicsObject::mouseReleaseEvent(event);
 }
 
 QVariant TableItem::itemChange(GraphicsItemChange change, const QVariant &value)
@@ -87,3 +103,4 @@ QVariant TableItem::itemChange(GraphicsItemChange change, const QVariant &value)
     }
     return QGraphicsObject::itemChange(change, value);
 }
+

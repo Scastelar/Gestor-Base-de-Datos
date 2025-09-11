@@ -13,6 +13,7 @@ SOURCES += \
     datasheetwidget.cpp \
     main.cpp \
     mainwindow.cpp \
+    relacionesview.cpp \
     relacioneswidget.cpp \
     relationitem.cpp \
     tablacentralwidget.cpp \
@@ -23,6 +24,7 @@ HEADERS += \
     datasheetwidget.h \
     mainwindow.h \
     metadata.h \
+    relacionesview.h \
     relacioneswidget.h \
     relationitem.h \
     tablacentralwidget.h \
