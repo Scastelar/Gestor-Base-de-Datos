@@ -36,6 +36,7 @@ private:
     void crearToolbar();
     void crearLayoutPrincipal();
     void cargarListaTablas();
+    void cargarRelacionesPrevias(); // 🔹 nuevo método
 
     QGraphicsScene *scene;
     RelacionesView *view;

@@ -1,4 +1,5 @@
 #include "relacioneswidget.h"
+#include "relaciondialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QToolBar>
@@ -10,10 +11,10 @@
 #include <QCloseEvent>
 #include <QMessageBox>
 #include <QRandomGenerator>
-#include <QInputDialog>
 #include <QMouseEvent>
 #include <QDebug>
-#include "relaciondialog.h"
+#include <QFile>
+#include <QTextStream>
 
 RelacionesWidget::RelacionesWidget(QWidget *parent)
     : QWidget(parent)
@@ -27,18 +28,15 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
     view->setDragMode(QGraphicsView::RubberBandDrag);
     view->setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
 
-    // 🔹 conectar eventos desde la vista
+    // Eventos de mouse desde la vista
     connect(view, &RelacionesView::mouseMovedEnScene, this, [this](const QPointF &pos) {
         if (arrastrando && lineaTemporal) {
             lineaTemporal->setLine(QLineF(puntoDrag, pos));
-            qDebug() << "[DEBUG] Mouse move en escena:" << pos;
         }
     });
 
     connect(view, &RelacionesView::mouseReleasedEnScene, this, [this](const QPointF &pos) {
         if (!arrastrando) return;
-
-        qDebug() << "[DEBUG] Mouse release en escena:" << pos;
 
         QString tablaDestino, campoDestino;
         for (auto *tabla : tablas.values()) {
@@ -47,8 +45,6 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
                 if (rectScene.contains(pos)) {
                     tablaDestino = tabla->getTableName();
                     campoDestino = cv.nombre;
-                    qDebug() << "[DEBUG] Detectado campo destino:" << campoDestino
-                             << "en tabla:" << tablaDestino;
                     break;
                 }
             }
@@ -60,22 +56,17 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
         lineaTemporal = nullptr;
         arrastrando = false;
 
-        if (tablaDestino.isEmpty() || tablaDestino == tablaDrag) {
-            qDebug() << "[DEBUG] Relación cancelada";
-            return;
-        }
+        if (tablaDestino.isEmpty() || tablaDestino == tablaDrag) return;
 
-        // Determinar tipo automáticamente según PK
+        // 🔹 Determinar tipo automáticamente
         bool origenEsPK = false, destinoEsPK = false;
-        for (const Campo &c : tablas[tablaDrag]->getMetadata().campos) {
+        for (const Campo &c : tablas[tablaDrag]->getMetadata().campos)
             if (c.nombre == campoDrag) { origenEsPK = c.esPK; break; }
-        }
-        for (const Campo &c : tablas[tablaDestino]->getMetadata().campos) {
+        for (const Campo &c : tablas[tablaDestino]->getMetadata().campos)
             if (c.nombre == campoDestino) { destinoEsPK = c.esPK; break; }
-        }
 
-        QString tipoTexto;
         TipoRelacion tipo;
+        QString tipoTexto;
         if (origenEsPK && destinoEsPK) {
             tipo = TipoRelacion::UnoAUno;
             tipoTexto = "Uno a Uno";
@@ -87,23 +78,16 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
             tipoTexto = "Varios a Varios";
         }
 
-        // Mostrar cuadro estilo Access
+        // 🔹 Mostrar diálogo estilo Access
         RelacionDialog dlg(tablaDrag, campoDrag, tablaDestino, campoDestino, tipoTexto, this);
-        if (dlg.exec() != QDialog::Accepted) {
-            qDebug() << "[DEBUG] Usuario canceló la creación de relación.";
-            return;
-        }
+        if (dlg.exec() != QDialog::Accepted) return;
 
-
+        // 🔹 Crear relación en escena
         RelationItem *rel = new RelationItem(tablas[tablaDrag], campoDrag,
                                              tablas[tablaDestino], campoDestino,
                                              tipo);
         scene->addItem(rel);
         relaciones.append(rel);
-
-        qDebug() << "[DEBUG] Relación creada entre"
-                 << tablaDrag << "." << campoDrag
-                 << "y" << tablaDestino << "." << campoDestino;
 
         emit relacionCreada(tablaDrag, campoDrag, tablaDestino, campoDestino);
     });
@@ -111,6 +95,7 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
     crearToolbar();
     crearLayoutPrincipal();
     cargarListaTablas();
+    cargarRelacionesPrevias(); // 🔹 cargar relaciones al abrir
 }
 
 RelacionesWidget::~RelacionesWidget()
@@ -233,9 +218,6 @@ void RelacionesWidget::agregarTabla()
 
     connect(tablaItem, &TableItem::iniciarDragCampo,
             this, [this](const QString &tabla, const QString &campo, const QPointF &pos) {
-                qDebug() << "[DEBUG] Arrancando drag desde tabla:" << tabla
-                         << "campo:" << campo << "en pos:" << pos;
-
                 tablaDrag = tabla;
                 campoDrag = campo;
                 puntoDrag = pos;
@@ -251,6 +233,86 @@ void RelacionesWidget::limpiarTodo()
     tablas.clear();
     relaciones.clear();
 }
+
+void RelacionesWidget::cargarRelacionesPrevias()
+{
+    QFile relacionesFile("relationships.dat");
+    if (!relacionesFile.open(QIODevice::ReadOnly)) return;
+
+    QTextStream in(&relacionesFile);
+    QList<QStringList> relacionesPendientes;
+
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+        QStringList parts = line.split("|");
+        if (parts.size() != 4) continue;
+        relacionesPendientes.append(parts);
+    }
+    relacionesFile.close();
+
+    // 🔹 Asegurar que todas las tablas existan en la escena
+    QDir dir(QDir::currentPath() + "/tables");
+    for (const QStringList &rel : relacionesPendientes) {
+        QString t1 = rel[0];
+        QString t2 = rel[2];
+
+        for (const QString &t : {t1, t2}) {
+            if (!tablas.contains(t)) {
+                Metadata meta = Metadata::cargar(dir.filePath(t + ".meta"));
+                TableItem *tablaItem = new TableItem(meta);
+                scene->addItem(tablaItem);
+
+                int x = QRandomGenerator::global()->bounded(-200, 200);
+                int y = QRandomGenerator::global()->bounded(-200, 200);
+                tablaItem->setPos(x, y);
+
+                tablas[t] = tablaItem;
+
+                connect(tablaItem, &TableItem::iniciarDragCampo,
+                        this, [this](const QString &tabla, const QString &campo, const QPointF &pos) {
+                            tablaDrag = tabla;
+                            campoDrag = campo;
+                            puntoDrag = pos;
+                            arrastrando = true;
+                            lineaTemporal = scene->addLine(QLineF(pos, pos), QPen(Qt::gray, 1, Qt::DashLine));
+                        });
+            }
+        }
+    }
+
+    // 🔹 Crear relaciones visuales
+    for (const QStringList &rel : relacionesPendientes) {
+        QString t1 = rel[0];
+        QString c1 = rel[1];
+        QString t2 = rel[2];
+        QString c2 = rel[3];
+
+        if (tablas.contains(t1) && tablas.contains(t2)) {
+            bool origenEsPK = false, destinoEsPK = false;
+            for (const Campo &c : tablas[t1]->getMetadata().campos)
+                if (c.nombre == c1) { origenEsPK = c.esPK; break; }
+            for (const Campo &c : tablas[t2]->getMetadata().campos)
+                if (c.nombre == c2) { destinoEsPK = c.esPK; break; }
+
+            TipoRelacion tipo;
+            if (origenEsPK && destinoEsPK)
+                tipo = TipoRelacion::UnoAUno;
+            else if (origenEsPK || destinoEsPK)
+                tipo = TipoRelacion::UnoAMuchos;
+            else
+                tipo = TipoRelacion::MuchosAMuchos;
+
+            RelationItem *relItem = new RelationItem(tablas[t1], c1,
+                                                     tablas[t2], c2, tipo);
+            scene->addItem(relItem);
+            relaciones.append(relItem);
+
+            qDebug() << "[DEBUG] Relación cargada:" << t1 << "." << c1
+                     << "->" << t2 << "." << c2;
+        }
+    }
+}
+
 
 void RelacionesWidget::closeEvent(QCloseEvent *event)
 {
