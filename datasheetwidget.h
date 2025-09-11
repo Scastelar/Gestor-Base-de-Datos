@@ -47,15 +47,26 @@ signals:
 private slots:
     void onCellChanged(int row, int column);
     void onCurrentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn);
+    void onCellChangedValidacion(int row, int column); // AÑADIDO: Declaración faltante
+
+public slots:
+    void validarRegistroCompleto(int fila);
 
 private:
     void configurarTablaRegistros();
     void actualizarAsteriscoIndice(int nuevaFila, int viejaFila);
+    void resaltarErrores(int fila, bool tieneErrores);
+    bool esRegistroValido(int fila);
 
     QTableWidget *tablaRegistros;
     int indiceActual;
-     QVector<Campo> camposMetadata;
+    QVector<Campo> camposMetadata;
     int ultimoID; // Contador para IDs automáticos
+
+    bool validarLlavePrimariaUnica(int filaActual);
+    bool validarTipoDato(int fila, int columna, const QString &valor);
+    bool esValorUnicoEnColumna(int columna, const QString &valor, int filaExcluir = -1);
+
 };
 
 #endif // DATASHEETWIDGET_H
