@@ -1,4 +1,4 @@
-#include "tablacentralwidget.h"
+#include "vistadiseno.h"
 #include <QHeaderView>
 #include <QTableWidgetItem>
 #include <QPushButton>
@@ -6,7 +6,7 @@
 #include <QSpinBox>
 #include <QMessageBox>
 
-TablaCentralWidget::TablaCentralWidget(QWidget *parent)
+VistaDiseno::VistaDiseno(QWidget *parent)
     : QWidget(parent)
 {
     QVBoxLayout *layoutPrincipal = new QVBoxLayout(this);
@@ -25,12 +25,12 @@ TablaCentralWidget::TablaCentralWidget(QWidget *parent)
     tablaCampos->setAlternatingRowColors(true);
 
     // Conectar señal de cambio de selección
-    connect(tablaCampos, &QTableWidget::itemSelectionChanged, this, &TablaCentralWidget::actualizarPropiedades);
+    connect(tablaCampos, &QTableWidget::itemSelectionChanged, this, &VistaDiseno::actualizarPropiedades);
 
     connect(tablaCampos, &QTableWidget::currentCellChanged,
-            this, &TablaCentralWidget::on_tablaCampos_currentCellChanged);
+            this, &VistaDiseno::on_tablaCampos_currentCellChanged);
     connect(tablaCampos, &QTableWidget::cellChanged,
-            this, &TablaCentralWidget::on_tablaCampos_cellChanged);
+            this, &VistaDiseno::on_tablaCampos_cellChanged);
 
     tablaPropiedades = new QTableWidget(0, 2, this);
     configurarTablaPropiedades();
@@ -39,7 +39,7 @@ TablaCentralWidget::TablaCentralWidget(QWidget *parent)
     layoutPrincipal->addWidget(tablaPropiedades);
 }
 
-void TablaCentralWidget::configurarTablaCampos() {
+void VistaDiseno::configurarTablaCampos() {
     tablaCampos->setStyleSheet(
         "QTableWidget::item:selected { "
         "background-color: #f0f0f0; "
@@ -70,13 +70,13 @@ void TablaCentralWidget::configurarTablaCampos() {
     tipoCombo->addItems({"TEXTO", "NUMERO", "FECHA", "MONEDA"});
     tipoCombo->setCurrentText("NUMERO"); // Tipo por defecto para PK
     connect(tipoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &TablaCentralWidget::actualizarPropiedades);
+            this, &VistaDiseno::actualizarPropiedades);
     tablaCampos->setCellWidget(0, 2, tipoCombo);
 
     tablaCampos->horizontalHeader()->setStretchLastSection(true);
 }
 
-void TablaCentralWidget::configurarTablaPropiedades() {
+void VistaDiseno::configurarTablaPropiedades() {
     QStringList headers;
     headers << "Propiedad" << "Valor";
     tablaPropiedades->setHorizontalHeaderLabels(headers);
@@ -85,7 +85,7 @@ void TablaCentralWidget::configurarTablaPropiedades() {
     tablaPropiedades->setColumnWidth(0, 150);
 }
 
-void TablaCentralWidget::agregarCampo() {
+void VistaDiseno::agregarCampo() {
     int row = tablaCampos->rowCount();
     tablaCampos->insertRow(row);
 
@@ -103,11 +103,11 @@ void TablaCentralWidget::agregarCampo() {
     QComboBox *tipoCombo = new QComboBox();
     tipoCombo->addItems({"TEXTO", "NUMERO", "FECHA", "MONEDA"});
     connect(tipoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &TablaCentralWidget::actualizarPropiedades);
+            this, &VistaDiseno::actualizarPropiedades);
     tablaCampos->setCellWidget(row, 2, tipoCombo);
 }
 
-void TablaCentralWidget::eliminarCampo() {
+void VistaDiseno::eliminarCampo() {
     int currentRow = tablaCampos->currentRow();
     if (currentRow == -1) {
         QMessageBox::information(this, "Selección requerida", "Por favor, seleccione un campo para eliminar.");
@@ -139,7 +139,7 @@ void TablaCentralWidget::eliminarCampo() {
 
 
 // Método público para establecer PK desde otra clase
-void TablaCentralWidget::establecerPK() {
+void VistaDiseno::establecerPK() {
     int currentRow = tablaCampos->currentRow();
     if (currentRow == -1) {
         QMessageBox::information(this, "Selección requerida", "Por favor, seleccione una fila primero.");
@@ -164,7 +164,7 @@ void TablaCentralWidget::establecerPK() {
 }
 
 // Método para obtener la fila que actualmente es PK
-int TablaCentralWidget::obtenerFilaPK() const {
+int VistaDiseno::obtenerFilaPK() const {
     for (int row = 0; row < tablaCampos->rowCount(); ++row) {
         QTableWidgetItem *pkItem = tablaCampos->item(row, 0);
         if (pkItem && pkItem->text() == "🔑") {
@@ -175,7 +175,7 @@ int TablaCentralWidget::obtenerFilaPK() const {
 }
 
 // Método para obtener el nombre del campo PK
-QString TablaCentralWidget::obtenerNombrePK() const {
+QString VistaDiseno::obtenerNombrePK() const {
     int pkRow = obtenerFilaPK();
     if (pkRow != -1) {
         QTableWidgetItem *nombreItem = tablaCampos->item(pkRow, 1);
@@ -187,7 +187,7 @@ QString TablaCentralWidget::obtenerNombrePK() const {
 }
 
 // 🔹 Exportar todos los campos como QVector<Campo> con propiedades
-QVector<Campo> TablaCentralWidget::obtenerCampos() const {
+QVector<Campo> VistaDiseno::obtenerCampos() const {
     QVector<Campo> campos;
     for (int row = 0; row < tablaCampos->rowCount(); ++row) {
         Campo c;
@@ -246,7 +246,7 @@ QVector<Campo> TablaCentralWidget::obtenerCampos() const {
 }
 
 // 🔹 Cargar campos desde Metadata con propiedades
-void TablaCentralWidget::cargarCampos(const QVector<Campo>& campos) {
+void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
     tablaCampos->setRowCount(0); // limpiar
     propiedadesPorFila.clear();
 
@@ -275,7 +275,7 @@ void TablaCentralWidget::cargarCampos(const QVector<Campo>& campos) {
         int index = tipoCombo->findText(c.tipo);
         if (index != -1) tipoCombo->setCurrentIndex(index);
         connect(tipoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, &TablaCentralWidget::actualizarPropiedades);
+                this, &VistaDiseno::actualizarPropiedades);
         tablaCampos->setCellWidget(row, 2, tipoCombo);
 
         // Guardar propiedad en el mapa
@@ -303,7 +303,7 @@ void TablaCentralWidget::cargarCampos(const QVector<Campo>& campos) {
 }
 
 // 🔹 Actualizar propiedades cuando cambia el tipo de dato
-void TablaCentralWidget::actualizarPropiedades() {
+void VistaDiseno::actualizarPropiedades() {
     tablaPropiedades->clearContents();
     tablaPropiedades->setRowCount(0);
 
@@ -393,7 +393,7 @@ void TablaCentralWidget::actualizarPropiedades() {
 }
 
 // 🔹 Guardar propiedad actual cuando cambia de fila
-void TablaCentralWidget::on_tablaCampos_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn) {
+void VistaDiseno::on_tablaCampos_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn) {
     Q_UNUSED(currentColumn);
     Q_UNUSED(previousColumn);
 
@@ -409,7 +409,7 @@ void TablaCentralWidget::on_tablaCampos_currentCellChanged(int currentRow, int c
 }
 
 // 🔹 Método auxiliar para guardar propiedad de una fila específica
-void TablaCentralWidget::guardarPropiedadFila(int row) {
+void VistaDiseno::guardarPropiedadFila(int row) {
     if (tablaPropiedades->rowCount() == 0) return;
 
     QComboBox *tipoCombo = qobject_cast<QComboBox*>(tablaCampos->cellWidget(row, 2));
@@ -444,7 +444,7 @@ void TablaCentralWidget::guardarPropiedadFila(int row) {
 }
 
 // 🔹 Limpiar propiedades cuando se elimina una fila
-void TablaCentralWidget::on_tablaCampos_cellChanged(int row, int column) {
+void VistaDiseno::on_tablaCampos_cellChanged(int row, int column) {
     // Si se elimina una fila, remover su propiedad
     if (column == 0 && row >= tablaCampos->rowCount()) {
         propiedadesPorFila.remove(row);
@@ -452,7 +452,7 @@ void TablaCentralWidget::on_tablaCampos_cellChanged(int row, int column) {
 }
 
 // Método para validar que existe exactamente una PK
-bool TablaCentralWidget::validarPK() const {
+bool VistaDiseno::validarPK() const {
     int countPK = 0;
     for (int row = 0; row < tablaCampos->rowCount(); ++row) {
         QTableWidgetItem *pkItem = tablaCampos->item(row, 0);

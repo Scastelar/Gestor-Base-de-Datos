@@ -11,11 +11,11 @@
 #include <QPushButton>
 #include "metadata.h"   // 🔹 Para usar struct Campo
 
-class TablaCentralWidget : public QWidget {
+class VistaDiseno : public QWidget {
     Q_OBJECT
 
 public:
-    explicit TablaCentralWidget(QWidget *parent = nullptr);
+    explicit VistaDiseno(QWidget *parent = nullptr);
     bool validarPK() const;
     // 🔹 Manejo de la PK
     int obtenerFilaPK() const;

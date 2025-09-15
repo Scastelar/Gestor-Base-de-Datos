@@ -1,5 +1,5 @@
-#ifndef DATASHEETWIDGET_H
-#define DATASHEETWIDGET_H
+#ifndef VISTADATOS_H
+#define VISTADATOS_H
 
 #include <QWidget>
 #include <QTableWidget>
@@ -12,12 +12,12 @@ class QTableWidgetItem;
 class QPushButton;
 class QLabel;
 
-class DataSheetWidget : public QWidget
+class VistaDatos : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit DataSheetWidget(QWidget *parent = nullptr);
+    explicit VistaDatos(QWidget *parent = nullptr);
 
     // 🔹 Nueva función: crear columnas según metadata
     void cargarDesdeMetadata(const Metadata &meta);
@@ -37,6 +37,7 @@ public:
 
     void configurarEditorFecha(QTableWidgetItem *item, const QString &formato);
     QString formatearFecha(const QDateTime &fecha, const QString &formato) const;
+    QString formatearMoneda(double valor, const QString &simbolo) const;
     void mostrarSelectorFecha(int row, int col, const QString &formato);
     QString formatearFechaSegunFormato(const QDate &fecha, const QString &formato) const;
     void onCellDoubleClicked(int row, int column);
@@ -91,4 +92,4 @@ private:
 
 };
 
-#endif // DATASHEETWIDGET_H
+#endif // VISTADATOS_H

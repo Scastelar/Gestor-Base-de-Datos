@@ -17,11 +17,11 @@
 #include "datasheetwidget.h"
 #include "relacioneswidget.h"
 
-class BaseDatosWindow : public QMainWindow {
+class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
-    explicit BaseDatosWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget *parent = nullptr);
 
 
 private slots:

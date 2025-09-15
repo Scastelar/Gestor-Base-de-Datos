@@ -1,4 +1,4 @@
-#include "datasheetwidget.h"
+#include "vistadatos.h"
 #include <QHeaderView>
 #include <QMessageBox>
 #include <QPushButton>
@@ -21,16 +21,13 @@
 
 
 // Constructor modificado
-DataSheetWidget::DataSheetWidget(QWidget *parent)
+VistaDatos::VistaDatos(QWidget *parent)
     : QWidget(parent), indiceActual(-1), ultimoID(0), filaExpandida(-1), relacionExpandida(false)
 {
     QVBoxLayout *layoutPrincipal = new QVBoxLayout(this);
 
-    // Crear tabla para registros - SOLO 2 COLUMNAS INICIALES: * e ID
-    tablaRegistros = new QTableWidget(1, 2, this); // Cambiado a 2 columnas iniciales
-
-    // Headers iniciales simplificados - SOLO * e ID
-
+    // Crear tabla para registros - SOLO 1 COLUMNA INICIAL: *
+    tablaRegistros = new QTableWidget(1, 1, this); // Cambiado a 1 columna inicial
 
     // Resto del constructor permanece igual...
     configurarTablaRegistros();
@@ -56,8 +53,8 @@ DataSheetWidget::DataSheetWidget(QWidget *parent)
     layoutRelacionado->addWidget(btnCerrarRelacion);
     contenedorRelacionado->hide();
 
-    // Headers simplificados
-    QStringList headers = {"*", "ID"}; // Solo estas dos columnas iniciales
+    // Headers simplificados - SOLO COLUMNA "*"
+    QStringList headers = {"*"};
     tablaRegistros->setHorizontalHeaderLabels(headers);
 
     // Ajustes de estilo
@@ -84,16 +81,16 @@ DataSheetWidget::DataSheetWidget(QWidget *parent)
         );
 
     // Conectar señales
-    connect(tablaRegistros, &QTableWidget::cellChanged, this, &DataSheetWidget::onCellChanged);
-    connect(tablaRegistros, &QTableWidget::currentCellChanged, this, &DataSheetWidget::onCurrentCellChanged);
-    connect(tablaRegistros, &QTableWidget::cellDoubleClicked, this, &DataSheetWidget::onCellDoubleClicked);
+    connect(tablaRegistros, &QTableWidget::cellChanged, this, &VistaDatos::onCellChanged);
+    connect(tablaRegistros, &QTableWidget::currentCellChanged, this, &VistaDatos::onCurrentCellChanged);
+    connect(tablaRegistros, &QTableWidget::cellDoubleClicked, this, &VistaDatos::onCellDoubleClicked);
 
     // 🔹 Nueva señal para expandir/contraer relación
-    connect(tablaRegistros, &QTableWidget::cellClicked, this, &DataSheetWidget::expandirContraerRelacion);
+    connect(tablaRegistros, &QTableWidget::cellClicked, this, &VistaDatos::expandirContraerRelacion);
 
     // Botón para agregar registro
     QPushButton *btnAgregar = new QPushButton("Agregar registro");
-    connect(btnAgregar, &QPushButton::clicked, this, &DataSheetWidget::agregarRegistro);
+    connect(btnAgregar, &QPushButton::clicked, this, &VistaDatos::agregarRegistro);
 
     layoutPrincipal->addWidget(tablaRegistros);
     layoutPrincipal->addWidget(contenedorRelacionado);
@@ -101,13 +98,12 @@ DataSheetWidget::DataSheetWidget(QWidget *parent)
 
     // Configurar fila inicial
     agregarRegistro();
-
 }
 
 
 
 // 🔹 Nuevo: Slot para expandir/contraer relación
-void DataSheetWidget::expandirContraerRelacion(int fila, int columna)
+void VistaDatos::expandirContraerRelacion(int fila, int columna)
 {
     if (!relacionExpandida || fila != filaExpandida) {
         return;
@@ -120,7 +116,7 @@ void DataSheetWidget::expandirContraerRelacion(int fila, int columna)
 }
 
 // 🔹 Modificado: Método para cargar relaciones
-void DataSheetWidget::cargarRelaciones(const QString &archivoRelaciones)
+void VistaDatos::cargarRelaciones(const QString &archivoRelaciones)
 {
     relaciones.clear();
     QFile archivo(archivoRelaciones);
@@ -152,7 +148,7 @@ void DataSheetWidget::cargarRelaciones(const QString &archivoRelaciones)
 }
 
 // 🔹 Nuevo método: Obtener relación para un campo específico
-QMap<QString, QString> DataSheetWidget::obtenerRelacionParaCampo(const QString &nombreCampo) const
+QMap<QString, QString> VistaDatos::obtenerRelacionParaCampo(const QString &nombreCampo) const
 {
     for (const auto &relacion : relaciones) {
         if (relacion["campoOrigen"] == nombreCampo) {
@@ -163,7 +159,7 @@ QMap<QString, QString> DataSheetWidget::obtenerRelacionParaCampo(const QString &
 }
 
 // 🔹 Nuevo: Método para verificar si es relación M:M (ninguna es PK)
-bool DataSheetWidget::esRelacionMuchosAMuchos(const QMap<QString, QString> &relacion) const
+bool VistaDatos::esRelacionMuchosAMuchos(const QMap<QString, QString> &relacion) const
 {
     // En una relación M:M, generalmente:
     // 1. Ninguno de los campos es PK en su tabla original
@@ -186,7 +182,7 @@ bool DataSheetWidget::esRelacionMuchosAMuchos(const QMap<QString, QString> &rela
 }
 
 // 🔹 Modificado: Método para agregar botones de relación solo para M:M
-void DataSheetWidget::agregarBotonRelacion(int fila, int columna)
+void VistaDatos::agregarBotonRelacion(int fila, int columna)
 {
     // Verificar que sea una columna de datos (no *, no ID)
     if (columna < 2) { // Columnas 0 (*) y 1 (ID) no deben tener botones
@@ -267,7 +263,7 @@ void DataSheetWidget::agregarBotonRelacion(int fila, int columna)
 }
 
 // 🔹 Modificado: Slot para manejar clic en botón de relación
-void DataSheetWidget::onBotonRelacionClicked(int fila, int columna)
+void VistaDatos::onBotonRelacionClicked(int fila, int columna)
 {
     // Obtener el nombre del campo desde la metadata
     if (columna < 1 || columna - 1 >= camposMetadata.size()) return;
@@ -299,7 +295,7 @@ void DataSheetWidget::onBotonRelacionClicked(int fila, int columna)
 }
 
 // 🔹 Modificado: Método para mostrar tabla relacionada con campos editables
-void DataSheetWidget::mostrarTablaRelacionada(const QString &tablaDestino, const QString &campoOrigen, const QString &valor)
+void VistaDatos::mostrarTablaRelacionada(const QString &tablaDestino, const QString &campoOrigen, const QString &valor)
 {
     // Limpiar tabla existente
     tablaRelacionada->setRowCount(0);
@@ -355,7 +351,7 @@ void DataSheetWidget::mostrarTablaRelacionada(const QString &tablaDestino, const
 // El resto del código permanece igual...
 
 // 🔹 Nuevo: Slot para recibir datos relacionados (conectar en el padre)
-void DataSheetWidget::onDatosRelacionadosRecibidos(const QList<QMap<QString, QVariant>> &datos)
+void VistaDatos::onDatosRelacionadosRecibidos(const QList<QMap<QString, QVariant>> &datos)
 {
     if (!relacionExpandida) return;
 
@@ -396,7 +392,7 @@ void DataSheetWidget::onDatosRelacionadosRecibidos(const QList<QMap<QString, QVa
     contenedorRelacionado->show();
 }
 
-void DataSheetWidget::mostrarSelectorFecha(int row, int col, const QString &formato)
+void VistaDatos::mostrarSelectorFecha(int row, int col, const QString &formato)
 {
     QDialog dialog(this);
     dialog.setWindowTitle("Seleccionar Fecha");
@@ -483,7 +479,7 @@ void DataSheetWidget::mostrarSelectorFecha(int row, int col, const QString &form
     }
 }
 
-QString DataSheetWidget::formatearFechaSegunFormato(const QDate &fecha, const QString &formato) const
+QString VistaDatos::formatearFechaSegunFormato(const QDate &fecha, const QString &formato) const
 {
     if (formato == "DD-MM-YY") {
         return fecha.toString("dd-MM-yy");
@@ -507,7 +503,7 @@ QString DataSheetWidget::formatearFechaSegunFormato(const QDate &fecha, const QS
     return fecha.toString("dd-MM-yyyy");
 }
 
-void DataSheetWidget::configurarEditorFecha(QTableWidgetItem *item, const QString &formato)
+void VistaDatos::configurarEditorFecha(QTableWidgetItem *item, const QString &formato)
 {
     int row = item->row();
     int col = item->column();
@@ -541,7 +537,21 @@ void DataSheetWidget::configurarEditorFecha(QTableWidgetItem *item, const QStrin
     });
 }
 
-QString DataSheetWidget::formatearFecha(const QDateTime &fecha, const QString &formato) const
+QString VistaDatos::formatearMoneda(double valor, const QString &simbolo) const
+{
+    if (simbolo == "Lempira") {
+        return QString("Lps %1").arg(valor, 0, 'f', 2);
+    } else if (simbolo == "Dólar") {
+        return QString("$%1").arg(valor, 0, 'f', 2);
+    } else if (simbolo == "Euros") {
+        return QString("€%1").arg(valor, 0, 'f', 2);
+    } else if (simbolo == "Millares") {
+        return QString("₡%1").arg(valor, 0, 'f', 2);
+    }
+    return QString::number(valor, 'f', 2);
+}
+
+QString VistaDatos::formatearFecha(const QDateTime &fecha, const QString &formato) const
 {
     if (formato == "DD-MM-YY") {
         return fecha.toString("dd-MM-yy");
@@ -575,11 +585,10 @@ QString DataSheetWidget::formatearFecha(const QDateTime &fecha, const QString &f
     return fecha.toString("dd-MM-yyyy");
 }
 
-void DataSheetWidget::configurarTablaRegistros()
+void VistaDatos::configurarTablaRegistros()
 {
-    // Configurar solo las columnas básicas iniciales
+    // Configurar solo la columna básica inicial (asterisco)
     tablaRegistros->setColumnWidth(0, 30);  // Columna del asterisco
-    tablaRegistros->setColumnWidth(1, 80);  // Columna del ID
 
     // Columna del asterisco (no editable)
     QTableWidgetItem *asteriscoItem = new QTableWidgetItem();
@@ -587,14 +596,7 @@ void DataSheetWidget::configurarTablaRegistros()
     asteriscoItem->setTextAlignment(Qt::AlignCenter);
     tablaRegistros->setItem(0, 0, asteriscoItem);
 
-    // Columna ID (no editable, numérico automático)
-    QTableWidgetItem *idItem = new QTableWidgetItem();
-    idItem->setFlags(idItem->flags() & ~Qt::ItemIsEditable);
-    idItem->setTextAlignment(Qt::AlignCenter);
-    idItem->setText(QString::number(++ultimoID));
-    tablaRegistros->setItem(0, 1, idItem);
-
-    // NO agregar "Campo1" aquí - se agregará dinámicamente con la metadata
+    // NO crear columna ID aquí - se agregará dinámicamente con la metadata si es necesario
 
     // Marcar la fila actual con asterisco
     indiceActual = 0;
@@ -605,7 +607,7 @@ void DataSheetWidget::configurarTablaRegistros()
     }
 }
 
-void DataSheetWidget::actualizarAsteriscoIndice(int nuevaFila, int viejaFila)
+void VistaDatos::actualizarAsteriscoIndice(int nuevaFila, int viejaFila)
 {
     // Quitar asterisco de la fila anterior
     if (viejaFila >= 0 && viejaFila < tablaRegistros->rowCount()) {
@@ -626,7 +628,7 @@ void DataSheetWidget::actualizarAsteriscoIndice(int nuevaFila, int viejaFila)
     }
 }
 
-void DataSheetWidget::onCurrentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn)
+void VistaDatos::onCurrentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn)
 {
     Q_UNUSED(currentColumn);
     Q_UNUSED(previousColumn);
@@ -634,20 +636,27 @@ void DataSheetWidget::onCurrentCellChanged(int currentRow, int currentColumn, in
     actualizarAsteriscoIndice(currentRow, previousRow);
 }
 
-void DataSheetWidget::onCellChanged(int row, int column)
+void VistaDatos::onCellChanged(int row, int column)
 {
-    if (column >= 2) { // Si cambió un campo de datos
+    if (column >= 1) { // Si cambió un campo de datos (columna 0 es *, 1+ son campos)
         QTableWidgetItem *item = tablaRegistros->item(row, column);
         if (item && item->text().isEmpty()) {
             // Para campos MONEDA, establecer "0.00" en lugar de "Valor"
-            int campoIndex = column - 2;
+            int campoIndex = column - 1; // -1 porque columna 0 es *
             if (campoIndex >= 0 && campoIndex < camposMetadata.size()) {
                 const Campo &campo = camposMetadata[campoIndex];
+                QString texto = item->text();
                 if (campo.tipo == "MONEDA") {
-                    item->setText("0.00");
-                } else {
-                    item->setText("Valor");
-                }
+                    // Eliminar símbolos y comas antes de convertir a double
+                    texto.remove("Lps").remove("$").remove("€").remove("₡").remove(",");
+                    double valor = texto.toDouble();
+                    QString simbolo = campo.obtenerPropiedad().toString();
+                    item->setText(formatearMoneda(valor, simbolo));
+                }   else if (campo.propiedad == "decimal" || campo.propiedad == "doble"){
+                    double valor = texto.toDouble();
+
+                    item->setText(QString::number(valor, 'f', 2));
+                    }
             } else {
                 item->setText("Valor");
             }
@@ -656,7 +665,7 @@ void DataSheetWidget::onCellChanged(int row, int column)
     }
 }
 
-void DataSheetWidget::establecerPK()
+void VistaDatos::establecerPK()
 {
     int currentRow = indiceActual;
     if (currentRow == -1) {
@@ -686,7 +695,7 @@ void DataSheetWidget::establecerPK()
     }
 }
 
-int DataSheetWidget::obtenerFilaPK() const
+int VistaDatos::obtenerFilaPK() const
 {
     for (int row = 0; row < tablaRegistros->rowCount(); ++row) {
         QTableWidgetItem *pkItem = tablaRegistros->item(row, 0);
@@ -697,7 +706,7 @@ int DataSheetWidget::obtenerFilaPK() const
     return -1;
 }
 
-QString DataSheetWidget::obtenerNombrePK() const
+QString VistaDatos::obtenerNombrePK() const
 {
     int pkRow = obtenerFilaPK();
     if (pkRow != -1) {
@@ -709,25 +718,23 @@ QString DataSheetWidget::obtenerNombrePK() const
     return "";
 }
 
-QList<QMap<QString, QVariant>> DataSheetWidget::obtenerRegistros(const QVector<Campo> &campos) const
+QList<QMap<QString, QVariant>> VistaDatos::obtenerRegistros(const QVector<Campo> &campos) const
 {
     QList<QMap<QString, QVariant>> registros;
 
+    // Asumir que las primeras columnas son de control
+    // Columna 0: "*" (selección), Columna 1: ID
+    // El resto de las columnas son para los campos definidos en 'campos'
+    int offset = 1; // El offset es 1 porque el ID se maneja por separado y está en la primera columna de datos.
+
+    // El loop principal debería iterar sobre las filas de la tabla
     for (int row = 0; row < tablaRegistros->rowCount(); ++row) {
         QMap<QString, QVariant> registro;
 
-        // Obtener el ID (columna 1)
-        QTableWidgetItem *idItem = tablaRegistros->item(row, 1);
-        if (idItem) {
-            registro["ID"] = idItem->text().toInt();
-        }
-
-        // Obtener los campos de datos (columnas 2 en adelante)
+        // Iterar sobre los campos para obtener los valores de las columnas
         for (int col = 0; col < campos.size(); ++col) {
             const Campo &campo = campos[col];
-            if (campo.nombre == "ID") continue; // Ya manejamos el ID
-
-            QTableWidgetItem *item = tablaRegistros->item(row, col + 2); // +2 por *, ID
+            QTableWidgetItem *item = tablaRegistros->item(row, col + offset);
 
             if (item) {
                 QVariant valor;
@@ -737,92 +744,126 @@ QList<QMap<QString, QVariant>> DataSheetWidget::obtenerRegistros(const QVector<C
                     valor = texto;
                 }
                 else if (campo.tipo == "NUMERO") {
-                    valor = texto.toDouble();
+                    QString subTipo = campo.obtenerPropiedad().toString();
+                    if (subTipo == "entero") {
+                        valor = texto.toInt();
+                    } else if (subTipo == "decimal" || subTipo == "doble") {
+                        valor = texto.trimmed().toDouble();
+                    } else if (subTipo == "byte") {
+                        bool ok;
+                        int byteValor = texto.toInt(&ok);
+                        if (ok && byteValor >= 0 && byteValor <= 255) {
+                            valor = byteValor;
+                        } else {
+                            valor = 0; // Valor por defecto en caso de error
+                        }
+                    }
                 }
                 else if (campo.tipo == "MONEDA") {
                     texto.remove("Lps").remove("$").remove("€").remove("₡").remove(",");
                     valor = texto.trimmed().toDouble();
                 }
                 else if (campo.tipo == "FECHA") {
+                    // Lógica para FECHA
                     QString formato = campo.obtenerPropiedad().toString();
                     QDateTime fecha;
 
-                    if (formato == "DD-MM-YY") fecha = QDateTime::fromString(texto, "dd-MM-yy");
-                    else if (formato == "DD/MM/YY") fecha = QDateTime::fromString(texto, "dd/MM/yy");
-                    else if (formato == "YYYY-MM-DD") fecha = QDateTime::fromString(texto, "yyyy-MM-dd");
-                    else if (formato == "DD/MES/YYYY") {
-                        // Parsear formato con nombre de mes
-                        QStringList partes = texto.split('/');
-                        if (partes.size() == 3) {
-                            // ... lógica de parsing existente
-                        }
+                    // Si el formato es 'DD/MES/YYYY'
+                    if (formato == "DD/MES/YYYY") {
+                        QLocale locale(QLocale::Spanish); // Usar el locale apropiado
+                        fecha = locale.toDateTime(texto, "dd/MMMM/yyyy");
+                    } else {
+                        // Para los otros formatos, usa los formatos estándar de Qt
+                        QString qtFormat;
+                        if (formato == "DD-MM-YY") qtFormat = "dd-MM-yy";
+                        else if (formato == "DD/MM/YY") qtFormat = "dd/MM/yy";
+                        else if (formato == "YYYY-MM-DD") qtFormat = "yyyy-MM-dd";
+                        fecha = QDateTime::fromString(texto, qtFormat);
                     }
 
                     if (fecha.isValid()) valor = fecha;
                     else valor = QDateTime::currentDateTime();
-                }
-                else {
+                } else {
                     valor = texto;
                 }
 
                 registro[campo.nombre] = valor;
             }
         }
-
         registros.append(registro);
     }
-
     return registros;
 }
 
-void DataSheetWidget::onCellDoubleClicked(int row, int column)
+void VistaDatos::onCellDoubleClicked(int row, int column)
 {
-    if (column < 2) return; // No editar columnas * e ID
+    if (column < 1) return;
 
     if (camposMetadata.isEmpty()) return;
 
-    int campoIndex = column - 2; // -2 por * e ID
+    int campoIndex = column - 1;
     if (campoIndex < 0 || campoIndex >= camposMetadata.size()) return;
 
     const Campo &campo = camposMetadata[campoIndex];
     QTableWidgetItem *item = tablaRegistros->item(row, column);
 
-    if (campo.tipo == "FECHA") {
+    if (campo.tipo == "TEXTO") {
+        // Obtener el límite de caracteres del campo
+        int maxCaracteres = campo.obtenerPropiedad().toInt();
+        if (maxCaracteres <= 0) { // Si no se ha definido, usar un valor por defecto
+            maxCaracteres = 255;
+        }
+
+        QLineEdit *lineEdit = new QLineEdit(tablaRegistros);
+        lineEdit->setMaxLength(maxCaracteres);
+        lineEdit->setText(item->text());
+        tablaRegistros->setCellWidget(row, column, lineEdit);
+        lineEdit->setFocus();
+
+        // Conectar una señal para guardar el valor cuando el editor pierde el foco
+        connect(lineEdit, &QLineEdit::editingFinished, this, [this, row, column, lineEdit]() {
+            QTableWidgetItem *item = tablaRegistros->item(row, column);
+            if (item) {
+                item->setText(lineEdit->text());
+            }
+            tablaRegistros->removeCellWidget(row, column); // Quitar el editor
+            emit registroModificado(row);
+        });
+    }
+    else if (campo.tipo == "FECHA") {
         QString formato = campo.obtenerPropiedad().toString();
         mostrarSelectorFecha(row, column, formato);
     }
-    else if (campo.tipo == "MONEDA") {
-        // Código existente para moneda...
-    }
 }
 
-void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta)
+void VistaDatos::cargarDesdeMetadata(const Metadata &meta)
 {
     camposMetadata = meta.campos;
 
     // Desconectar temporalmente
-    disconnect(tablaRegistros, &QTableWidget::cellChanged, this, &DataSheetWidget::onCellChanged);
+    disconnect(tablaRegistros, &QTableWidget::cellChanged, this, &VistaDatos::onCellChanged);
 
-    // Limpiar la tabla pero mantener estructura básica de * e ID
+    // Limpiar la tabla pero mantener estructura básica de *
     tablaRegistros->setRowCount(0);
     botonesRelaciones.clear();
 
-    // Configurar número correcto de columnas: * + ID + campos
-    tablaRegistros->setColumnCount(2 + meta.campos.size()); // * + ID + campos
+    // Configurar número correcto de columnas: * + campos
+    tablaRegistros->setColumnCount(1 + meta.campos.size()); // * + campos
 
+    //Configurar cabeceras
     QStringList headers;
-    headers << "*" << "ID"; // Columnas fijas
+    headers << "*"; // Columna fija
     for (const Campo &c : meta.campos) {
         headers << c.nombre;
     }
     tablaRegistros->setHorizontalHeaderLabels(headers);
 
+
     // Configurar anchos de columnas
     tablaRegistros->setColumnWidth(0, 30);  // Asterisco
-    tablaRegistros->setColumnWidth(1, 80);  // ID
 
     for (int i = 0; i < meta.campos.size(); i++) {
-        tablaRegistros->setColumnWidth(i + 2, 150); // Campos de datos
+        tablaRegistros->setColumnWidth(i + 1, 150); // Campos de datos
     }
 
     indiceActual = -1;
@@ -839,28 +880,27 @@ void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta)
         asteriscoItem->setTextAlignment(Qt::AlignCenter);
         tablaRegistros->setItem(row, 0, asteriscoItem);
 
-        // ID (columna 1)
-        QTableWidgetItem *idItem = new QTableWidgetItem();
-        idItem->setFlags(idItem->flags() & ~Qt::ItemIsEditable);
-        idItem->setTextAlignment(Qt::AlignCenter);
-
-        QVariant idValor = registro.value("ID");
-        if (idValor.isValid()) {
-            int id = idValor.toInt();
-            idItem->setText(QString::number(id));
-            if (id > ultimoID) ultimoID = id;
-        } else {
-            idItem->setText(QString::number(++ultimoID));
-        }
-        tablaRegistros->setItem(row, 1, idItem);
-
-        // Campos de datos (columnas 2+)
+        // Campos de datos (columnas 1+)
         for (int i = 0; i < meta.campos.size(); i++) {
             const Campo &campo = meta.campos[i];
             QVariant valor = registro.value(campo.nombre);
 
             QTableWidgetItem *item = new QTableWidgetItem();
             item->setFlags(item->flags() | Qt::ItemIsEditable);
+
+            // Esto es crucial: formatear el texto según el tipo de campo
+            if (valor.isValid()) {
+                if (campo.tipo == "FECHA" && valor.canConvert<QDateTime>()) {
+                    // Usar la propiedad de formato del campo para formatear la fecha
+                    QString formato = campo.obtenerPropiedad().toString();
+                    item->setText(formatearFecha(valor.toDateTime(), formato));
+                } else {
+                    item->setText(valor.toString());
+                }
+            } else {
+                item->setText("");
+            }
+
 
             // Configurar según tipo de campo...
             if (campo.tipo == "TEXTO") {
@@ -871,7 +911,32 @@ void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta)
                 item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             }
             else if (campo.tipo == "MONEDA") {
-                // ... código para moneda
+                if (valor.isValid()) {
+                    double valorNum = valor.toDouble();
+                    QString simbolo = campo.obtenerPropiedad().toString();
+                    QString textoMoneda;
+
+                    if (simbolo == "Lempira") {
+                        textoMoneda = QString("Lps %1").arg(valorNum, 0, 'f', 2);
+                    }
+                    else if (simbolo == "Dólar") {
+                        textoMoneda = QString("$%1").arg(valorNum, 0, 'f', 2);
+                    }
+                    else if (simbolo == "Euros") {
+                        textoMoneda = QString("€%1").arg(valorNum, 0, 'f', 2);
+                    }
+                    else if (simbolo == "Millares") {
+                        textoMoneda = QString("₡%1").arg(valorNum, 0, 'f', 2);
+                    }
+                    else {
+                        textoMoneda = QString::number(valorNum, 'f', 2);
+                    }
+
+                    item->setText(textoMoneda);
+                } else {
+                    item->setText("0.00");
+                }
+                item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
             }
             else if (campo.tipo == "FECHA") {
                 // ... código para fecha
@@ -880,8 +945,8 @@ void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta)
                 item->setText(valor.isValid() ? valor.toString() : "");
             }
 
-            tablaRegistros->setItem(row, i + 2, item); // +2 por * e ID
-            agregarBotonRelacion(row, i + 2); // Solo agregar botón si hay relación
+            tablaRegistros->setItem(row, i + 1, item); // +1 por *
+            agregarBotonRelacion(row, i + 1); // Solo agregar botón si hay relación
         }
     }
 
@@ -893,11 +958,11 @@ void DataSheetWidget::cargarDesdeMetadata(const Metadata &meta)
     }
 
     // Reconectar
-    connect(tablaRegistros, &QTableWidget::cellChanged, this, &DataSheetWidget::onCellChanged);
+    connect(tablaRegistros, &QTableWidget::cellChanged, this, &VistaDatos::onCellChanged);
 }
 
 // Modificar agregarRegistro para agregar botones
-void DataSheetWidget::agregarRegistro()
+void VistaDatos::agregarRegistro()
 {
     int row = tablaRegistros->rowCount();
     tablaRegistros->insertRow(row);
@@ -908,13 +973,9 @@ void DataSheetWidget::agregarRegistro()
     asteriscoItem->setTextAlignment(Qt::AlignCenter);
     tablaRegistros->setItem(row, 0, asteriscoItem);
 
-    // ID (columna 1)
-    QTableWidgetItem *idItem = new QTableWidgetItem(QString::number(++ultimoID));
-    idItem->setFlags(idItem->flags() & ~Qt::ItemIsEditable);
-    idItem->setTextAlignment(Qt::AlignCenter);
-    tablaRegistros->setItem(row, 1, idItem);
+    // NO agregar ID automáticamente - se agregará dinámicamente con la metadata si es necesario
 
-    // Campos de datos (columnas 2+)
+    // Campos de datos (columnas 1+)
     for (int i = 0; i < camposMetadata.size(); i++) {
         const Campo &campo = camposMetadata[i];
         QTableWidgetItem *item = new QTableWidgetItem();
@@ -922,7 +983,8 @@ void DataSheetWidget::agregarRegistro()
 
         // Valores por defecto según tipo
         if (campo.tipo == "MONEDA") {
-            item->setText("0.00");
+            QString simbolo = campo.obtenerPropiedad().toString();
+            item->setText(formatearMoneda(0.00, simbolo));
             item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         }
         else if (campo.tipo == "FECHA") {
@@ -937,8 +999,8 @@ void DataSheetWidget::agregarRegistro()
             item->setText("");
         }
 
-        tablaRegistros->setItem(row, i + 2, item); // +2 por * e ID
-        agregarBotonRelacion(row, i + 2); // Solo si hay relación
+        tablaRegistros->setItem(row, i + 1, item); // +1 por *
+        agregarBotonRelacion(row, i + 1); // Solo si hay relación
     }
 
     QTimer::singleShot(100, this, [this, row]() {
@@ -949,7 +1011,7 @@ void DataSheetWidget::agregarRegistro()
 }
 
 // Modificar onCellChangedValidacion para actualizar botones
-void DataSheetWidget::onCellChangedValidacion(int row, int column)
+void VistaDatos::onCellChangedValidacion(int row, int column)
 {
     // Validar solo si es una columna de datos (no el asterisco)
     if (column >= 1) {
@@ -964,20 +1026,20 @@ void DataSheetWidget::onCellChangedValidacion(int row, int column)
 }
 
 // Métodos de validación (implementaciones básicas)
-void DataSheetWidget::validarRegistroCompleto(int fila)
+void VistaDatos::validarRegistroCompleto(int fila)
 {
     // Implementación básica de validación
     bool esValido = esRegistroValido(fila);
     resaltarErrores(fila, !esValido);
 }
 
-bool DataSheetWidget::esRegistroValido(int fila)
+bool VistaDatos::esRegistroValido(int fila)
 {
     // Implementación básica - siempre válido por ahora
     return true;
 }
 
-void DataSheetWidget::resaltarErrores(int fila, bool tieneErrores)
+void VistaDatos::resaltarErrores(int fila, bool tieneErrores)
 {
     // Implementación básica - resaltar fila si tiene errores
     for (int col = 0; col < tablaRegistros->columnCount(); ++col) {
@@ -992,19 +1054,19 @@ void DataSheetWidget::resaltarErrores(int fila, bool tieneErrores)
     }
 }
 
-bool DataSheetWidget::validarLlavePrimariaUnica(int filaActual)
+bool VistaDatos::validarLlavePrimariaUnica(int filaActual)
 {
     // Implementación básica - siempre válido por ahora
     return true;
 }
 
-bool DataSheetWidget::validarTipoDato(int fila, int columna, const QString &valor)
+bool VistaDatos::validarTipoDato(int fila, int columna, const QString &valor)
 {
     // Implementación básica - siempre válido por ahora
     return true;
 }
 
-bool DataSheetWidget::esValorUnicoEnColumna(int columna, const QString &valor, int filaExcluir)
+bool VistaDatos::esValorUnicoEnColumna(int columna, const QString &valor, int filaExcluir)
 {
     // Implementación básica - siempre único por ahora
     return true;

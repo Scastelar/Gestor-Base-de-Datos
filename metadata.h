@@ -131,7 +131,7 @@ public:
         }
         file.close();
 
-        // 🔹 Guardar registros (.data)
+        //  Guardar registros (.data)
         QFile dataFile(dir.filePath(nombreTabla + ".data"));
         if (!dataFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
             throw std::runtime_error("No se pudo abrir el archivo de datos para escritura");
