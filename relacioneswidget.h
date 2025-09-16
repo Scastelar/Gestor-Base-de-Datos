@@ -33,6 +33,7 @@ private slots:
     void limpiarTodo();
 
 private:
+    void eliminarRelacionSeleccionada();
     bool validarCompatibilidadTipos(const Campo &campoOrigen, const Campo &campoDestino);
     void crearToolbar();
     void crearLayoutPrincipal();

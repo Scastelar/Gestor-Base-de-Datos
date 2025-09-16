@@ -3,6 +3,8 @@
 
 #include <QGraphicsPathItem>
 #include <QGraphicsSimpleTextItem>
+#include <QGraphicsSceneMouseEvent>
+#include <QPen>
 #include "tableitem.h"
 
 enum class TipoRelacion {
@@ -24,6 +26,10 @@ public:
     TableItem* getDest() const { return dest; }
     QString getCampoSource() const { return campoSource; }
     QString getCampoDest() const { return campoDest; }
+
+protected:
+    // Permitir que se seleccione con clic
+    void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
 
 private:
     TableItem *source;

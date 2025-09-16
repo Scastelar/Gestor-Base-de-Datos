@@ -13,6 +13,9 @@ RelationItem::RelationItem(TableItem *src, const QString &campoSrc,
     QPen pen(Qt::black, 2, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
     setPen(pen);
 
+    setFlag(QGraphicsItem::ItemIsSelectable, true);
+    setAcceptedMouseButtons(Qt::LeftButton);
+
     labelSrc = new QGraphicsSimpleTextItem(this);
     labelDst = new QGraphicsSimpleTextItem(this);
 
@@ -73,4 +76,20 @@ void RelationItem::updatePosition()
     labelSrc->setPos(p1.x() - 10, p1.y() - 10);
     labelDst->setPos(p2.x() - 10, p2.y() - 10);
 }
+void RelationItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
+{
+    QPen pen = this->pen();
+    if (isSelected()) {
+        // Deseleccionar → volver a negro
+        pen.setColor(Qt::black);
+        setSelected(false);
+    } else {
+        // Seleccionar → amarillo
+        pen.setColor(Qt::yellow);
+        setSelected(true);
+    }
+    setPen(pen);
+    QGraphicsPathItem::mousePressEvent(event);
+}
+
 

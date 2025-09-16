@@ -168,8 +168,10 @@ void RelacionesWidget::crearLayoutPrincipal()
 
     QPushButton *btnAgregar = new QPushButton("Agregar Tabla");
     QPushButton *btnLimpiar = new QPushButton("Limpiar Todo");
+    QPushButton *btnEliminarRelacion = new QPushButton("Eliminar Relación");
     tablasLayout->addWidget(btnAgregar);
     tablasLayout->addWidget(btnLimpiar);
+    tablasLayout->addWidget(btnEliminarRelacion);
 
     panelLayout->addWidget(grupoTablas);
     panelTablas->setFixedWidth(200);
@@ -184,6 +186,7 @@ void RelacionesWidget::crearLayoutPrincipal()
 
     connect(btnAgregar, &QPushButton::clicked, this, &RelacionesWidget::agregarTabla);
     connect(btnLimpiar, &QPushButton::clicked, this, &RelacionesWidget::limpiarTodo);
+    connect(btnEliminarRelacion, &QPushButton::clicked, this, &RelacionesWidget::eliminarRelacionSeleccionada);
 }
 
 void RelacionesWidget::cargarListaTablas()
@@ -379,3 +382,51 @@ bool RelacionesWidget::validarCompatibilidadTipos(const Campo &campoOrigen, cons
                              .arg(campoDestino.nombre).arg(campoDestino.tipo));
     return false;
 }
+void RelacionesWidget::eliminarRelacionSeleccionada()
+{
+    RelationItem *relSeleccionada = nullptr;
+
+    // Buscar la relación seleccionada en la lista
+    for (RelationItem *rel : relaciones) {
+        if (rel->isSelected()) {
+            relSeleccionada = rel;
+            break;
+        }
+    }
+
+    if (!relSeleccionada) {
+        QMessageBox::warning(this, "Eliminar Relación", "No hay ninguna relación seleccionada.");
+        return;
+    }
+
+    // Eliminar de la escena
+    scene->removeItem(relSeleccionada);
+
+    // Eliminar del vector
+    relaciones.removeOne(relSeleccionada);
+
+    // Eliminar del archivo relationships.dat
+    QFile relacionesFile("relationships.dat");
+    if (relacionesFile.open(QIODevice::ReadOnly)) {
+        QStringList lineasValidas;
+        QTextStream in(&relacionesFile);
+        while (!in.atEnd()) {
+            QString linea = in.readLine();
+            if (!linea.contains(relSeleccionada->getSource()->getTableName() + "|" + relSeleccionada->getCampoSource() + "|" +
+                                relSeleccionada->getDest()->getTableName() + "|" + relSeleccionada->getCampoDest())) {
+                lineasValidas << linea;
+            }
+        }
+        relacionesFile.close();
+
+        if (relacionesFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            QTextStream out(&relacionesFile);
+            for (const QString &linea : lineasValidas)
+                out << linea << "\n";
+            relacionesFile.close();
+        }
+    }
+
+    delete relSeleccionada; // liberar memoria
+}
+
