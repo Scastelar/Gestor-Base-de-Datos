@@ -728,6 +728,7 @@ void MainWindow::actualizarConexionesBotones()
     if (vistaHojaDatos && tablaDataSheet) {
         connect(btnLlavePrimaria, &QToolButton::clicked, tablaDataSheet, &VistaDatos::establecerPK);
         connect(btnInsertarFila, &QToolButton::clicked, tablaDataSheet, &VistaDatos::agregarRegistro);
+        connect(btnEliminarFila, &QToolButton::clicked, tablaDataSheet, &VistaDatos::eliminarRegistro);
         connect(tablaDataSheet, &VistaDatos::solicitarDatosRelacionados,
                 this, &MainWindow::onSolicitarDatosRelacionados);
         //connect(btnEliminarFila, &QToolButton::clicked, tablaDataSheet, &VistaDatos::eliminarRegistro);
@@ -786,6 +787,7 @@ void MainWindow::cambiarVista()
     VistaDiseno *tablaDesign = tablaActual->property("tablaDesign").value<VistaDiseno*>();
     VistaDatos *tablaDataSheet = tablaActual->property("tablaDataSheet").value<VistaDatos*>();
     tablaDataSheet->cargarRelaciones("relationships.dat");
+    RelacionesWidget *relaciones = tablaActual->property("relaciones").value<RelacionesWidget*>();
 
     if (!tablaStacked) return;
 
@@ -844,6 +846,7 @@ void MainWindow::abrirRelaciones()
     RelacionesWidget *relacionesWidget = new RelacionesWidget();
     int tabIndex = zonaCentral->addTab(relacionesWidget, "Relaciones");
     zonaCentral->setCurrentIndex(tabIndex);
+    tablaActualNombre = "Relaciones";
 
     connect(relacionesWidget, &RelacionesWidget::cerrada,
             this, &MainWindow::cerrarRelacionesYVolver);
@@ -1007,7 +1010,7 @@ void MainWindow::guardarTablasAbiertas()
 {
     for (int i = 0; i < zonaCentral->count(); ++i) {
         QWidget *tabWidget = zonaCentral->widget(i);
-        if (tabWidget && tabWidget != zonaCentral->widget(0)) {
+        if (tabWidget && tabWidget != zonaCentral->widget(0) && zonaCentral->tabText(i) != "Relaciones") {
             QString nombreTabla = zonaCentral->tabText(i);
             VistaDiseno *tablaDesign = tabWidget->property("tablaDesign").value<VistaDiseno*>();
             if (tablaDesign) {
