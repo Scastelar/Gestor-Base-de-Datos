@@ -58,7 +58,7 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
 
         if (tablaDestino.isEmpty() || tablaDestino == tablaDrag) return;
 
-        // 🔹 Determinar tipo automáticamente
+        // 🔹 Determinar tipo automáticamente (1:1, 1:N, N:M)
         bool origenEsPK = false, destinoEsPK = false;
         for (const Campo &c : tablas[tablaDrag]->getMetadata().campos)
             if (c.nombre == campoDrag) { origenEsPK = c.esPK; break; }
@@ -78,7 +78,27 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
             tipoTexto = "Varios a Varios";
         }
 
-        // 🔹 Mostrar diálogo estilo Access
+        // 🔹 Validar compatibilidad de tipos ANTES del dialog
+        const Metadata &metaOrigen = tablas[tablaDrag]->getMetadata();
+        const Metadata &metaDestino = tablas[tablaDestino]->getMetadata();
+
+        Campo campoO, campoD;
+        bool encontradoO = false, encontradoD = false;
+
+        for (const Campo &c : metaOrigen.campos) {
+            if (c.nombre == campoDrag) { campoO = c; encontradoO = true; break; }
+        }
+        for (const Campo &c : metaDestino.campos) {
+            if (c.nombre == campoDestino) { campoD = c; encontradoD = true; break; }
+        }
+
+        if (encontradoO && encontradoD) {
+            if (!validarCompatibilidadTipos(campoO, campoD)) {
+                return; // ❌ Cancelar relación sin mostrar RelacionDialog
+            }
+        }
+
+        // 🔹 Ahora sí mostrar diálogo estilo Access SOLO si los tipos coinciden
         RelacionDialog dlg(tablaDrag, campoDrag, tablaDestino, campoDestino, tipoTexto, this);
         if (dlg.exec() != QDialog::Accepted) return;
 
@@ -90,6 +110,8 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
         relaciones.append(rel);
 
         emit relacionCreada(tablaDrag, campoDrag, tablaDestino, campoDestino);
+
+
     });
 
     crearToolbar();
@@ -238,9 +260,16 @@ void RelacionesWidget::agregarTabla()
 
 void RelacionesWidget::limpiarTodo()
 {
+    // Limpiar la escena y estructuras en memoria
     scene->clear();
     tablas.clear();
     relaciones.clear();
+
+    // Vaciar el archivo de relaciones
+    QFile relacionesFile("relationships.dat");
+    if (relacionesFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        relacionesFile.close();
+    }
 }
 
 void RelacionesWidget::cargarRelacionesPrevias()
@@ -336,4 +365,17 @@ void RelacionesWidget::closeEvent(QCloseEvent *event)
 {
     emit cerrada();
     event->accept();
+}
+
+bool RelacionesWidget::validarCompatibilidadTipos(const Campo &campoOrigen, const Campo &campoDestino) {
+    if (campoOrigen.tipo == campoDestino.tipo) {
+        return true;
+    }
+
+    QMessageBox::warning(this,
+                         "Relación inválida",
+                         QString("No se puede relacionar el campo '%1' (%2) con '%3' (%4).")
+                             .arg(campoOrigen.nombre).arg(campoOrigen.tipo)
+                             .arg(campoDestino.nombre).arg(campoDestino.tipo));
+    return false;
 }

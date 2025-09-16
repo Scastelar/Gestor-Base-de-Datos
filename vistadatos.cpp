@@ -100,7 +100,7 @@ void VistaDatos::cargarRelaciones(const QString &archivoRelaciones)
             relacion["tablaOrigen"] = partes[0];
             relacion["campoOrigen"] = partes[1];
             relacion["tablaDestino"] = partes[2];
-            relacion["campoDestino"] = partes[3];
+            relacion["campoDestcino"] = partes[3];
             relacion["esMuchosAMuchos"] = "true";
             relaciones.append(relacion);
         }

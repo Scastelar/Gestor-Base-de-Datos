@@ -33,6 +33,7 @@ private slots:
     void limpiarTodo();
 
 private:
+    bool validarCompatibilidadTipos(const Campo &campoOrigen, const Campo &campoDestino);
     void crearToolbar();
     void crearLayoutPrincipal();
     void cargarListaTablas();
