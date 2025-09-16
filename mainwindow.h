@@ -87,6 +87,7 @@ private:
 
     QComboBox *comboVista;
     int encontrarTablaEnTabs(const QString &nombreTabla) const;
+    void ordenarRegistros(Qt::SortOrder order);
     // Layouts
     QVBoxLayout *filasLayout;
     QWidget *botonesFilasWidget;

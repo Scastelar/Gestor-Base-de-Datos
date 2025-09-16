@@ -28,6 +28,8 @@ public:
     int obtenerUltimoID() const { return ultimoID; }
     int obtenerCantidadRegistros() const { return tablaRegistros->rowCount(); }
 
+    void ordenar(Qt::SortOrder order);
+
     void mostrarSelectorFecha(int row, int col, const QString &formato);
     QString formatearFecha(const QVariant &fechaInput, const QString &formato) const;
     QString formatearMoneda(double valor, const QString &simbolo) const;

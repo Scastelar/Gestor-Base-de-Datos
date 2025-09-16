@@ -358,6 +358,14 @@ void MainWindow::crearRibbonInicio()
     ordenLayout->addWidget(btnDescendente);
     ordenFrame->setVisible(false);
 
+    // Conectar los botones de ordenamiento
+    connect(btnAscendente, &QToolButton::clicked, this, [this]() {
+        ordenarRegistros(Qt::AscendingOrder);
+    });
+    connect(btnDescendente, &QToolButton::clicked, this, [this]() {
+        ordenarRegistros(Qt::DescendingOrder);
+    });
+
     // Separador
     QFrame *separador = new QFrame();
     separador->setFrameShape(QFrame::VLine);
@@ -374,7 +382,7 @@ void MainWindow::crearRibbonInicio()
 
     // Sección Filas - CORREGIDA
     QFrame *filasFrame = crearSeccionRibbon("Filas");
-    QVBoxLayout *filasMainLayout = new QVBoxLayout(filasFrame);
+    QHBoxLayout *filasMainLayout = new QHBoxLayout(filasFrame);
 
     // Crear los botones
     btnInsertarFila = crearBotonRibbon(":/imgs/insert-row.png", "Insertar Fila");
@@ -382,23 +390,23 @@ void MainWindow::crearRibbonInicio()
 
     // Crear widget contenedor y layouts
     botonesFilasWidget = new QWidget();
-    botonesFilasVLayout = new QVBoxLayout(botonesFilasWidget);
-    botonesFilasHLayout = new QHBoxLayout();
+    //botonesFilasVLayout = new QVBoxLayout();
+    botonesFilasHLayout = new QHBoxLayout(botonesFilasWidget);
 
     // Configurar layouts
-    botonesFilasVLayout->setSpacing(5);
-    botonesFilasVLayout->setContentsMargins(0, 0, 0, 0);
+    //botonesFilasVLayout->setSpacing(5);
+    //botonesFilasVLayout->setContentsMargins(0, 0, 0, 0);
     botonesFilasHLayout->setSpacing(5);
     botonesFilasHLayout->setContentsMargins(0, 0, 0, 0);
 
     // Agregar botones a ambos layouts
-    botonesFilasVLayout->addWidget(btnInsertarFila);
-    botonesFilasVLayout->addWidget(btnEliminarFila);
+    //botonesFilasVLayout->addWidget(btnInsertarFila);
+    //botonesFilasVLayout->addWidget(btnEliminarFila);
     botonesFilasHLayout->addWidget(btnInsertarFila);
     botonesFilasHLayout->addWidget(btnEliminarFila);
 
     // Usar layout vertical por defecto
-    botonesFilasWidget->setLayout(botonesFilasVLayout);
+    botonesFilasWidget->setLayout(botonesFilasHLayout);
     filasMainLayout->addWidget(botonesFilasWidget);
 
     // Sección Relaciones
@@ -539,34 +547,7 @@ void MainWindow::mostrarRibbonInicio()
         if (frame) frame->setVisible(!esHojaDatos);
     }
 
-    // Cambiar layout de botones de filas según la vista
-    if (botonesFilasWidget) {
-        // Limpiar el layout actual
-        QLayout *layoutActual = botonesFilasWidget->layout();
-        if (layoutActual) {
-            QLayoutItem *item;
-            while ((item = layoutActual->takeAt(0)) != nullptr) {
-                delete item;
-            }
-            delete layoutActual;
-        }
-
-        // Crear nuevo layout según la vista
-        if (esHojaDatos) {
-            // En Vista Hoja de Datos: layout horizontal
-            QHBoxLayout *nuevoLayout = new QHBoxLayout(botonesFilasWidget);
-            nuevoLayout->addWidget(btnInsertarFila);
-            nuevoLayout->addWidget(btnEliminarFila);
-            nuevoLayout->setSpacing(5);
-            nuevoLayout->setContentsMargins(0, 0, 0, 0);
-        } else {
-            // En Vista Diseño: layout vertical
-            QVBoxLayout *nuevoLayout = new QVBoxLayout(botonesFilasWidget);
-            nuevoLayout->addWidget(btnInsertarFila);
-            nuevoLayout->addWidget(btnEliminarFila);
-            nuevoLayout->setSpacing(5);
-            nuevoLayout->setContentsMargins(0, 0, 0, 0);
-
+    if (!esHojaDatos){
             // Actualizar propiedades para la vista diseño si existe una tabla abierta
             QWidget *currentTab = zonaCentral->currentWidget();
             if (currentTab && currentTab != zonaCentral->widget(0)) {
@@ -575,17 +556,6 @@ void MainWindow::mostrarRibbonInicio()
                     tablaDesign->actualizarPropiedades();
                 }
             }
-        }
-    }
-
-    // Actualizar el estado de los botones en el corner widget
-    QWidget *cornerWidget = menuBar()->cornerWidget(Qt::TopLeftCorner);
-    if (cornerWidget) {
-        QList<QToolButton*> buttons = cornerWidget->findChildren<QToolButton*>();
-        if (buttons.size() >= 2) {
-            buttons[0]->setChecked(true);
-            buttons[1]->setChecked(false);
-        }
     }
 }
 
@@ -1019,5 +989,23 @@ void MainWindow::guardarTablasAbiertas()
                 meta.guardar();
             }
         }
+    }
+}
+
+void MainWindow::ordenarRegistros(Qt::SortOrder order)
+{
+    if (!tablaActual || !vistaHojaDatos) {
+        return; // No hay tabla abierta o no estamos en la vista de hoja de datos
+    }
+
+    QStackedWidget *tablaStacked = tablaActual->property("tablaStacked").value<QStackedWidget*>();
+    if (!tablaStacked) {
+        return;
+    }
+
+    VistaDatos *tablaDataSheet = tablaStacked->findChild<VistaDatos*>();
+    if (tablaDataSheet) {
+        // Llamar a la función de ordenamiento en VistaDatos
+        tablaDataSheet->ordenar(order);
     }
 }

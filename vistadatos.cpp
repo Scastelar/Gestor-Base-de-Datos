@@ -700,3 +700,43 @@ void VistaDatos::resaltarErrores(int fila, bool tieneErrores)
 bool VistaDatos::validarLlavePrimariaUnica(int filaActual) { return true; }
 bool VistaDatos::validarTipoDato(int fila, int columna, const QString &valor) { return true; }
 bool VistaDatos::esValorUnicoEnColumna(int columna, const QString &valor, int filaExcluir) { return true; }
+
+// En vistadatos.cpp
+void VistaDatos::ordenar(Qt::SortOrder order)
+{
+    int columnaActual = tablaRegistros->currentColumn();
+
+    // La columna 0 es el asterisco/llave, la 1 es el ID si existe
+    if (columnaActual <= 0) {
+        return;
+    }
+
+    int campoIndex = columnaActual - 1;
+    if (campoIndex < 0 || campoIndex >= camposMetadata.size()) {
+        return;
+    }
+
+    const Campo &campo = camposMetadata[campoIndex];
+    QString tipoCampo = campo.tipo.toUpper();
+
+    Qt::SortOrder ordenFinal = order;
+
+    // Invertir el orden para FECHA si la dirección es descendente
+    if (tipoCampo == "FECHA" && order == Qt::DescendingOrder) {
+        ordenFinal = Qt::DescendingOrder; // Mantener descendente para 'reciente a viejo'
+    } else if (tipoCampo == "FECHA" && order == Qt::AscendingOrder) {
+        ordenFinal = Qt::AscendingOrder; // Mantener ascendente para 'viejo a reciente'
+    } else {
+        // Para TEXTO, NUMERO, MONEDA y otros tipos, el comportamiento es el mismo
+        ordenFinal = order;
+    }
+
+    // Desconectar temporalmente la señal para evitar que el ordenamiento dispare onCellChanged
+    disconnect(tablaRegistros, &QTableWidget::cellChanged, this, &VistaDatos::onCellChanged);
+
+    // Realizar el ordenamiento de la tabla
+    tablaRegistros->sortItems(columnaActual, ordenFinal);
+
+    // Reconectar la señal
+    connect(tablaRegistros, &QTableWidget::cellChanged, this, &VistaDatos::onCellChanged);
+}
