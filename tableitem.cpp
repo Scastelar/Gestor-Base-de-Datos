@@ -103,4 +103,8 @@ QVariant TableItem::itemChange(GraphicsItemChange change, const QVariant &value)
     }
     return QGraphicsObject::itemChange(change, value);
 }
-
+void TableItem::setMetadata(const Metadata &nuevoMeta) {
+    this->meta = nuevoMeta;
+    this->height = 25 + meta.campos.size() * 18; // recalcular altura
+    update(); // forzar repintado
+}

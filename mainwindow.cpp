@@ -666,21 +666,29 @@ void MainWindow::abrirTabla(QListWidgetItem *item)
 
 void MainWindow::cambiarTablaActual(int index)
 {
-    // Si es la pestaña de inicio o no hay pestañas, limpiar referencia
     if (index == 0 || zonaCentral->count() <= 1) {
         tablaActual = nullptr;
         tablaActualNombre.clear();
         return;
     }
 
-    // Obtener la tabla actual
+    QString tabName = zonaCentral->tabText(index);
+    if (tabName == "Relaciones") {
+        RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(index));
+        if (relaciones) {
+            relaciones->refrescarTablas();  // 🔹 ahora refresca sin perder relaciones
+        }
+        return;
+    }
+
+
     QWidget *currentTab = zonaCentral->widget(index);
     tablaActual = currentTab;
-    tablaActualNombre = zonaCentral->tabText(index);
+    tablaActualNombre = tabName;
 
-    // Actualizar conexiones de botones para la tabla actual
     actualizarConexionesBotones();
 }
+
 
 void MainWindow::actualizarConexionesBotones()
 {

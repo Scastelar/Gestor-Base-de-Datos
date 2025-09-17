@@ -16,7 +16,7 @@ class TableItem : public QGraphicsObject
     Q_OBJECT
 public:
     explicit TableItem(const Metadata &meta, QGraphicsItem *parent = nullptr);
-
+    void setMetadata(const Metadata &nuevoMeta);
     QRectF boundingRect() const override;
     void paint(QPainter *painter,
                const QStyleOptionGraphicsItem *option,

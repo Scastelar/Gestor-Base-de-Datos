@@ -17,7 +17,9 @@ class RelacionesWidget : public QWidget
 public:
     explicit RelacionesWidget(QWidget *parent = nullptr);
     ~RelacionesWidget();
-
+    void cargarRelacionesPrevias(); // 🔹 nuevo método
+    void limpiarTodo();
+    void refrescarTablas();
 signals:
     void cerrada();
     void relacionCreada(const QString &tabla1,
@@ -30,15 +32,16 @@ protected:
 
 private slots:
     void agregarTabla();
-    void limpiarTodo();
+
 
 private:
+
     void eliminarRelacionSeleccionada();
     bool validarCompatibilidadTipos(const Campo &campoOrigen, const Campo &campoDestino);
     void crearToolbar();
     void crearLayoutPrincipal();
     void cargarListaTablas();
-    void cargarRelacionesPrevias(); // 🔹 nuevo método
+
 
     QGraphicsScene *scene;
     RelacionesView *view;

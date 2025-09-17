@@ -68,8 +68,15 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
         TipoRelacion tipo;
         QString tipoTexto;
         if (origenEsPK && destinoEsPK) {
-            tipo = TipoRelacion::UnoAUno;
-            tipoTexto = "Uno a Uno";
+            if (campoDrag == campoDestino) {
+                tipo = TipoRelacion::UnoAUno;
+                tipoTexto = "Uno a Uno";
+            } else {
+                QMessageBox::warning(this,
+                                     "Relación inválida",
+                                     "No se puede crear una relación 1 a 1 entre dos llaves primarias con nombres distintos.");
+                return; // ❌ cancelar relación
+            }
         } else if (origenEsPK || destinoEsPK) {
             tipo = TipoRelacion::UnoAMuchos;
             tipoTexto = "Uno a Varios";
@@ -291,14 +298,39 @@ void RelacionesWidget::cargarRelacionesPrevias()
     }
     relacionesFile.close();
 
-    // 🔹 Asegurar que todas las tablas existan en la escena
+    // 🔹 Asegurar que todas las tablas existan en la escena con metadata actualizado
     QDir dir(QDir::currentPath() + "/tables");
     for (const QStringList &rel : relacionesPendientes) {
         QString t1 = rel[0];
         QString t2 = rel[2];
 
         for (const QString &t : {t1, t2}) {
-            if (!tablas.contains(t)) {
+            // ✅ Eliminar y recargar siempre desde el .meta
+            if (tablas.contains(t)) {
+                TableItem *old = tablas[t];
+                QPointF pos = old->pos();
+                scene->removeItem(old);
+                delete old;
+                tablas.remove(t);
+
+                Metadata meta = Metadata::cargar(dir.filePath(t + ".meta"));
+                TableItem *tablaItem = new TableItem(meta);
+                scene->addItem(tablaItem);
+                tablaItem->setPos(pos);
+                tablaItem->update();
+                scene->update();
+                tablas[t] = tablaItem;
+
+                connect(tablaItem, &TableItem::iniciarDragCampo,
+                        this, [this](const QString &tabla, const QString &campo, const QPointF &pos) {
+                            tablaDrag = tabla;
+                            campoDrag = campo;
+                            puntoDrag = pos;
+                            arrastrando = true;
+                            lineaTemporal = scene->addLine(QLineF(pos, pos), QPen(Qt::gray, 1, Qt::DashLine));
+                        });
+            } else {
+                // Caso normal: tabla no estaba en escena
                 Metadata meta = Metadata::cargar(dir.filePath(t + ".meta"));
                 TableItem *tablaItem = new TableItem(meta);
                 scene->addItem(tablaItem);
@@ -309,7 +341,6 @@ void RelacionesWidget::cargarRelacionesPrevias()
                 tablaItem->setPos(gridX, gridY);
                 tablaItem->update();
                 scene->update();
-
                 tablas[t] = tablaItem;
 
                 connect(tablaItem, &TableItem::iniciarDragCampo,
@@ -324,7 +355,7 @@ void RelacionesWidget::cargarRelacionesPrevias()
         }
     }
 
-    // 🔹 Crear relaciones visuales
+    // 🔹 Crear relaciones visuales (igual que antes)
     for (const QStringList &rel : relacionesPendientes) {
         QString t1 = rel[0];
         QString c1 = rel[1];
@@ -349,19 +380,16 @@ void RelacionesWidget::cargarRelacionesPrevias()
             RelationItem *relItem = new RelationItem(tablas[t1], c1,
                                                      tablas[t2], c2, tipo);
             scene->addItem(relItem);
-            relItem->updatePosition();   // 🔹 recalcular al instante
+            relItem->updatePosition();
             relaciones.append(relItem);
-
-
-            qDebug() << "[DEBUG] Relación cargada:" << t1 << "." << c1
-                     << "->" << t2 << "." << c2;
         }
     }
+
     for (RelationItem *rel : relaciones) {
         rel->updatePosition();
     }
-
 }
+
 
 
 void RelacionesWidget::closeEvent(QCloseEvent *event)
@@ -429,4 +457,23 @@ void RelacionesWidget::eliminarRelacionSeleccionada()
 
     delete relSeleccionada; // liberar memoria
 }
+void RelacionesWidget::refrescarTablas()
+{
+    QDir dir(QDir::currentPath() + "/tables");
+
+    for (auto it = tablas.begin(); it != tablas.end(); ++it) {
+        QString nombreTabla = it.key();
+        TableItem *item = it.value();
+
+        Metadata meta = Metadata::cargar(dir.filePath(nombreTabla + ".meta"));
+        item->setMetadata(meta);   // 🔹 recarga en vivo, sin borrar
+        item->update();
+    }
+
+    for (RelationItem *rel : relaciones) {
+        rel->updatePosition();
+    }
+}
+
+
 
