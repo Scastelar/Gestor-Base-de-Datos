@@ -105,11 +105,11 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
             }
         }
 
-        if (campoO.nombre != campoD.nombre) {
+        if ((campoO.esPK && campoD.esPK) && (campoO.nombre != campoD.nombre)) {
             QMessageBox::warning(this,
                                  "Relación inválida",
                                  QString("No se puede relacionar el campo '%1' con '%2' porque tienen nombres diferentes.\n"
-                                         "Los campos relacionados deben tener el mismo nombre.")
+                                         "Los campos relacionados deben tener el mismo nombre al ser llaves primarias.")
                                      .arg(campoO.nombre)
                                      .arg(campoD.nombre));
             return; // ❌ Cancelar relación
@@ -538,7 +538,7 @@ void RelacionesWidget::validarRelacionesExistentes()
                                      .arg(tablaOrigen).arg(campoOrigen)
                                      .arg(tablaDestino).arg(campoDestino));
         }
-        else if (campoO.nombre != campoD.nombre) {
+        else if ((campoO.esPK && campoD.esPK) && (campoO.nombre != campoD.nombre)) {
             // Nombres cambiaron y ya no coinciden
             relacionesInvalidas.append(rel);
             QMessageBox::warning(this, "Relación inválida",

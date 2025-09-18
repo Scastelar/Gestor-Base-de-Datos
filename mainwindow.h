@@ -58,6 +58,9 @@ private slots:
     bool nombreTablaEsUnico(const QString &nombreTabla);
     void crearNuevaTabla();
     void guardarTablasAbiertas();
+signals:
+    void actualizarRelaciones();
+    void metadatosModificados();
 
 private:
     // Estado
@@ -97,6 +100,12 @@ private:
     // Listas de secciones del ribbon
     QList<QFrame*> seccionesVistaHojaDatos;
     QList<QFrame*> seccionesVistaDiseno;
+
+    void cargarTablaParaEdicion(const QString& nombreTabla);
+    QSet<QString> obtenerCamposRelacionados(const QString& nombreTabla);
+    void onMetadatosModificados();
+
+
 };
 #endif // MAINWINDOW_H
 

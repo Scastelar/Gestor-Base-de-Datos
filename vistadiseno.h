@@ -35,17 +35,38 @@ public:
     void on_tablaCampos_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn);
     void on_tablaCampos_cellChanged(int row, int column);
     void guardarPropiedadFila(int row);
+
+    // 🔹 Nuevos métodos para manejar campos relacionados
+    void setCamposRelacionados(const QSet<QString>& camposRelacionados);
+    void setNombreTabla(const QString& nombre);
+    void guardarMetadatos(); // Guardar automáticamente
+signals:
+    void metadatosModificados();
+
 private slots:
+
+    void on_campoEditado(QTableWidgetItem *item);
 
 
 private:
     QTableWidget *tablaCampos;
     QTableWidget *tablaPropiedades;
     QMap<int, QVariant> propiedadesPorFila;
+    QSet<QString> camposRelacionados; // Campos que tienen relaciones
+    QString nombreTablaActual;
+
+    QMap<int, QString> nombresAnteriores;
+
 
     void configurarTablaCampos();
     void configurarTablaPropiedades();
     void manejarCambioPK(QTableWidgetItem *item);
+
+    bool esCampoRelacionado(const QString& nombreCampo) const;
+    void actualizarEstadoCampos(); // Actualizar estado editable de campos
+
+    bool guardandoMetadatos;
+    bool bloqueandoEdicion;
 };
 
 #endif // TABLACENTRALWIDGET_H

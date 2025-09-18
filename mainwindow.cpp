@@ -3,6 +3,7 @@
 #include "relacioneswidget.h"
 #include "metadata.h"
 #include "vistadiseno.h"
+
 #include <QDebug>
 #include <QInputDialog>
 #include <QScreen>
@@ -27,6 +28,7 @@
 #include <QWidgetAction>
 #include <QDir>
 #include <QMessageBox>
+#include <QSet>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), vistaHojaDatos(false), filtroActivo(false), tablaActual(nullptr),
@@ -631,6 +633,16 @@ void MainWindow::abrirTabla(QListWidgetItem *item)
     tablaStacked->addWidget(tablaDesign);
     tablaStacked->addWidget(tablaDataSheet);
 
+
+    // Obtener campos relacionados de relationships.dat
+    QSet<QString> camposRelacionados = obtenerCamposRelacionados(tablaActualNombre);
+    tablaDesign->setNombreTabla(tablaActualNombre);
+    tablaDesign->setCamposRelacionados(camposRelacionados);
+
+    // Conectar señal de modificación
+    connect(tablaDesign, &VistaDiseno::metadatosModificados,
+            this, &MainWindow::onMetadatosModificados);
+
     // Configurar la vista inicial según comboVista
     if (comboVista->currentIndex() == 1) {
         tablaStacked->setCurrentWidget(tablaDataSheet);
@@ -677,6 +689,17 @@ void MainWindow::cambiarTablaActual(int index)
         RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(index));
         if (relaciones) {
             relaciones->refrescarTablas();  // 🔹 ahora refresca sin perder relaciones
+            // En el constructor o donde crees RelacionesWidget
+            connect(this, &MainWindow::actualizarRelaciones, this, [this]() {
+                // Buscar la pestaña de relaciones y actualizarla
+                for (int i = 0; i < zonaCentral->count(); ++i) {
+                    RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
+                    if (relaciones) {
+                        relaciones->refrescarTablas();
+                        break;
+                    }
+                }
+            });
         }
         return;
     }
@@ -761,11 +784,31 @@ void MainWindow::cambiarVista()
 {
     if (!tablaActual) return;
 
+    QString tabName = zonaCentral->tabText(zonaCentral->currentIndex());
+
+    // 🔹 No guardar consultas ni relaciones como tablas
+    if (tabName.startsWith("Diseño de Consulta") ||
+        tabName.startsWith("Consulta") ||
+        tabName.startsWith("Relaciones")) {
+        return;
+    }
+
     QStackedWidget *tablaStacked = tablaActual->property("tablaStacked").value<QStackedWidget*>();
     VistaDiseno *tablaDesign = tablaActual->property("tablaDesign").value<VistaDiseno*>();
     VistaDatos *tablaDataSheet = tablaActual->property("tablaDataSheet").value<VistaDatos*>();
     tablaDataSheet->cargarRelaciones("relationships.dat");
     RelacionesWidget *relaciones = tablaActual->property("relaciones").value<RelacionesWidget*>();
+    // En el constructor o donde crees RelacionesWidget
+    connect(this, &MainWindow::actualizarRelaciones, this, [this]() {
+        // Buscar la pestaña de relaciones y actualizarla
+        for (int i = 0; i < zonaCentral->count(); ++i) {
+            RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
+            if (relaciones) {
+                relaciones->refrescarTablas();
+                break;
+            }
+        }
+    });
 
     if (!tablaStacked) return;
 
@@ -826,6 +869,17 @@ void MainWindow::abrirRelaciones()
         VistaDatos *tablaDataSheet = tablaActual->property("tablaDataSheet").value<VistaDatos*>();
         tablaDataSheet->cargarRelaciones("relationships.dat");
         RelacionesWidget *relaciones = tablaActual->property("relaciones").value<RelacionesWidget*>();
+        // En el constructor o donde crees RelacionesWidget
+        connect(this, &MainWindow::actualizarRelaciones, this, [this]() {
+            // Buscar la pestaña de relaciones y actualizarla
+            for (int i = 0; i < zonaCentral->count(); ++i) {
+                RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
+                if (relaciones) {
+                    relaciones->refrescarTablas();
+                    break;
+                }
+            }
+        });
 
         // 🔹 Crear metadata con lo que esté actualmente en memoria
         Metadata meta(tablaActualNombre);
@@ -848,7 +902,8 @@ void MainWindow::abrirRelaciones()
     RelacionesWidget *relacionesWidget = new RelacionesWidget();
     int tabIndex = zonaCentral->addTab(relacionesWidget, "Relaciones");
     zonaCentral->setCurrentIndex(tabIndex);
-    tablaActualNombre = "Relaciones";
+    // 🔹 No asignamos tablaActualNombre = "Relaciones"
+    // porque no debe persistirse como tabla real
 
     connect(relacionesWidget, &RelacionesWidget::cerrada,
             this, &MainWindow::cerrarRelacionesYVolver);
@@ -856,6 +911,18 @@ void MainWindow::abrirRelaciones()
     // Conectar la señal de relación creada
     connect(relacionesWidget, &RelacionesWidget::relacionCreada,
             this, &MainWindow::guardarRelacionEnBD);
+
+    // En el constructor o donde crees RelacionesWidget
+    connect(this, &MainWindow::actualizarRelaciones, this, [this]() {
+        // Buscar la pestaña de relaciones y actualizarla
+        for (int i = 0; i < zonaCentral->count(); ++i) {
+            RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
+            if (relaciones) {
+                relaciones->refrescarTablas();
+                break;
+            }
+        }
+    });
 
     mostrarRibbonInicio();
 }
@@ -893,6 +960,20 @@ void MainWindow::cerrarRelacionesYVolver()
 void MainWindow::cerrarTab(int index)
 {
     if (index == 0 && !zonaCentral->isTabEnabled(0)) {
+        return;
+    }
+
+    QString tabName = zonaCentral->tabText(index);
+
+    // 🔹 Evitar guardar consultas y relaciones como tablas
+    if (tabName.startsWith("Diseño de Consulta") ||
+        tabName.startsWith("Consulta") ||
+        tabName.startsWith("Relaciones")) {
+        zonaCentral->removeTab(index);
+
+        if (zonaCentral->count() == 1 && !zonaCentral->isTabEnabled(0)) {
+            zonaCentral->setCurrentIndex(0);
+        }
         return;
     }
 
@@ -1011,12 +1092,21 @@ void MainWindow::crearNuevaTabla() {
 void MainWindow::guardarTablasAbiertas()
 {
     for (int i = 0; i < zonaCentral->count(); ++i) {
+
+        QString tabName = zonaCentral->tabText(i);
+
+        // 🔹 Ignorar consultas y relaciones
+        if (tabName.startsWith("Diseño de Consulta") ||
+            tabName.startsWith("Consulta") ||
+            tabName.startsWith("Relaciones")) {
+            continue;
+        }
+
         QWidget *tabWidget = zonaCentral->widget(i);
-        if (tabWidget && tabWidget != zonaCentral->widget(0) && zonaCentral->tabText(i) != "Relaciones") {
-            QString nombreTabla = zonaCentral->tabText(i);
+        if (tabWidget && tabWidget != zonaCentral->widget(0)) {
             VistaDiseno *tablaDesign = tabWidget->property("tablaDesign").value<VistaDiseno*>();
             if (tablaDesign) {
-                Metadata meta(nombreTabla);
+                Metadata meta(tabName);
                 meta.campos = tablaDesign->obtenerCampos();
                 meta.guardar();
             }
@@ -1040,4 +1130,47 @@ void MainWindow::ordenarRegistros(Qt::SortOrder order)
         // Llamar a la función de ordenamiento en VistaDatos
         tablaDataSheet->ordenar(order);
     }
+}
+
+QSet<QString> MainWindow::obtenerCamposRelacionados(const QString& nombreTabla) {
+    QSet<QString> campos;
+
+    QFile relacionesFile("relationships.dat");
+    if (relacionesFile.open(QIODevice::ReadOnly)) {
+        QTextStream in(&relacionesFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine();
+            QStringList parts = line.split("|");
+            if (parts.size() == 4) {
+                if (parts[0] == nombreTabla) {
+                    campos.insert(parts[1]); // Campo origen
+                }
+                if (parts[2] == nombreTabla) {
+                    campos.insert(parts[3]); // Campo destino
+                }
+            }
+        }
+        relacionesFile.close();
+    }
+
+    return campos;
+}
+
+void MainWindow::onMetadatosModificados() {
+    // Actualizar la lista de campos relacionados
+    if (!tablaActualNombre.isEmpty()) {
+        QSet<QString> camposRelacionados = obtenerCamposRelacionados(tablaActualNombre);
+
+        // Obtener la vista de diseño actual
+        QWidget *currentTab = zonaCentral->currentWidget();
+        if (currentTab) {
+            VistaDiseno *tablaDesign = currentTab->property("tablaDesign").value<VistaDiseno*>();
+            if (tablaDesign) {
+                tablaDesign->setCamposRelacionados(camposRelacionados);
+            }
+        }
+    }
+
+    // Emitir señal para actualizar relaciones si es necesario
+    emit actualizarRelaciones();
 }

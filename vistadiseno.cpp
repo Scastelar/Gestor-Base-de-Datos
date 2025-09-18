@@ -5,9 +5,13 @@
 #include <QComboBox>
 #include <QSpinBox>
 #include <QMessageBox>
+#include <QFile>
+#include <QTextStream>
+#include <QTimer>
+#include <QDir>
 
 VistaDiseno::VistaDiseno(QWidget *parent)
-    : QWidget(parent)
+    : QWidget(parent), guardandoMetadatos(false),bloqueandoEdicion(false)
 {
     QVBoxLayout *layoutPrincipal = new QVBoxLayout(this);
 
@@ -31,6 +35,7 @@ VistaDiseno::VistaDiseno(QWidget *parent)
             this, &VistaDiseno::on_tablaCampos_currentCellChanged);
     connect(tablaCampos, &QTableWidget::cellChanged,
             this, &VistaDiseno::on_tablaCampos_cellChanged);
+    connect(tablaCampos, &QTableWidget::itemChanged, this, &VistaDiseno::on_campoEditado);
 
     tablaPropiedades = new QTableWidget(0, 2, this);
     configurarTablaPropiedades();
@@ -44,6 +49,9 @@ void VistaDiseno::configurarTablaCampos() {
         "QTableWidget::item:selected { "
         "background-color: #f0f0f0; "
         "color: black; }"
+        "QTableWidget::item[readonly=\"true\"] { "
+        "background-color: #f5f5f5; "
+        "color: #888888; }"
         );
 
     // Configurar anchos de columnas
@@ -74,6 +82,8 @@ void VistaDiseno::configurarTablaCampos() {
     tablaCampos->setCellWidget(0, 2, tipoCombo);
 
     tablaCampos->horizontalHeader()->setStretchLastSection(true);
+
+     nombresAnteriores.clear();
 }
 
 void VistaDiseno::configurarTablaPropiedades() {
@@ -89,22 +99,27 @@ void VistaDiseno::agregarCampo() {
     int row = tablaCampos->rowCount();
     tablaCampos->insertRow(row);
 
-    // Columna PK (Vacía por defecto para nuevos campos)
+    // Columna PK
     QTableWidgetItem *pkItem = new QTableWidgetItem();
-    pkItem->setFlags(pkItem->flags() & ~Qt::ItemIsEditable); // No editable
+    pkItem->setFlags(pkItem->flags() & ~Qt::ItemIsEditable);
     pkItem->setTextAlignment(Qt::AlignCenter);
     tablaCampos->setItem(row, 0, pkItem);
 
-    // Columna Field Name (editable QTableWidgetItem)
+    // Columna Field Name
     QTableWidgetItem *nombreItem = new QTableWidgetItem("Nuevo Campo");
     tablaCampos->setItem(row, 1, nombreItem);
 
-    // Columna Data Type (QComboBox en la celda)
+    // 🔹 ALMACENAR NOMBRE INICIAL
+    nombresAnteriores[row] = "Nuevo Campo";
+
+    // Columna Data Type
     QComboBox *tipoCombo = new QComboBox();
     tipoCombo->addItems({"TEXTO", "NUMERO", "FECHA", "MONEDA"});
     connect(tipoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &VistaDiseno::actualizarPropiedades);
     tablaCampos->setCellWidget(row, 2, tipoCombo);
+
+    guardarMetadatos();
 }
 
 void VistaDiseno::eliminarCampo() {
@@ -121,10 +136,16 @@ void VistaDiseno::eliminarCampo() {
         return;
     }
 
-    // Confirmar eliminación
+    // Verificar si el campo está relacionado
     QTableWidgetItem *nombreItem = tablaCampos->item(currentRow, 1);
-    QString nombreCampo = nombreItem ? nombreItem->text() : "Campo seleccionado";
+    if (nombreItem && esCampoRelacionado(nombreItem->text())) {
+        QMessageBox::warning(this, "Campo relacionado",
+                             "No se puede eliminar campos relacionados a otras tablas.");
+        return;
+    }
 
+    // Confirmar eliminación
+    QString nombreCampo = nombreItem ? nombreItem->text() : "Campo seleccionado";
     QMessageBox::StandardButton respuesta = QMessageBox::question(
         this,
         "Confirmar eliminación",
@@ -133,7 +154,9 @@ void VistaDiseno::eliminarCampo() {
         );
 
     if (respuesta == QMessageBox::Yes) {
+        nombresAnteriores.remove(currentRow);
         tablaCampos->removeRow(currentRow);
+        guardarMetadatos();
     }
 }
 
@@ -143,6 +166,14 @@ void VistaDiseno::establecerPK() {
     int currentRow = tablaCampos->currentRow();
     if (currentRow == -1) {
         QMessageBox::information(this, "Selección requerida", "Por favor, seleccione una fila primero.");
+        return;
+    }
+
+    // Verificar si el campo está relacionado
+    QTableWidgetItem *nombreItem = tablaCampos->item(currentRow, 1);
+    if (nombreItem && esCampoRelacionado(nombreItem->text())) {
+        QMessageBox::warning(this, "Campo relacionado",
+                             "No se puede modificar la PK de campos relacionados a otras tablas.");
         return;
     }
 
@@ -161,6 +192,9 @@ void VistaDiseno::establecerPK() {
         pkItem->setText("🔑");
         pkItem->setToolTip("Llave Primaria");
     }
+    //QTimer::singleShot(100, this, &VistaDiseno::guardarMetadatos);
+    guardarMetadatos();
+
 }
 
 // Método para obtener la fila que actualmente es PK
@@ -249,15 +283,16 @@ QVector<Campo> VistaDiseno::obtenerCampos() const {
 void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
     tablaCampos->setRowCount(0); // limpiar
     propiedadesPorFila.clear();
+    nombresAnteriores.clear(); // 🔹 Limpiar nombres anteriores
 
     for (int i = 0; i < campos.size(); i++) {
         const Campo& c = campos[i];
         int row = tablaCampos->rowCount();
         tablaCampos->insertRow(row);
 
-        // Columna PK (Texto "🔑" si es PK, vacío si no)
+        // Columna PK
         QTableWidgetItem *pkItem = new QTableWidgetItem();
-        pkItem->setFlags(pkItem->flags() & ~Qt::ItemIsEditable); // No editable
+        pkItem->setFlags(pkItem->flags() & ~Qt::ItemIsEditable);
         pkItem->setTextAlignment(Qt::AlignCenter);
         if (c.esPK) {
             pkItem->setText("🔑");
@@ -268,6 +303,9 @@ void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
         // Nombre del campo
         QTableWidgetItem *nombreItem = new QTableWidgetItem(c.nombre);
         tablaCampos->setItem(row, 1, nombreItem);
+
+        // 🔹 ALMACENAR NOMBRE INICIAL
+        nombresAnteriores[row] = c.nombre;
 
         // Tipo de dato
         QComboBox *tipoCombo = new QComboBox();
@@ -462,3 +500,125 @@ bool VistaDiseno::validarPK() const {
     }
     return countPK == 1;
 }
+
+void VistaDiseno::setCamposRelacionados(const QSet<QString>& camposRelacionados) {
+    this->camposRelacionados = camposRelacionados;
+    actualizarEstadoCampos();
+}
+
+void VistaDiseno::setNombreTabla(const QString& nombre) {
+    this->nombreTablaActual = nombre;
+}
+
+bool VistaDiseno::esCampoRelacionado(const QString& nombreCampo) const {
+    return camposRelacionados.contains(nombreCampo);
+}
+
+void VistaDiseno::actualizarEstadoCampos() {
+    for (int row = 0; row < tablaCampos->rowCount(); ++row) {
+        QTableWidgetItem *nombreItem = tablaCampos->item(row, 1);
+        if (nombreItem) {
+            QString nombreCampo = nombreItem->text();
+            bool esRelacionado = esCampoRelacionado(nombreCampo);
+
+            if (nombresAnteriores.contains(row) && nombresAnteriores[row] != nombreCampo) {
+                nombresAnteriores[row] = nombreCampo;
+            }
+
+            // Hacer el campo de solo lectura si está relacionado
+            nombreItem->setFlags(esRelacionado ?
+                                     nombreItem->flags() & ~Qt::ItemIsEditable :
+                                     nombreItem->flags() | Qt::ItemIsEditable);
+
+            QComboBox *tipoCombo = qobject_cast<QComboBox*>(tablaCampos->cellWidget(row, 2));
+            if (tipoCombo) {
+                tipoCombo->setEnabled(!esRelacionado);
+
+                // 🔹 Si está relacionado, forzar el tipo original
+                if (esRelacionado) {
+                    // Podrías almacenar también el tipo original si es necesario
+                    tipoCombo->setToolTip("Tipo bloqueado por relación");
+                } else {
+                    tipoCombo->setToolTip("");
+                }
+            }
+        }
+    }
+}
+
+void VistaDiseno::on_campoEditado(QTableWidgetItem *item) {
+    if (bloqueandoEdicion) return;
+
+    if (item->column() == 1) { // Columna de nombre
+        int row = item->row();
+        QString nombreAnterior;
+
+        // 🔹 Obtener el nombre anterior del campo (antes del cambio)
+        // Necesitamos almacenar los nombres anteriores
+        if (nombresAnteriores.contains(row)) {
+            nombreAnterior = nombresAnteriores[row];
+        }
+
+        QString nuevoNombre = item->text();
+
+        // 🔹 Verificar si el campo YA ESTABA RELACIONADO (nombre anterior)
+        if (!nombreAnterior.isEmpty() && esCampoRelacionado(nombreAnterior)) {
+            QMessageBox::warning(this, "Campo relacionado",
+                                 "No se puede modificar campos relacionados a otras tablas.");
+
+            // Revertir al nombre anterior
+            bloqueandoEdicion = true;
+            item->setText(nombreAnterior);
+            bloqueandoEdicion = false;
+            return;
+        }
+
+        // 🔹 También verificar si el nuevo nombre ya está relacionado
+        if (esCampoRelacionado(nuevoNombre)) {
+            QMessageBox::warning(this, "Campo relacionado",
+                                 "No se puede usar un nombre que ya está relacionado en otra tabla.");
+
+            // Revertir al nombre anterior si existe, o dejar vacío
+            bloqueandoEdicion = true;
+            item->setText(nombreAnterior.isEmpty() ? "" : nombreAnterior);
+            bloqueandoEdicion = false;
+            return;
+        }
+
+        // 🔹 Actualizar el nombre anterior para la próxima vez
+        nombresAnteriores[row] = nuevoNombre;
+    }
+
+    // Guardar metadatos
+    guardarMetadatos();
+}
+
+void VistaDiseno::guardarMetadatos() {
+    if (nombreTablaActual.isEmpty() || guardandoMetadatos) return;
+
+    guardandoMetadatos = true;
+
+    try {
+        Metadata meta;
+        meta.nombreTabla = nombreTablaActual;
+        meta.campos = obtenerCampos();
+
+        // Validar PK antes de guardar
+        if (!meta.validarPK()) {
+            QMessageBox::warning(this, "Error de validación",
+                                 "Debe existir exactamente una clave primaria (PK).");
+            guardandoMetadatos = false;
+            return;
+        }
+
+        meta.guardar();
+        emit metadatosModificados();
+
+    } catch (const std::runtime_error& e) {
+        QMessageBox::critical(this, "Error al guardar", e.what());
+    }
+
+    guardandoMetadatos = false;
+}
+
+
