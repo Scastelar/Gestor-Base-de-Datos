@@ -78,7 +78,10 @@ void VistaDiseno::configurarTablaCampos() {
     tipoCombo->addItems({"TEXTO", "NUMERO", "FECHA", "MONEDA"});
     tipoCombo->setCurrentText("NUMERO"); // Tipo por defecto para PK
     connect(tipoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &VistaDiseno::actualizarPropiedades);
+            this, [this]() {
+                actualizarPropiedades();
+                guardarMetadatos();   // 🔹 Guardar al cambiar tipo
+            });
     tablaCampos->setCellWidget(0, 2, tipoCombo);
 
     tablaCampos->horizontalHeader()->setStretchLastSection(true);
@@ -116,7 +119,10 @@ void VistaDiseno::agregarCampo() {
     QComboBox *tipoCombo = new QComboBox();
     tipoCombo->addItems({"TEXTO", "NUMERO", "FECHA", "MONEDA"});
     connect(tipoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            this, &VistaDiseno::actualizarPropiedades);
+            this, [this]() {
+                actualizarPropiedades();
+                guardarMetadatos();   // 🔹 Guardar al cambiar tipo
+            });
     tablaCampos->setCellWidget(row, 2, tipoCombo);
 
     guardarMetadatos();
@@ -313,7 +319,10 @@ void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
         int index = tipoCombo->findText(c.tipo);
         if (index != -1) tipoCombo->setCurrentIndex(index);
         connect(tipoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, &VistaDiseno::actualizarPropiedades);
+                this, [this]() {
+                    actualizarPropiedades();
+                    guardarMetadatos();   // 🔹 Guardar al cambiar tipo
+                });
         tablaCampos->setCellWidget(row, 2, tipoCombo);
 
         // Guardar propiedad en el mapa
@@ -367,6 +376,7 @@ void VistaDiseno::actualizarPropiedades() {
         connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged),
                 [this, currentRow](int value) {
                     propiedadesPorFila[currentRow] = value;
+
                 });
 
         tablaPropiedades->setCellWidget(0, 1, spinBox);
@@ -479,6 +489,7 @@ void VistaDiseno::guardarPropiedadFila(int row) {
             propiedadesPorFila[row] = combo->currentText();
         }
     }
+    guardarMetadatos();
 }
 
 // 🔹 Limpiar propiedades cuando se elimina una fila

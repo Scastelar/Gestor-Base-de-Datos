@@ -1053,7 +1053,7 @@ void MainWindow::crearNuevaTabla() {
     meta.guardar();
 
     // Agregar tabla a la lista lateral
-    QIcon iconTabla(":/imgs/table.png");
+    QIcon iconTabla(":/imgs/datasheet-view.png");
     listaTablas->addItem(new QListWidgetItem(iconTabla, nombreTabla));
 
     // Crear un widget contenedor para las vistas de la tabla
