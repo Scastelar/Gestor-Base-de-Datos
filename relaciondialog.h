@@ -2,34 +2,33 @@
 #define RELACIONDIALOG_H
 
 #include <QDialog>
-#include <QCheckBox>
+#include <QComboBox>
 #include <QPushButton>
 #include <QLabel>
 
 class RelacionDialog : public QDialog
 {
     Q_OBJECT
-public:
-    explicit RelacionDialog(const QString &tabla1,
-                            const QString &campo1,
-                            const QString &tabla2,
-                            const QString &campo2,
-                            const QString &tipoRelacion,
-                            QWidget *parent = nullptr);
 
-    bool integridadReferencial() const { return chkIntegridad->isChecked(); }
-    bool cascadaActualizar() const { return chkActualizar->isChecked(); }
-    bool cascadaEliminar() const { return chkEliminar->isChecked(); }
+public:
+    RelacionDialog(const QString &tabla1, const QString &campo1,
+                   const QString &tabla2, const QString &campo2,
+                   bool esOrigenPK, bool esDestinoPK,
+                   QWidget *parent = nullptr);
+
+    QString getTipoRelacion() const;
 
 private slots:
-    void actualizarEstadoCascadas();
+    void validarRelacion(int index);
 
 private:
-    QCheckBox *chkIntegridad;
-    QCheckBox *chkActualizar;
-    QCheckBox *chkEliminar;
+    void actualizarEstadoBoton();
+
+    QComboBox *cmbTipoRelacion;
     QPushButton *btnCrear;
-    QPushButton *btnCancelar;
+
+    bool esOrigenPK;
+    bool esDestinoPK;
 };
 
 #endif // RELACIONDIALOG_H

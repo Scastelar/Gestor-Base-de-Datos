@@ -105,9 +105,23 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
             }
         }
 
+        if (campoO.nombre != campoD.nombre) {
+            QMessageBox::warning(this,
+                                 "Relación inválida",
+                                 QString("No se puede relacionar el campo '%1' con '%2' porque tienen nombres diferentes.\n"
+                                         "Los campos relacionados deben tener el mismo nombre.")
+                                     .arg(campoO.nombre)
+                                     .arg(campoD.nombre));
+            return; // ❌ Cancelar relación
+        }
+
         // 🔹 Ahora sí mostrar diálogo estilo Access SOLO si los tipos coinciden
-        RelacionDialog dlg(tablaDrag, campoDrag, tablaDestino, campoDestino, tipoTexto, this);
+        RelacionDialog dlg(tablaDrag, campoDrag, tablaDestino, campoDestino,
+                           origenEsPK, destinoEsPK, this);
+
         if (dlg.exec() != QDialog::Accepted) return;
+
+        QString tipoRelacion = dlg.getTipoRelacion();
 
         // 🔹 Crear relación en escena
         RelationItem *rel = new RelationItem(tablas[tablaDrag], campoDrag,
@@ -116,10 +130,8 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
         scene->addItem(rel);
         relaciones.append(rel);
 
-        emit relacionCreada(tablaDrag, campoDrag, tablaDestino, campoDestino);
-
-
-    });
+        emit relacionCreada(tablaDrag, campoDrag, tablaDestino, campoDestino, tipoRelacion);
+        });
 
     crearToolbar();
     crearLayoutPrincipal();
@@ -385,6 +397,8 @@ void RelacionesWidget::cargarRelacionesPrevias()
         }
     }
 
+     validarRelacionesExistentes();
+
     for (RelationItem *rel : relaciones) {
         rel->updatePosition();
     }
@@ -470,10 +484,139 @@ void RelacionesWidget::refrescarTablas()
         item->update();
     }
 
+    // 🔹 Validar relaciones existentes después de actualizar metadatos
+    validarRelacionesExistentes();
+
     for (RelationItem *rel : relaciones) {
         rel->updatePosition();
     }
 }
 
+void RelacionesWidget::validarRelacionesExistentes()
+{
+    QList<RelationItem*> relacionesInvalidas;
 
+    for (RelationItem *rel : relaciones) {
+        QString tablaOrigen = rel->getSource()->getTableName();
+        QString tablaDestino = rel->getDest()->getTableName();
+        QString campoOrigen = rel->getCampoSource();
+        QString campoDestino = rel->getCampoDest();
+
+        // Verificar si las tablas aún existen
+        if (!tablas.contains(tablaOrigen) || !tablas.contains(tablaDestino)) {
+            relacionesInvalidas.append(rel);
+            continue;
+        }
+
+        // Obtener metadatos actualizados
+        const Metadata &metaOrigen = tablas[tablaOrigen]->getMetadata();
+        const Metadata &metaDestino = tablas[tablaDestino]->getMetadata();
+
+        // Buscar campos en los metadatos actuales
+        Campo campoO, campoD;
+        bool encontradoO = false, encontradoD = false;
+
+        for (const Campo &c : metaOrigen.campos) {
+            if (c.nombre == campoOrigen) { campoO = c; encontradoO = true; break; }
+        }
+        for (const Campo &c : metaDestino.campos) {
+            if (c.nombre == campoDestino) { campoD = c; encontradoD = true; break; }
+        }
+
+        // Validar si la relación sigue siendo válida
+        if (!encontradoO || !encontradoD) {
+            // Campo eliminado
+            relacionesInvalidas.append(rel);
+        }
+        else if (campoO.tipo != campoD.tipo) {
+            // Tipos cambiaron y ya no coinciden
+            relacionesInvalidas.append(rel);
+            QMessageBox::warning(this, "Relación inválida",
+                                 QString("La relación entre %1.%2 y %3.%4 ya no es válida.\n"
+                                         "Los tipos de dato cambiaron y ya no coinciden.\n"
+                                         "La relación será eliminada.")
+                                     .arg(tablaOrigen).arg(campoOrigen)
+                                     .arg(tablaDestino).arg(campoDestino));
+        }
+        else if (campoO.nombre != campoD.nombre) {
+            // Nombres cambiaron y ya no coinciden
+            relacionesInvalidas.append(rel);
+            QMessageBox::warning(this, "Relación inválida",
+                                 QString("La relación entre %1.%2 y %3.%4 ya no es válida.\n"
+                                         "Los nombres de campo cambiaron y ya no coinciden.\n"
+                                         "La relación será eliminada.")
+                                     .arg(tablaOrigen).arg(campoOrigen)
+                                     .arg(tablaDestino).arg(campoDestino));
+        }
+        else {
+            // Validar reglas de PK/FK según el tipo de relación
+            bool origenEsPK = campoO.esPK;
+            bool destinoEsPK = campoD.esPK;
+            bool esValida = true;
+
+            switch (rel->getTipoRelacion()) {
+            case TipoRelacion::UnoAUno:
+                esValida = (origenEsPK && destinoEsPK);
+                break;
+            case TipoRelacion::UnoAMuchos:
+                esValida = (origenEsPK && !destinoEsPK) || (!origenEsPK && destinoEsPK);
+                break;
+            case TipoRelacion::MuchosAMuchos:
+                esValida = (!origenEsPK && !destinoEsPK);
+                break;
+            }
+
+            if (!esValida) {
+                relacionesInvalidas.append(rel);
+                QMessageBox::warning(this, "Relación inválida",
+                                     QString("La relación %1 entre %2.%3 y %4.%5 ya no es válida.\n"
+                                             "Las propiedades PK/FK cambiaron y no cumplen con las reglas del tipo de relación.\n"
+                                             "La relación será eliminada.")
+                                         .arg(rel->getTipoRelacionString())
+                                         .arg(tablaOrigen).arg(campoOrigen)
+                                         .arg(tablaDestino).arg(campoDestino));
+            }
+        }
+    }
+
+    // Eliminar relaciones inválidas
+    for (RelationItem *rel : relacionesInvalidas) {
+        eliminarRelacion(rel);
+    }
+}
+
+void RelacionesWidget::eliminarRelacion(RelationItem *rel)
+{
+    if (!rel) return;
+
+    // Eliminar de la escena
+    scene->removeItem(rel);
+
+    // Eliminar del vector
+    relaciones.removeOne(rel);
+
+    // Eliminar del archivo relationships.dat
+    QFile relacionesFile("relationships.dat");
+    if (relacionesFile.open(QIODevice::ReadOnly)) {
+        QStringList lineasValidas;
+        QTextStream in(&relacionesFile);
+        while (!in.atEnd()) {
+            QString linea = in.readLine();
+            if (!linea.contains(rel->getSource()->getTableName() + "|" + rel->getCampoSource() + "|" +
+                                rel->getDest()->getTableName() + "|" + rel->getCampoDest())) {
+                lineasValidas << linea;
+            }
+        }
+        relacionesFile.close();
+
+        if (relacionesFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            QTextStream out(&relacionesFile);
+            for (const QString &linea : lineasValidas)
+                out << linea << "\n";
+            relacionesFile.close();
+        }
+    }
+
+    delete rel;
+}
 

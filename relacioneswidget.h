@@ -25,7 +25,8 @@ signals:
     void relacionCreada(const QString &tabla1,
                         const QString &campo1,
                         const QString &tabla2,
-                        const QString &campo2);
+                        const QString &campo2,
+                        const QString &tipo);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
@@ -37,6 +38,8 @@ private slots:
 private:
 
     void eliminarRelacionSeleccionada();
+    void validarRelacionesExistentes();
+    void eliminarRelacion(RelationItem *rel);
     bool validarCompatibilidadTipos(const Campo &campoOrigen, const Campo &campoDestino);
     void crearToolbar();
     void crearLayoutPrincipal();

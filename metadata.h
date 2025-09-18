@@ -72,11 +72,20 @@ struct Campo {
     }
 };
 
+struct Relacion {
+    QString tablaPrincipal; // Tabla a la que pertenece la clave primaria
+    QString campoPrincipal; // Campo PK
+    QString tablaForanea;   // Tabla que tiene la clave foránea
+    QString campoForaneo;   // Campo FK
+    QString tipoRelacion;   // "1:1", "1:M", "M:M"
+};
+
 class Metadata {
 public:
     QString nombreTabla;
     QVector<Campo> campos;
     QVector<QMap<QString, QVariant>> registros; // 🔹 ahora también almacena registros
+    QVector<Relacion> relaciones;
 
     Metadata(const QString &nombre = "") : nombreTabla(nombre) {}
 

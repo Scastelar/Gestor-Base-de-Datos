@@ -821,6 +821,30 @@ void MainWindow::cambiarVista()
 
 void MainWindow::abrirRelaciones()
 {
+    if (tablaActual){
+        VistaDiseno *tablaDesign = tablaActual->property("tablaDesign").value<VistaDiseno*>();
+        VistaDatos *tablaDataSheet = tablaActual->property("tablaDataSheet").value<VistaDatos*>();
+        tablaDataSheet->cargarRelaciones("relationships.dat");
+        RelacionesWidget *relaciones = tablaActual->property("relaciones").value<RelacionesWidget*>();
+
+        // 🔹 Crear metadata con lo que esté actualmente en memoria
+        Metadata meta(tablaActualNombre);
+
+        if (tablaDesign) {
+            meta.campos = tablaDesign->obtenerCampos();
+        }
+        if (tablaDataSheet) {
+            meta.registros = tablaDataSheet->obtenerRegistros(meta.campos);
+        }
+
+        try {
+            meta.guardar();  // guarda estructura + datos en .meta y .data
+        } catch (const std::runtime_error &e) {
+            QMessageBox::warning(this, "Error al guardar", e.what());
+            return;
+        }
+    }
+
     RelacionesWidget *relacionesWidget = new RelacionesWidget();
     int tabIndex = zonaCentral->addTab(relacionesWidget, "Relaciones");
     zonaCentral->setCurrentIndex(tabIndex);

@@ -13,6 +13,7 @@ enum class TipoRelacion {
     MuchosAMuchos
 };
 
+
 class RelationItem : public QGraphicsPathItem
 {
 public:
@@ -26,6 +27,16 @@ public:
     TableItem* getDest() const { return dest; }
     QString getCampoSource() const { return campoSource; }
     QString getCampoDest() const { return campoDest; }
+    QString getTipoRelacionString() const {
+        switch (tipoRelacion) {
+        case TipoRelacion::UnoAUno: return "Uno a Uno";
+        case TipoRelacion::UnoAMuchos: return "Uno a Muchos";
+        case TipoRelacion::MuchosAMuchos: return "Muchos a Muchos";
+        default: return "Desconocido";
+        }
+    }
+
+    TipoRelacion getTipoRelacion() const { return tipoRelacion; }
 
 protected:
     // Permitir que se seleccione con clic
