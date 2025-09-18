@@ -9,24 +9,30 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    consultawidget.cpp \
     main.cpp \
     mainwindow.cpp \
+    querydesignerwidget.cpp \
     relaciondialog.cpp \
     relacionesview.cpp \
     relacioneswidget.cpp \
     relationitem.cpp \
+    vistaconsulta.cpp \
     vistadatos.cpp \
     vistadiseno.cpp \
     tableitem.cpp
 
 HEADERS += \
+    consultawidget.h \
     mainwindow.h \
     mainwindow.h \
     metadata.h \
+    querydesignerwidget.h \
     relaciondialog.h \
     relacionesview.h \
     relacioneswidget.h \
     relationitem.h \
+    vistaconsulta.h \
     vistadatos.h \
     vistadiseno.h \
     vistadiseno.h \

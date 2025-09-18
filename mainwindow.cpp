@@ -27,6 +27,7 @@
 #include <QWidgetAction>
 #include <QDir>
 #include <QMessageBox>
+#include "consultawidget.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), vistaHojaDatos(false), filtroActivo(false), tablaActual(nullptr),
@@ -463,6 +464,8 @@ void MainWindow::crearRibbonCrear()
     QHBoxLayout *queriesLayout = new QHBoxLayout(queriesFrame);
 
     QToolButton *btnConsulta = crearBotonRibbon(":/imgs/query.png", "Consulta");
+    connect(btnConsulta, &QToolButton::clicked, this, &MainWindow::crearNuevaConsulta);
+
     QToolButton *btnDisenoConsulta = crearBotonRibbon(":/imgs/form-design.png", "Diseño");
 
     queriesLayout->addWidget(btnConsulta);
@@ -1041,3 +1044,11 @@ void MainWindow::ordenarRegistros(Qt::SortOrder order)
         tablaDataSheet->ordenar(order);
     }
 }
+void MainWindow::crearNuevaConsulta() {
+    ConsultaWidget *cw = new ConsultaWidget();
+    int idx = zonaCentral->addTab(cw, "Diseño de Consulta");
+    zonaCentral->setCurrentIndex(idx);
+}
+
+
+
