@@ -34,6 +34,9 @@ private slots:
     void crearRibbonInicio();
     void crearRibbonCrear();
 
+    void eliminarTabla(const QString& nombreTabla);
+    void editarNombreTabla(const QString& nombreTabla);
+
     void onSolicitarDatosRelacionados(const QString &tabla, const QString &campo, const QString &valor);
 
     QFrame* crearSeccionRibbon(const QString &titulo);
@@ -105,6 +108,7 @@ private:
     QSet<QString> obtenerCamposRelacionados(const QString& nombreTabla);
     void onMetadatosModificados();
 
+    QSplitter *splitter;
 
 };
 #endif // MAINWINDOW_H

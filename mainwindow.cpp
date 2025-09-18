@@ -29,6 +29,8 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QSet>
+#include <QPushButton> // Include QPushButton
+#include <QToolButton> // Include QToolButton
 #include "consultawidget.h"
 
 MainWindow::MainWindow(QWidget *parent)
@@ -66,9 +68,47 @@ MainWindow::MainWindow(QWidget *parent)
     QStringList archivosMeta = dir.entryList(QStringList() << "*.meta", QDir::Files);
 
     for (const QString &fileName : archivosMeta) {
-        Metadata meta = Metadata::cargar(dir.filePath(fileName));
-        if (!meta.nombreTabla.isEmpty()) {
-            listaTablas->addItem(new QListWidgetItem(iconTabla, meta.nombreTabla));
+        try {
+            Metadata meta = Metadata::cargar(dir.filePath(fileName));
+            if (!meta.nombreTabla.isEmpty()) {
+                QListWidgetItem *item = new QListWidgetItem(listaTablas);
+                item->setData(Qt::UserRole, meta.nombreTabla); // Store table name
+                listaTablas->addItem(item);
+
+                // Create custom widget for the item
+                QWidget* itemWidget = new QWidget();
+                QHBoxLayout* itemLayout = new QHBoxLayout(itemWidget);
+                QLabel* nameLabel = new QLabel(meta.nombreTabla);
+                QToolButton* menuButton = new QToolButton();
+                menuButton->setIcon(QIcon(":/imgs/menu.png")); // Use a menu icon
+                menuButton->setAutoRaise(true);
+
+                // Create the menu
+                QMenu* menu = new QMenu(this);
+                QAction* renameAction = menu->addAction("Editar Nombre");
+                QAction* deleteAction = menu->addAction("Eliminar");
+
+                // Connect actions to slots
+                connect(renameAction, &QAction::triggered, this, [this, meta]() {
+                    editarNombreTabla(meta.nombreTabla);
+                });
+                connect(deleteAction, &QAction::triggered, this, [this, meta]() {
+                    eliminarTabla(meta.nombreTabla);
+                });
+                menuButton->setMenu(menu);
+                menuButton->setPopupMode(QToolButton::InstantPopup); // Show menu on click
+
+                itemLayout->addWidget(nameLabel);
+                itemLayout->addStretch();
+                itemLayout->addWidget(menuButton);
+                itemLayout->setContentsMargins(0, 0, 0, 0);
+
+                item->setSizeHint(itemWidget->sizeHint());
+                listaTablas->setItemWidget(item, itemWidget);
+            }
+        } catch (const std::runtime_error& e) {
+            QMessageBox::warning(this, "Error de Carga",
+                                 QString("No se pudo cargar la tabla desde el archivo '%1'. Error: %2").arg(fileName).arg(e.what()));
         }
     }
 
@@ -603,15 +643,28 @@ void MainWindow::abrirTabla(QListWidgetItem *item)
 {
     if (!item) return;
 
-    tablaActualNombre = item->text();
+    tablaActualNombre = item->data(Qt::UserRole).toString();
+    Metadata meta;
 
-    // Cargar metadata
-    Metadata meta = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
+    // Si el nombre está vacío, significa que el item no es una tabla real
+    if (tablaActualNombre.isEmpty()) {
+        qDebug() << "Intento de abrir un item sin nombre de tabla.";
+        return;
+    }
 
-    // Verificar si la tabla ya está abierta
-    int tabIndex = encontrarTablaEnTabs(tablaActualNombre);
-    if (tabIndex != -1) {
-        zonaCentral->setCurrentIndex(tabIndex);
+    // Ya existe una pestaña abierta para esta tabla?
+    for (int i = 0; i < zonaCentral->count(); ++i) {
+        if (zonaCentral->tabText(i) == tablaActualNombre) {
+            zonaCentral->setCurrentIndex(i);
+            return;
+        }
+    }
+
+    try {
+        meta = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
+    } catch (const std::runtime_error& e) {
+        QMessageBox::critical(this, "Error al Abrir Tabla",
+                              QString("No se pudo abrir el archivo de la tabla '%1'. Error: %2").arg(tablaActualNombre).arg(e.what()));
         return;
     }
 
@@ -847,10 +900,15 @@ void MainWindow::cambiarVista()
         comboVista->setCurrentIndex(0);
 
         if (tablaDesign) {
-            Metadata recargada = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
-            tablaDesign->cargarCampos(recargada.campos);
-            tablaStacked->setCurrentWidget(tablaDesign);
-            tablaDesign->actualizarPropiedades();
+            try {
+                Metadata recargada = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
+                tablaDesign->cargarCampos(recargada.campos);
+                tablaStacked->setCurrentWidget(tablaDesign);
+                tablaDesign->actualizarPropiedades();
+            } catch (const std::runtime_error& e) {
+                QMessageBox::critical(this, "Error de Recarga",
+                                      QString("No se pudo recargar el diseño de la tabla. Error: %1").arg(e.what()));
+            }
         }
     }
 
@@ -1029,15 +1087,15 @@ bool MainWindow::nombreTablaEsUnico(const QString &nombreTabla) {
 void MainWindow::crearNuevaTabla() {
     // Pide un nombre
     bool ok;
-    QString nombreTabla = QInputDialog::getText(this, "Nueva Tabla",
-                                                "Nombre de la tabla:",
+    QString nombreTabla = QInputDialog::getText(this, tr("Nueva Tabla"),
+                                                tr("Nombre de la tabla:"),
                                                 QLineEdit::Normal,
                                                 "TablaNueva", &ok);
     if (!ok || nombreTabla.isEmpty()) return;
 
     // Validar nombre único
     if (!nombreTablaEsUnico(nombreTabla)) {
-        QMessageBox::critical(this, "Tabla NO creada", "Nombre ya registrado, ingrese uno diferente.");
+        QMessageBox::critical(this, tr("Tabla NO creada"), tr("Nombre ya registrado, ingrese uno diferente."));
         return;
     }
 
@@ -1052,9 +1110,42 @@ void MainWindow::crearNuevaTabla() {
     // Guardar archivo .meta
     meta.guardar();
 
-    // Agregar tabla a la lista lateral
-    QIcon iconTabla(":/imgs/datasheet-view.png");
-    listaTablas->addItem(new QListWidgetItem(iconTabla, nombreTabla));
+    // 🔹 Inicia la creación del QListWidgetItem con el widget personalizado
+    QListWidgetItem *item = new QListWidgetItem(listaTablas);
+    item->setData(Qt::UserRole, nombreTabla); // Almacenar el nombre de la tabla
+
+    QWidget* itemWidget = new QWidget();
+    QHBoxLayout* itemLayout = new QHBoxLayout(itemWidget);
+    QLabel* nameLabel = new QLabel(nombreTabla);
+    QToolButton* menuButton = new QToolButton();
+    menuButton->setIcon(QIcon(":/imgs/menu.png"));
+    menuButton->setAutoRaise(true);
+
+    QMenu* menu = new QMenu(this);
+    QAction* renameAction = menu->addAction(tr("Editar Nombre"));
+    QAction* deleteAction = menu->addAction(tr("Eliminar"));
+
+    // Conectar las acciones a las funciones correspondientes
+    connect(renameAction, &QAction::triggered, this, [this, nombreTabla]() {
+        editarNombreTabla(nombreTabla);
+    });
+    connect(deleteAction, &QAction::triggered, this, [this, nombreTabla]() {
+        eliminarTabla(nombreTabla);
+    });
+    menuButton->setMenu(menu);
+    menuButton->setPopupMode(QToolButton::InstantPopup);
+
+    itemLayout->addWidget(nameLabel);
+    itemLayout->addStretch();
+    itemLayout->addWidget(menuButton);
+    itemLayout->setContentsMargins(0, 0, 0, 0);
+
+    // Es importante ajustar el tamaño y añadir el item a la lista
+    item->setSizeHint(itemWidget->sizeHint());
+    listaTablas->addItem(item);
+    listaTablas->setItemWidget(item, itemWidget);
+
+    // Fin de la creación del widget personalizado 🔹
 
     // Crear un widget contenedor para las vistas de la tabla
     QWidget *tablaContainer = new QWidget();
@@ -1093,6 +1184,9 @@ void MainWindow::crearNuevaTabla() {
 
     // Mostrar ribbon de Inicio
     mostrarRibbonInicio();
+
+    // Abrir la nueva tabla
+    abrirTabla(item);
 }
 
 void MainWindow::guardarTablasAbiertas()
@@ -1188,4 +1282,114 @@ void MainWindow::crearNuevaConsulta() {
 }
 
 
+
+void MainWindow::eliminarTabla(const QString& nombreTabla)
+{
+    // Confirm with the user before deleting
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(this, "Eliminar Tabla",
+                                  "¿Está seguro de que desea eliminar la tabla '" + nombreTabla + "'? Esta acción es irreversible.",
+                                  QMessageBox::Yes | QMessageBox::No);
+    if (reply == QMessageBox::No) {
+        return;
+    }
+
+    // Close the tab if it's open
+    for (int i = 0; i < zonaCentral->count(); ++i) {
+        if (zonaCentral->tabText(i) == nombreTabla) {
+            zonaCentral->removeTab(i);
+            break;
+        }
+    }
+
+    QList<QListWidgetItem*> items;
+    for (int i = 0; i < listaTablas->count(); ++i) {
+        QListWidgetItem* item = listaTablas->item(i);
+        if (item->data(Qt::UserRole).toString() == nombreTabla) {
+            items.append(item);
+            break;
+        }
+    }
+
+    if (!items.isEmpty()) {
+        QListWidgetItem* item = items.first();
+        // `takeItem` es mejor porque elimina el item de la lista sin borrarlo de la memoria.
+        // Se puede usar `delete` sobre el item después para liberar la memoria.
+        listaTablas->takeItem(listaTablas->row(item));
+        delete item; // Liberar la memoria del item y su widget asociado
+    }
+
+    // Eliminar los archivos de metadatos y datos
+    QFile metaFile(QDir::currentPath() + "/tables/" + nombreTabla + ".meta");
+    QFile dataFile(QDir::currentPath() + "/tables/" + nombreTabla + ".data");
+    metaFile.remove();
+    dataFile.remove();
+
+    QMessageBox::information(this, "Eliminar Tabla", "La tabla '" + nombreTabla + "' ha sido eliminada.");
+}
+
+void MainWindow::editarNombreTabla(const QString& nombreTabla)
+{
+    bool ok;
+    QString nuevoNombre = QInputDialog::getText(this, "Editar Nombre",
+                                                "Nuevo nombre para la tabla '" + nombreTabla + "':",
+                                                QLineEdit::Normal,
+                                                nombreTabla, &ok);
+
+    if (!ok || nuevoNombre.isEmpty() || nuevoNombre == nombreTabla) {
+        return; // User cancelled or name is the same
+    }
+
+    if (!nombreTablaEsUnico(nuevoNombre)) {
+        QMessageBox::critical(this, "Error al Renombrar", "El nombre '" + nuevoNombre + "' ya existe.");
+        return;
+    }
+
+    // Buscar el item del QListWidget por el nombre de la tabla
+    QListWidgetItem* itemToRename = nullptr;
+    for (int i = 0; i < listaTablas->count(); ++i) {
+        QListWidgetItem* item = listaTablas->item(i);
+        if (item->data(Qt::UserRole).toString() == nombreTabla) {
+            itemToRename = item;
+            break;
+        }
+    }
+
+    if (!itemToRename) {
+        // No se encontró el item, no se puede renombrar
+        QMessageBox::warning(this, "Error", "No se encontró el item en la lista para renombrar.");
+        return;
+    }
+
+
+    // Rename the files
+    QFile metaFile(QDir::currentPath() + "/tables/" + nombreTabla + ".meta");
+    QFile dataFile(QDir::currentPath() + "/tables/" + nombreTabla + ".data");
+    metaFile.rename(QDir::currentPath() + "/tables/" + nuevoNombre + ".meta");
+    dataFile.rename(QDir::currentPath() + "/tables/" + nuevoNombre + ".data");
+
+    // 🔹 Actualizar los datos del item y el texto de la etiqueta
+    itemToRename->setData(Qt::UserRole, nuevoNombre);
+
+    QWidget* itemWidget = listaTablas->itemWidget(itemToRename);
+    if (itemWidget) {
+        QLabel* label = itemWidget->findChild<QLabel*>();
+        if (label) {
+            label->setText(nuevoNombre);
+        }
+    }
+
+    // Actualizar el texto de la pestaña si está abierta
+    for (int i = 0; i < zonaCentral->count(); ++i) {
+        if (zonaCentral->tabText(i) == nombreTabla) {
+            zonaCentral->setTabText(i, nuevoNombre);
+            break;
+        }
+    }
+
+
+    QMessageBox::information(this, "Renombrar Tabla", "La tabla ha sido renombrada a '" + nuevoNombre + "'.");
+}
+
+// ... existing code ...
 
