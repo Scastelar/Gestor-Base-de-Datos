@@ -764,6 +764,15 @@ void MainWindow::cambiarVista()
 {
     if (!tablaActual) return;
 
+    QString tabName = zonaCentral->tabText(zonaCentral->currentIndex());
+
+    // 🔹 No guardar consultas ni relaciones como tablas
+    if (tabName.startsWith("Diseño de Consulta") ||
+        tabName.startsWith("Consulta") ||
+        tabName.startsWith("Relaciones")) {
+        return;
+    }
+
     QStackedWidget *tablaStacked = tablaActual->property("tablaStacked").value<QStackedWidget*>();
     VistaDiseno *tablaDesign = tablaActual->property("tablaDesign").value<VistaDiseno*>();
     VistaDatos *tablaDataSheet = tablaActual->property("tablaDataSheet").value<VistaDatos*>();
@@ -796,7 +805,6 @@ void MainWindow::cambiarVista()
         comboVista->setCurrentIndex(1);
 
         if (tablaDataSheet) {
-            // Recargar desde disco (ya trae campos + registros)
             Metadata recargada = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
             tablaDataSheet->cargarDesdeMetadata(recargada);
             tablaStacked->setCurrentWidget(tablaDataSheet);
@@ -821,6 +829,7 @@ void MainWindow::cambiarVista()
     actualizarConexionesBotones();
     mostrarRibbonInicio();
 }
+
 
 void MainWindow::abrirRelaciones()
 {
@@ -851,17 +860,19 @@ void MainWindow::abrirRelaciones()
     RelacionesWidget *relacionesWidget = new RelacionesWidget();
     int tabIndex = zonaCentral->addTab(relacionesWidget, "Relaciones");
     zonaCentral->setCurrentIndex(tabIndex);
-    tablaActualNombre = "Relaciones";
+
+    // 🔹 No asignamos tablaActualNombre = "Relaciones"
+    // porque no debe persistirse como tabla real
 
     connect(relacionesWidget, &RelacionesWidget::cerrada,
             this, &MainWindow::cerrarRelacionesYVolver);
 
-    // Conectar la señal de relación creada
     connect(relacionesWidget, &RelacionesWidget::relacionCreada,
             this, &MainWindow::guardarRelacionEnBD);
 
     mostrarRibbonInicio();
 }
+
 
 void MainWindow::guardarRelacionEnBD(const QString &tabla1, const QString &campo1,
                                      const QString &tabla2, const QString &campo2)
@@ -899,6 +910,20 @@ void MainWindow::cerrarTab(int index)
         return;
     }
 
+    QString tabName = zonaCentral->tabText(index);
+
+    // 🔹 Evitar guardar consultas y relaciones como tablas
+    if (tabName.startsWith("Diseño de Consulta") ||
+        tabName.startsWith("Consulta") ||
+        tabName.startsWith("Relaciones")) {
+        zonaCentral->removeTab(index);
+
+        if (zonaCentral->count() == 1 && !zonaCentral->isTabEnabled(0)) {
+            zonaCentral->setCurrentIndex(0);
+        }
+        return;
+    }
+
     QWidget *tablaContainer = zonaCentral->widget(index);
     if (tablaContainer) {
         VistaDiseno *tablaDesign = tablaContainer->property("tablaDesign").value<VistaDiseno*>();
@@ -926,6 +951,7 @@ void MainWindow::cerrarTab(int index)
         zonaCentral->setCurrentIndex(0);
     }
 }
+
 
 bool MainWindow::nombreTablaEsUnico(const QString &nombreTabla) {
     QDir dir(QDir::currentPath() + "/tables");
@@ -1014,18 +1040,27 @@ void MainWindow::crearNuevaTabla() {
 void MainWindow::guardarTablasAbiertas()
 {
     for (int i = 0; i < zonaCentral->count(); ++i) {
+        QString tabName = zonaCentral->tabText(i);
+
+        // 🔹 Ignorar consultas y relaciones
+        if (tabName.startsWith("Diseño de Consulta") ||
+            tabName.startsWith("Consulta") ||
+            tabName.startsWith("Relaciones")) {
+            continue;
+        }
+
         QWidget *tabWidget = zonaCentral->widget(i);
-        if (tabWidget && tabWidget != zonaCentral->widget(0) && zonaCentral->tabText(i) != "Relaciones") {
-            QString nombreTabla = zonaCentral->tabText(i);
+        if (tabWidget && tabWidget != zonaCentral->widget(0)) {
             VistaDiseno *tablaDesign = tabWidget->property("tablaDesign").value<VistaDiseno*>();
             if (tablaDesign) {
-                Metadata meta(nombreTabla);
+                Metadata meta(tabName);
                 meta.campos = tablaDesign->obtenerCampos();
                 meta.guardar();
             }
         }
     }
 }
+
 
 void MainWindow::ordenarRegistros(Qt::SortOrder order)
 {
