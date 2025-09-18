@@ -29,6 +29,7 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QSet>
+#include "consultawidget.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), vistaHojaDatos(false), filtroActivo(false), tablaActual(nullptr),
@@ -465,6 +466,8 @@ void MainWindow::crearRibbonCrear()
     QHBoxLayout *queriesLayout = new QHBoxLayout(queriesFrame);
 
     QToolButton *btnConsulta = crearBotonRibbon(":/imgs/query.png", "Consulta");
+    connect(btnConsulta, &QToolButton::clicked, this, &MainWindow::crearNuevaConsulta);
+
     QToolButton *btnDisenoConsulta = crearBotonRibbon(":/imgs/form-design.png", "Diseño");
 
     queriesLayout->addWidget(btnConsulta);
@@ -836,7 +839,6 @@ void MainWindow::cambiarVista()
         comboVista->setCurrentIndex(1);
 
         if (tablaDataSheet) {
-            // Recargar desde disco (ya trae campos + registros)
             Metadata recargada = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
             tablaDataSheet->cargarDesdeMetadata(recargada);
             tablaStacked->setCurrentWidget(tablaDataSheet);
@@ -861,6 +863,7 @@ void MainWindow::cambiarVista()
     actualizarConexionesBotones();
     mostrarRibbonInicio();
 }
+
 
 void MainWindow::abrirRelaciones()
 {
@@ -902,13 +905,14 @@ void MainWindow::abrirRelaciones()
     RelacionesWidget *relacionesWidget = new RelacionesWidget();
     int tabIndex = zonaCentral->addTab(relacionesWidget, "Relaciones");
     zonaCentral->setCurrentIndex(tabIndex);
+
+
     // 🔹 No asignamos tablaActualNombre = "Relaciones"
     // porque no debe persistirse como tabla real
 
     connect(relacionesWidget, &RelacionesWidget::cerrada,
             this, &MainWindow::cerrarRelacionesYVolver);
 
-    // Conectar la señal de relación creada
     connect(relacionesWidget, &RelacionesWidget::relacionCreada,
             this, &MainWindow::guardarRelacionEnBD);
 
@@ -926,6 +930,7 @@ void MainWindow::abrirRelaciones()
 
     mostrarRibbonInicio();
 }
+
 
 void MainWindow::guardarRelacionEnBD(const QString &tabla1, const QString &campo1,
                                      const QString &tabla2, const QString &campo2)
@@ -1004,6 +1009,7 @@ void MainWindow::cerrarTab(int index)
         zonaCentral->setCurrentIndex(0);
     }
 }
+
 
 bool MainWindow::nombreTablaEsUnico(const QString &nombreTabla) {
     QDir dir(QDir::currentPath() + "/tables");
@@ -1114,6 +1120,7 @@ void MainWindow::guardarTablasAbiertas()
     }
 }
 
+
 void MainWindow::ordenarRegistros(Qt::SortOrder order)
 {
     if (!tablaActual || !vistaHojaDatos) {
@@ -1174,3 +1181,11 @@ void MainWindow::onMetadatosModificados() {
     // Emitir señal para actualizar relaciones si es necesario
     emit actualizarRelaciones();
 }
+void MainWindow::crearNuevaConsulta() {
+    ConsultaWidget *cw = new ConsultaWidget();
+    int idx = zonaCentral->addTab(cw, "Diseño de Consulta");
+    zonaCentral->setCurrentIndex(idx);
+}
+
+
+

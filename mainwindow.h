@@ -12,11 +12,11 @@
 #include <QFrame>
 #include <QSplitter>
 #include <QList>
-
+#include "vistaconsulta.h"
 #include "vistadiseno.h"
 #include "vistadatos.h"
 #include "relacioneswidget.h"
-
+#include "querydesignerwidget.h"
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -26,7 +26,7 @@ public:
 
 
 private slots:
-
+    void crearNuevaConsulta();
     void aplicarEstilos();
     void crearMenus();
     void crearRibbonTabs();
