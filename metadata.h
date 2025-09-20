@@ -105,8 +105,7 @@ public:
         }
 
         if (countPK == 0 && !campos.isEmpty()) {
-            // 🚨 Ojo: no podemos modificar campos aquí porque el método es const
-            // Mejor lanzar excepción o asegurarnos antes de llamar a guardar()
+
             throw std::runtime_error("Debe existir exactamente una clave primaria (PK)");
         }
         else if (countPK > 1) {

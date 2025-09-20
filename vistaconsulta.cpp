@@ -84,37 +84,34 @@ void VistaConsulta::aplicarConsulta(const QString &sqlLike,
 
     QTextStream in(&file);
 
-    // Configurar columnas
-    tablaResultados->clear();
+    // Limpiar tabla ANTES de configurar columnas
+    tablaResultados->clearContents();
+    tablaResultados->setRowCount(0);   // 🔹 eliminar todas las filas previas
     tablaResultados->setColumnCount(campos.size());
     tablaResultados->setHorizontalHeaderLabels(campos);
 
-    int row = 0;
-    while (!in.atEnd()) {
-        QString line = in.readLine().trimmed();
-        if (line.isEmpty()) continue;
 
-        QStringList values = line.split("|"); // ⚠️ cambia si usas otro separador
+    int row = 0;
+    for (const auto &registro : meta.registros) {
         tablaResultados->insertRow(row);
 
         for (int c = 0; c < campos.size(); c++) {
             QString campo = campos[c];
-            int idxCampo = -1;
+            QVariant valor;
 
-            for (int i = 0; i < meta.campos.size(); i++) {
-                if (meta.campos[i].nombre.compare(campo, Qt::CaseInsensitive) == 0) {
-                    idxCampo = i;
+            // Buscar el campo en la metadata
+            for (const Campo &campoMeta : meta.campos) {
+                if (campoMeta.nombre.compare(campo, Qt::CaseInsensitive) == 0) {
+                    valor = registro.value(campoMeta.nombre);
                     break;
                 }
             }
 
-            QString valor = (idxCampo != -1 && idxCampo < values.size()) ? values[idxCampo] : "";
-            tablaResultados->setItem(row, c, new QTableWidgetItem(valor));
+            tablaResultados->setItem(row, c, new QTableWidgetItem(valor.toString()));
         }
         row++;
     }
-
-    file.close();
 }
+
 
 

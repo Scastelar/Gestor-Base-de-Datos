@@ -132,7 +132,18 @@ void ConsultaWidget::agregarTabla()
 
 void ConsultaWidget::ejecutarConsulta(const QString &sql)
 {
-    // Mostrar resultados usando metadatos cargados
+    // 🔹 Refrescar siempre las metas desde disco antes de ejecutar
+    metasDisponibles.clear();
+
+    QDir dir(QDir::currentPath() + "/tables");
+    QStringList archivosMeta = dir.entryList(QStringList() << "*.meta", QDir::Files);
+    for (const QString &fileName : archivosMeta) {
+        QString nombreTabla = fileName;
+        nombreTabla.chop(5); // quitar ".meta"
+        Metadata meta = Metadata::cargar(dir.filePath(fileName));
+        metasDisponibles.append(meta);
+    }
+
     vistaResultado->mostrarConsulta(sql, metasDisponibles);
     stack->setCurrentWidget(paginaResultado);
 }
