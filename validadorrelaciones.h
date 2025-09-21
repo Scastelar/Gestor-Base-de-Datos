@@ -50,6 +50,13 @@ public:
                                    const QString &campoPrincipal,
                                    const QVariant &valor);
 
+    // NUEVO método para debug completo de relaciones
+    void debugRelaciones(const QString &nombreTabla = "") const;
+
+    // MEJORAR método para verificar tipo de relación más específico
+    QString obtenerTipoRelacion(const QString &tabla1, const QString &campo1,
+                                const QString &tabla2, const QString &campo2) const;
+
 private:
     QList<RelacionFK> relaciones;
     QMap<QString, Metadata> cacheMetadatos;

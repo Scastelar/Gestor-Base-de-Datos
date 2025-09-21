@@ -346,6 +346,12 @@ void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
         }
     }
 
+    // ⭐ CRÍTICO: Actualizar estado de campos relacionados DESPUÉS de cargar
+                       QTimer::singleShot(100, this, [this]() {
+                           actualizarEstadoCampos();
+                           qDebug() << "🔒 Campos relacionados actualizados:" << camposRelacionados;
+                       });
+
     // Forzar actualización de propiedades para la primera fila
     if (tablaCampos->rowCount() > 0) {
         tablaCampos->setCurrentCell(0, 1);
@@ -516,9 +522,14 @@ bool VistaDiseno::validarPK() const {
     return countPK == 1;
 }
 
-void VistaDiseno::setCamposRelacionados(const QSet<QString>& camposRelacionados) {
-    this->camposRelacionados = camposRelacionados;
-    actualizarEstadoCampos();
+void VistaDiseno::setCamposRelacionados(const QSet<QString>& camposRel) {
+    qDebug() << "🔗 Estableciendo campos relacionados:" << camposRel;
+    this->camposRelacionados = camposRel;
+
+    // Actualizar inmediatamente si ya hay campos cargados
+    if (tablaCampos->rowCount() > 0) {
+        actualizarEstadoCampos();
+    }
 }
 
 void VistaDiseno::setNombreTabla(const QString& nombre) {
@@ -530,6 +541,9 @@ bool VistaDiseno::esCampoRelacionado(const QString& nombreCampo) const {
 }
 
 void VistaDiseno::actualizarEstadoCampos() {
+    qDebug() << "🔄 Actualizando estado de" << tablaCampos->rowCount() << "campos";
+    qDebug() << "🔗 Campos relacionados actuales:" << camposRelacionados;
+
     for (int row = 0; row < tablaCampos->rowCount(); ++row) {
         QTableWidgetItem *nombreItem = tablaCampos->item(row, 1);
         if (nombreItem) {
@@ -540,22 +554,34 @@ void VistaDiseno::actualizarEstadoCampos() {
                 nombresAnteriores[row] = nombreCampo;
             }
 
-            // Hacer el campo de solo lectura si está relacionado
-            nombreItem->setFlags(esRelacionado ?
-                                     nombreItem->flags() & ~Qt::ItemIsEditable :
-                                     nombreItem->flags() | Qt::ItemIsEditable);
+            // ⭐ HACER EL CAMPO DE SOLO LECTURA SI ESTÁ RELACIONADO
+            if (esRelacionado) {
+                nombreItem->setFlags(nombreItem->flags() & ~Qt::ItemIsEditable);
+                nombreItem->setBackground(QBrush(QColor(245, 245, 245))); // Gris claro
+                nombreItem->setToolTip("Campo relacionado - No se puede modificar");
+            } else {
+                nombreItem->setFlags(nombreItem->flags() | Qt::ItemIsEditable);
+                nombreItem->setBackground(QBrush(Qt::white));
+                nombreItem->setToolTip("");
+            }
 
+            // ⭐ DESHABILITAR COMBO DE TIPO SI ESTÁ RELACIONADO
             QComboBox *tipoCombo = qobject_cast<QComboBox*>(tablaCampos->cellWidget(row, 2));
             if (tipoCombo) {
                 tipoCombo->setEnabled(!esRelacionado);
 
-                // 🔹 Si está relacionado, forzar el tipo original
                 if (esRelacionado) {
-                    // Podrías almacenar también el tipo original si es necesario
+                    tipoCombo->setStyleSheet("QComboBox { background-color: #f5f5f5; color: #888888; }");
                     tipoCombo->setToolTip("Tipo bloqueado por relación");
                 } else {
+                    tipoCombo->setStyleSheet("");
                     tipoCombo->setToolTip("");
                 }
+            }
+            // ⭐ BLOQUEAR BOTÓN PK SI ESTÁ RELACIONADO
+            QTableWidgetItem *pkItem = tablaCampos->item(row, 0);
+            if (pkItem && esRelacionado) {
+                pkItem->setToolTip("PK bloqueada por relación");
             }
         }
     }

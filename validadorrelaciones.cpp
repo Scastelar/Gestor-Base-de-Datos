@@ -248,3 +248,41 @@ QStringList ValidadorRelaciones::validarEliminacion(const QString &tablaPrincipa
 
     return dependencias;
 }
+
+QString ValidadorRelaciones::obtenerTipoRelacion(const QString &tabla1, const QString &campo1,
+                                                 const QString &tabla2, const QString &campo2) const
+{
+    // Buscar relación directa
+    for (const RelacionFK &rel : relaciones) {
+        if ((rel.tablaPrincipal == tabla1 && rel.campoPrincipal == campo1 &&
+             rel.tablaForanea == tabla2 && rel.campoForaneo == campo2) ||
+            (rel.tablaPrincipal == tabla2 && rel.campoPrincipal == campo2 &&
+             rel.tablaForanea == tabla1 && rel.campoForaneo == campo1)) {
+            return rel.tipoRelacion;
+        }
+    }
+    return ""; // No encontrado
+}
+
+void ValidadorRelaciones::debugRelaciones(const QString &nombreTabla) const
+{
+    qDebug() << "🔍 DEBUG RELACIONES" << (nombreTabla.isEmpty() ? "(TODAS)" : "PARA " + nombreTabla);
+    qDebug() << "📊 Total de relaciones cargadas:" << relaciones.size();
+
+    for (int i = 0; i < relaciones.size(); i++) {
+        const RelacionFK &rel = relaciones[i];
+
+        if (nombreTabla.isEmpty() ||
+            rel.tablaPrincipal == nombreTabla ||
+            rel.tablaForanea == nombreTabla) {
+
+            qDebug() << QString("  %1: %2.%3 (%4) -> %5.%6 (%7) [%8]")
+            .arg(i + 1)
+                .arg(rel.tablaPrincipal).arg(rel.campoPrincipal)
+                .arg("PK")
+                .arg(rel.tablaForanea).arg(rel.campoForaneo)
+                .arg("FK")
+                .arg(rel.tipoRelacion);
+        }
+    }
+}

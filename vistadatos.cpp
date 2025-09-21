@@ -123,15 +123,31 @@ QMap<QString, QString> VistaDatos::obtenerRelacionParaCampo(const QString &nombr
 
 bool VistaDatos::esRelacionMuchosAMuchos(const QMap<QString, QString> &relacion) const
 {
-    QString campoOrigen = relacion["campoOrigen"];
-    QString campoDestino = relacion["campoDestino"];
-    if (campoOrigen.compare("id", Qt::CaseInsensitive) == 0 ||
-        campoOrigen.endsWith("_id", Qt::CaseInsensitive) ||
-        campoDestino.compare("id", Qt::CaseInsensitive) == 0 ||
-        campoDestino.endsWith("_id", Qt::CaseInsensitive)) {
-        return false;
+    // ⭐ NUEVA LÓGICA: Usar ValidadorRelaciones para determinar el tipo correcto
+    if (!validador) {
+        qDebug() << "⚠️ No hay validador para determinar tipo de relación";
+        return false; // Sin validador, asumir que NO es M:M
     }
-    return true;
+
+    QString tablaOrigen = relacion["tablaOrigen"];
+    QString campoOrigen = relacion["campoOrigen"];
+    QString tablaDestino = relacion["tablaDestino"];
+    QString campoDestino = relacion.value("campoDestino", relacion.value("campoDestcino")); // Fix typo
+
+    // Buscar la relación en el validador
+    RelacionFK rel1 = validador->obtenerRelacionFK(tablaOrigen, campoOrigen);
+    RelacionFK rel2 = validador->obtenerRelacionFK(tablaDestino, campoDestino);
+
+    // Es M:M solo si el validador confirma que es "M:M"
+    bool esMMRel1 = (rel1.esValida() && rel1.tipoRelacion == "M:M");
+    bool esMMRel2 = (rel2.esValida() && rel2.tipoRelacion == "M:M");
+
+    bool resultado = esMMRel1 || esMMRel2;
+
+    qDebug() << "🔍 Verificando M:M para" << tablaOrigen << "." << campoOrigen
+             << "<->" << tablaDestino << "." << campoDestino << ":" << resultado;
+
+    return resultado;
 }
 
 void VistaDatos::agregarBotonRelacion(int fila, int columna)
@@ -186,8 +202,10 @@ void VistaDatos::agregarBotonRelacion(int fila, int columna)
 void VistaDatos::onBotonRelacionClicked(int fila, int columna)
 {
     if (columna < 1 || columna - 1 >= camposMetadata.size()) return;
+
     QString nombreCampo = camposMetadata[columna - 1].nombre;
     QMap<QString, QString> relacion = obtenerRelacionParaCampo(nombreCampo);
+
     if (relacion.isEmpty()) return;
     QTableWidgetItem *item = tablaRegistros->item(fila, columna);
     if (item && !item->text().isEmpty()) {
@@ -703,6 +721,7 @@ void VistaDatos::cargarDesdeMetadata(const Metadata &meta)
 {
     camposMetadata = meta.campos;
     disconnect(tablaRegistros, &QTableWidget::cellChanged, this, &VistaDatos::onCellChanged);
+
     tablaRegistros->setRowCount(0);
     botonesRelaciones.clear();
     tablaRegistros->setColumnCount(1 + meta.campos.size());
@@ -731,12 +750,20 @@ void VistaDatos::cargarDesdeMetadata(const Metadata &meta)
             const Campo &campo = meta.campos[i];
             QVariant valor = registro.value(campo.nombre);
             configurarCelda(row, i + 1, valor, campo);
-            agregarBotonRelacion(row, i + 1);
         }
     }
 
-    if (tablaRegistros->rowCount() == 0) agregarRegistro();
-    else actualizarAsteriscoIndice(0, -1);
+    if (tablaRegistros->rowCount() == 0){
+        agregarRegistro();
+    }
+    else {
+        actualizarAsteriscoIndice(0, -1);
+    }
+
+     // ⭐ DEBUG: Mostrar estado final
+    if (validador) {
+        validador->debugRelaciones(nombreTablaActual);
+    }
 
     connect(tablaRegistros, &QTableWidget::cellChanged, this, &VistaDatos::onCellChanged);
 }
@@ -769,7 +796,6 @@ void VistaDatos::agregarRegistro()
         else if (campo.tipo == "FECHA") valor = QDateTime::currentDateTime();
         else if (campo.tipo == "NUMERO") valor = 0;
         configurarCelda(row, i + 1, valor, campo);
-        agregarBotonRelacion(row, i + 1);
     }
 
     QTimer::singleShot(100, this, [this, row]() { validarRegistroCompleto(row); });

@@ -929,6 +929,12 @@ void MainWindow::cambiarVista()
                 Metadata recargada = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
                 tablaDesign->cargarCampos(recargada.campos);
                 tablaDesign->setNombreTabla(tablaActualNombre);
+
+                // ⭐ CRÍTICO: Actualizar campos relacionados DESPUÉS de cargar
+                QSet<QString> camposRelacionados = obtenerCamposRelacionados(tablaActualNombre);
+                tablaDesign->setCamposRelacionados(camposRelacionados);
+
+
                 tablaStacked->setCurrentWidget(tablaDesign);
                 tablaDesign->actualizarPropiedades();
             } catch (const std::runtime_error& e) {
