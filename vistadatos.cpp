@@ -600,9 +600,32 @@ void VistaDatos::configurarCeldaFecha(QTableWidgetItem *item, const QVariant &va
 
 void VistaDatos::configurarCeldaNumero(QTableWidgetItem *item, const QVariant &valor, const Campo &campo)
 {
-    item->setText(valor.isValid() ? QString::number(valor.toDouble()) : "0");
+    QString subTipo = campo.obtenerPropiedad().toString();
+
+    if (subTipo == "entero") {
+        int v = valor.isValid() ? valor.toInt() : 0;
+        item->setText(QString::number(v));
+    }
+    else if (subTipo == "decimal") {
+        double v = valor.isValid() ? valor.toDouble() : 0.0;
+        item->setText(QString::number(v, 'f', 2)); // 2 decimales
+    }
+    else if (subTipo == "doble") {
+        double v = valor.isValid() ? valor.toDouble() : 0.0;
+        item->setText(QString::number(v, 'g', 15)); // más precisión
+    }
+    else if (subTipo == "byte") {
+        int v = valor.isValid() ? valor.toInt() : 0;
+        if (v < 0 || v > 255) v = 0;
+        item->setText(QString::number(v));
+    }
+    else {
+        item->setText(valor.isValid() ? valor.toString() : "0");
+    }
+
     item->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
 }
+
 
 void VistaDatos::cargarDesdeMetadata(const Metadata &meta)
 {

@@ -115,11 +115,21 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
             return; // ❌ Cancelar relación
         }
 
+        // 🔹 Validar que los nombres de campo coincidan (case-insensitive)
+        if (campoDrag.compare(campoDestino, Qt::CaseInsensitive) != 0) {
+            QMessageBox::warning(this, "Relación inválida",
+                                 QString("No se puede relacionar '%1' con '%2' porque los nombres son diferentes.\n"
+                                         "Solo se permiten relaciones entre campos con el mismo nombre.")
+                                     .arg(campoDrag, campoDestino));
+            return; // ❌ cancelar sin abrir RelacionDialog
+        }
+
         // 🔹 Ahora sí mostrar diálogo estilo Access SOLO si los tipos coinciden
         RelacionDialog dlg(tablaDrag, campoDrag, tablaDestino, campoDestino,
                            origenEsPK, destinoEsPK, this);
 
         if (dlg.exec() != QDialog::Accepted) return;
+
 
         QString tipoRelacion = dlg.getTipoRelacion();
 

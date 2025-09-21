@@ -29,6 +29,8 @@ private:
 
     bool esOrigenPK;
     bool esDestinoPK;
+    QString campoSource;
+    QString campoDest;
 };
 
 #endif // RELACIONDIALOG_H

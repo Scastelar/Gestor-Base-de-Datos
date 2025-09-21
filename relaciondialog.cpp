@@ -11,7 +11,11 @@ RelacionDialog::RelacionDialog(const QString &tabla1,
                                bool esOrigenPK,
                                bool esDestinoPK,
                                QWidget *parent)
-    : QDialog(parent), esOrigenPK(esOrigenPK), esDestinoPK(esDestinoPK)
+    : QDialog(parent),
+    esOrigenPK(esOrigenPK),
+    esDestinoPK(esDestinoPK),
+    campoSource(campo1),   // 🔹 Guardar el nombre del campo origen
+    campoDest(campo2)
 {
     setWindowTitle("Crear Relación");
     setFixedSize(400, 200);
@@ -69,8 +73,15 @@ void RelacionDialog::validarRelacion(int index)
     QString tipoSeleccionado = cmbTipoRelacion->currentData().toString();
     bool valido = false;
 
+    // 🔹 Nueva validación: nombres de campo deben coincidir (case-insensitive)
+    if (campoSource.compare(campoDest, Qt::CaseInsensitive) != 0) {
+        QMessageBox::warning(this, "Relación inválida",
+                             "Los nombres de los campos deben coincidir exactamente (ignorando mayúsculas/minúsculas).");
+        btnCrear->setEnabled(false);
+        return;
+    }
+
     if (tipoSeleccionado == "1:1") {
-        // Validación: ambos deben ser PKs
         valido = (esOrigenPK && esDestinoPK);
         if (!valido) {
             QMessageBox::warning(this, "Relación inválida",
@@ -78,7 +89,6 @@ void RelacionDialog::validarRelacion(int index)
         }
     }
     else if (tipoSeleccionado == "1:M") {
-        // Validación: uno es PK y el otro es FK (o no es PK)
         valido = (esOrigenPK && !esDestinoPK) || (!esOrigenPK && esDestinoPK);
         if (!valido) {
             QMessageBox::warning(this, "Relación inválida",
@@ -86,7 +96,6 @@ void RelacionDialog::validarRelacion(int index)
         }
     }
     else if (tipoSeleccionado == "M:M") {
-        // Validación: ambos son FKs (o no son PKs)
         valido = (!esOrigenPK && !esDestinoPK);
         if (!valido) {
             QMessageBox::warning(this, "Relación inválida",
@@ -96,6 +105,7 @@ void RelacionDialog::validarRelacion(int index)
 
     btnCrear->setEnabled(valido);
 }
+
 
 QString RelacionDialog::getTipoRelacion() const
 {
