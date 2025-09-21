@@ -124,21 +124,49 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
             return; // ❌ cancelar sin abrir RelacionDialog
         }
 
-        // 🔹 Ahora sí mostrar diálogo estilo Access SOLO si los tipos coinciden
         RelacionDialog dlg(tablaDrag, campoDrag, tablaDestino, campoDestino,
                            origenEsPK, destinoEsPK, this);
 
+        // 🔹 Preseleccionar tipo correcto
+        if (tipo == TipoRelacion::UnoAUno) {
+            dlg.setTipoRelacion("1:1");
+        } else if (tipo == TipoRelacion::UnoAMuchos) {
+            dlg.setTipoRelacion("1:M");
+        } else if (tipo == TipoRelacion::MuchosAMuchos) {
+            dlg.setTipoRelacion("M:M");
+        }
+
         if (dlg.exec() != QDialog::Accepted) return;
+
 
 
         QString tipoRelacion = dlg.getTipoRelacion();
 
         // 🔹 Crear relación en escena
-        RelationItem *rel = new RelationItem(tablas[tablaDrag], campoDrag,
-                                             tablas[tablaDestino], campoDestino,
-                                             tipo);
+        RelationItem *rel = nullptr;
+
+        if (tipo == TipoRelacion::UnoAMuchos) {
+            if (origenEsPK) {
+                // origen es PK → origen va como "1"
+                rel = new RelationItem(tablas[tablaDrag], campoDrag,
+                                       tablas[tablaDestino], campoDestino,
+                                       tipo);
+            } else {
+                // destino es PK → destino va como "1"
+                rel = new RelationItem(tablas[tablaDestino], campoDestino,
+                                       tablas[tablaDrag], campoDrag,
+                                       tipo);
+            }
+        } else {
+            // Para 1:1 y M:M no importa el orden
+            rel = new RelationItem(tablas[tablaDrag], campoDrag,
+                                   tablas[tablaDestino], campoDestino,
+                                   tipo);
+        }
+
         scene->addItem(rel);
         relaciones.append(rel);
+
 
         emit relacionCreada(tablaDrag, campoDrag, tablaDestino, campoDestino, tipoRelacion);
         });

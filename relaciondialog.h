@@ -17,7 +17,7 @@ public:
                    QWidget *parent = nullptr);
 
     QString getTipoRelacion() const;
-
+    void setTipoRelacion(const QString &tipo);
 private slots:
     void validarRelacion(int index);
 

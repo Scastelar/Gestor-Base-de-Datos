@@ -64,8 +64,6 @@ RelacionDialog::RelacionDialog(const QString &tabla1,
 
     mainLayout->addLayout(btnLayout);
 
-    // Validación inicial
-    validarRelacion(0);
 }
 
 void RelacionDialog::validarRelacion(int index)
@@ -111,3 +109,11 @@ QString RelacionDialog::getTipoRelacion() const
 {
     return cmbTipoRelacion->currentData().toString();
 }
+void RelacionDialog::setTipoRelacion(const QString &tipo)
+{
+    int index = cmbTipoRelacion->findData(tipo);
+    if (index != -1) {
+        cmbTipoRelacion->setCurrentIndex(index);
+    }
+}
+
