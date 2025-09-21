@@ -55,16 +55,21 @@ void RelationItem::updatePosition()
 
     for (const CampoVisual &cv : source->getCamposVisuales()) {
         if (cv.nombre == campoSource) {
-            p1 = source->mapToScene(cv.rect.center());
+            QRectF r = cv.rect;
+            // salir por el borde derecho (junto al "1")
+            p1 = source->mapToScene(r.right(), r.center().y());
             break;
         }
     }
     for (const CampoVisual &cv : dest->getCamposVisuales()) {
         if (cv.nombre == campoDest) {
-            p2 = dest->mapToScene(cv.rect.center());
+            QRectF r = cv.rect;
+            // entrar por el borde izquierdo (junto al "∞")
+            p2 = dest->mapToScene(r.left(), r.center().y());
             break;
         }
     }
+
 
     QPainterPath path;
     path.moveTo(p1);
@@ -73,8 +78,24 @@ void RelationItem::updatePosition()
     path.cubicTo(ctrl1, ctrl2, p2);
     setPath(path);
 
-    labelSrc->setPos(p1.x() - 10, p1.y() - 10);
-    labelDst->setPos(p2.x() - 10, p2.y() - 10);
+    // 🔹 Reubicar etiquetas al lado del campo (no encima del texto)
+    for (const CampoVisual &cv : source->getCamposVisuales()) {
+        if (cv.nombre == campoSource) {
+            QRectF r = cv.rect;
+            QPointF pos = source->mapToScene(r.right(), r.center().y());
+            labelSrc->setPos(pos.x() + 5, pos.y() - 8); // a la derecha del campo
+            break;
+        }
+    }
+    for (const CampoVisual &cv : dest->getCamposVisuales()) {
+        if (cv.nombre == campoDest) {
+            QRectF r = cv.rect;
+            QPointF pos = dest->mapToScene(r.left(), r.center().y());
+            labelDst->setPos(pos.x() - 15, pos.y() - 8); // a la izquierda del campo
+            break;
+        }
+    }
+
 }
 void RelationItem::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
