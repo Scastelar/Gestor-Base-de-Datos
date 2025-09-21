@@ -169,6 +169,7 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
 
 
         emit relacionCreada(tablaDrag, campoDrag, tablaDestino, campoDestino, tipoRelacion);
+        guardarRelacionEnArchivo(tablaDrag, campoDrag, tablaDestino, campoDestino);
         });
 
     crearToolbar();
@@ -182,6 +183,20 @@ RelacionesWidget::~RelacionesWidget()
     qDeleteAll(relaciones);
     relaciones.clear();
     tablas.clear();
+}
+
+void RelacionesWidget::guardarRelacionEnArchivo(const QString &tabla1, const QString &campo1,
+                                                const QString &tabla2, const QString &campo2)
+{
+    QFile relacionesFile("relationships.dat");
+    if (relacionesFile.open(QIODevice::WriteOnly | QIODevice::Append)) {
+        QTextStream out(&relacionesFile);
+        out << tabla1 << "|" << campo1 << "|" << tabla2 << "|" << campo2 << "\n";
+        relacionesFile.close();
+
+        // Emitir señal para que se actualicen los validadores
+        emit relacionesActualizadas();
+    }
 }
 
 void RelacionesWidget::crearToolbar()

@@ -6,11 +6,13 @@
 #include <QMap>
 #include <QVariant>
 #include "metadata.h"
+#include "validadorrelaciones.h"
 
 class QTableWidget;
 class QTableWidgetItem;
 class QPushButton;
 class QLabel;
+class ValidadorRelaciones;
 
 class VistaDatos : public QWidget
 {
@@ -30,6 +32,11 @@ public:
 
     void ordenar(Qt::SortOrder order);
 
+    // NUEVO: Establecer nombre de tabla para validación FK
+    void establecerNombreTabla(const QString &nombre);
+    QString obtenerNombreTabla() const { return nombreTablaActual; }
+    void actualizarValidadorRelaciones();
+
     void mostrarSelectorFecha(int row, int col, const QString &formato);
     QString formatearFecha(const QVariant &fechaInput, const QString &formato) const;
     QString formatearMoneda(double valor, const QString &simbolo) const;
@@ -45,6 +52,7 @@ signals:
 public slots:
     void validarRegistroCompleto(int fila);
     void onDatosRelacionadosRecibidos(const QList<QMap<QString, QVariant>> &datos);
+
 
 private slots:
     void onCellChanged(int row, int column);
@@ -64,6 +72,16 @@ private:
     QVector<Campo> camposMetadata;
     QList<QMap<QString, QString>> relaciones;
     QMap<int, QMap<int, QPushButton*>> botonesRelaciones;
+
+    // NUEVOS miembros:
+    ValidadorRelaciones *validador;
+    QString nombreTablaActual;
+
+    // NUEVOS métodos:
+    void configurarValidador();
+    bool validarCampoFK(int fila, int columna, const QString &valor);
+    void mostrarErrorValidacionFK(const QString &mensaje, const QStringList &valoresValidos);
+    void mostrarSelectorFK(int fila, int columna, const QStringList &valoresValidos);
 
     void configurarTablaRegistros();
     void actualizarAsteriscoIndice(int nuevaFila, int viejaFila);

@@ -192,12 +192,22 @@ public:
                 in >> maxCaracteres;
                 c.propiedad = maxCaracteres;
             }
-            else if (c.tipo == "NUMERO" || c.tipo == "MONEDA" || c.tipo == "FECHA") {
+            else if (c.tipo == "NUMERO") {
+                QString propiedadStr;
+                in >> propiedadStr;
+                // Validar que la propiedad sea válida para NUMERO
+                if (propiedadStr == "entero" || propiedadStr == "decimal" ||
+                    propiedadStr == "byte" || propiedadStr == "doble") {
+                    c.propiedad = propiedadStr;
+                } else {
+                    c.propiedad = "entero";  // Valor por defecto
+                }
+            }
+            else if (c.tipo == "MONEDA" || c.tipo == "FECHA") {
                 QString propiedadStr;
                 in >> propiedadStr;
                 c.propiedad = propiedadStr;
             }
-
             meta.campos.append(c);
         }
         file.close();
@@ -226,8 +236,20 @@ public:
                     // Convertir string al tipo de dato correcto
                     if (campo.tipo == "NUMERO" || campo.tipo == "MONEDA") {
                         bool ok;
-                        double valorNum = valorStr.toDouble(&ok);
-                        registro[campo.nombre] = ok ? valorNum : 0.0;
+                        QString valorLimpio = valorStr.trimmed();
+
+                        if (valorLimpio.isEmpty()) {
+                            registro[campo.nombre] = 0.0;  // Valor por defecto para campos vacíos
+                        } else {
+                            double valorNum = valorLimpio.toDouble(&ok);
+                            if (ok) {
+                                registro[campo.nombre] = valorNum;
+                            } else {
+                                // Log del error pero continuar
+                                qDebug() << "Error convirtiendo valor numérico:" << valorStr << "para campo" << campo.nombre;
+                                registro[campo.nombre] = 0.0;
+                            }
+                        }
                     }
                     else if (campo.tipo == "FECHA") {
                         // Intentar parsear como fecha ISO

@@ -22,6 +22,7 @@ public:
     void refrescarTablas();
 signals:
     void cerrada();
+    void relacionesActualizadas();
     void relacionCreada(const QString &tabla1,
                         const QString &campo1,
                         const QString &tabla2,
@@ -44,6 +45,8 @@ private:
     void crearToolbar();
     void crearLayoutPrincipal();
     void cargarListaTablas();
+    void guardarRelacionEnArchivo(const QString &tabla1, const QString &campo1,
+                                  const QString &tabla2, const QString &campo2);
 
 
     QGraphicsScene *scene;
