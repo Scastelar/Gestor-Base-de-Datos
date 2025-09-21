@@ -925,48 +925,36 @@ void MainWindow::cambiarVista()
 
 void MainWindow::abrirRelaciones()
 {
-    if (tablaActual){
+    // 🔹 Verificar si ya existe una pestaña "Relaciones"
+    for (int i = 0; i < zonaCentral->count(); ++i) {
+        if (zonaCentral->tabText(i) == "Relaciones") {
+            zonaCentral->setCurrentIndex(i); // seleccionar pestaña existente
+            return; // no crear otra
+        }
+    }
+
+    // 🔹 Guardar metadatos de la tabla actual si hay una abierta
+    if (tablaActual) {
         VistaDiseno *tablaDesign = tablaActual->property("tablaDesign").value<VistaDiseno*>();
         VistaDatos *tablaDataSheet = tablaActual->property("tablaDataSheet").value<VistaDatos*>();
-        tablaDataSheet->cargarRelaciones("relationships.dat");
-        RelacionesWidget *relaciones = tablaActual->property("relaciones").value<RelacionesWidget*>();
-        // En el constructor o donde crees RelacionesWidget
-        connect(this, &MainWindow::actualizarRelaciones, this, [this]() {
-            // Buscar la pestaña de relaciones y actualizarla
-            for (int i = 0; i < zonaCentral->count(); ++i) {
-                RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
-                if (relaciones) {
-                    relaciones->refrescarTablas();
-                    break;
-                }
-            }
-        });
+        if (tablaDataSheet) tablaDataSheet->cargarRelaciones("relationships.dat");
 
-        // 🔹 Crear metadata con lo que esté actualmente en memoria
         Metadata meta(tablaActualNombre);
-
-        if (tablaDesign) {
-            meta.campos = tablaDesign->obtenerCampos();
-        }
-        if (tablaDataSheet) {
-            meta.registros = tablaDataSheet->obtenerRegistros(meta.campos);
-        }
+        if (tablaDesign) meta.campos = tablaDesign->obtenerCampos();
+        if (tablaDataSheet) meta.registros = tablaDataSheet->obtenerRegistros(meta.campos);
 
         try {
-            meta.guardar();  // guarda estructura + datos en .meta y .data
+            meta.guardar();
         } catch (const std::runtime_error &e) {
             QMessageBox::warning(this, "Error al guardar", e.what());
             return;
         }
     }
 
+    // 🔹 Crear nueva pestaña de relaciones solo si no existía
     RelacionesWidget *relacionesWidget = new RelacionesWidget();
     int tabIndex = zonaCentral->addTab(relacionesWidget, "Relaciones");
     zonaCentral->setCurrentIndex(tabIndex);
-
-
-    // 🔹 No asignamos tablaActualNombre = "Relaciones"
-    // porque no debe persistirse como tabla real
 
     connect(relacionesWidget, &RelacionesWidget::cerrada,
             this, &MainWindow::cerrarRelacionesYVolver);
@@ -974,9 +962,7 @@ void MainWindow::abrirRelaciones()
     connect(relacionesWidget, &RelacionesWidget::relacionCreada,
             this, &MainWindow::guardarRelacionEnBD);
 
-    // En el constructor o donde crees RelacionesWidget
     connect(this, &MainWindow::actualizarRelaciones, this, [this]() {
-        // Buscar la pestaña de relaciones y actualizarla
         for (int i = 0; i < zonaCentral->count(); ++i) {
             RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
             if (relaciones) {
@@ -988,6 +974,7 @@ void MainWindow::abrirRelaciones()
 
     mostrarRibbonInicio();
 }
+
 
 
 void MainWindow::guardarRelacionEnBD(const QString &tabla1, const QString &campo1,

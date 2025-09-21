@@ -3,7 +3,7 @@
 #include <QHBoxLayout>
 #include <QGroupBox>
 #include <QMessageBox>
-
+#include <QCheckBox>
 RelacionDialog::RelacionDialog(const QString &tabla1,
                                const QString &campo1,
                                const QString &tabla2,
@@ -18,7 +18,9 @@ RelacionDialog::RelacionDialog(const QString &tabla1,
     campoDest(campo2)
 {
     setWindowTitle("Crear Relación");
-    setFixedSize(400, 200);
+    setMinimumSize(450, 300); // asegura tamaño mínimo cómodo
+    resize(sizeHint());       // ajusta según contenido
+
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
@@ -46,6 +48,31 @@ RelacionDialog::RelacionDialog(const QString &tabla1,
     cmbTipoRelacion->addItem("Muchos a Muchos", "M:M");
     mainLayout->addWidget(cmbTipoRelacion);
 
+    // Opciones de integridad referencial (solo visuales)
+    QGroupBox *grupoIntegridad = new QGroupBox(this);
+    QVBoxLayout *integridadLayout = new QVBoxLayout(grupoIntegridad);
+
+    QCheckBox *chkIntegridad = new QCheckBox("Exigir integridad referencial", grupoIntegridad);
+    QCheckBox *chkActualizar = new QCheckBox("Actualizar en cascada los campos relacionados", grupoIntegridad);
+    QCheckBox *chkEliminar = new QCheckBox("Eliminar en cascada los registros relacionados", grupoIntegridad);
+
+    // Por defecto deshabilitadas como en Access
+    chkActualizar->setEnabled(false);
+    chkEliminar->setEnabled(false);
+
+    // 🔹 Habilitar/Deshabilitar las otras dos según integridad
+    connect(chkIntegridad, &QCheckBox::toggled, this, [chkActualizar, chkEliminar](bool checked) {
+        chkActualizar->setEnabled(checked);
+        chkEliminar->setEnabled(checked);
+    });
+
+
+    integridadLayout->addWidget(chkIntegridad);
+    integridadLayout->addWidget(chkActualizar);
+    integridadLayout->addWidget(chkEliminar);
+
+    grupoIntegridad->setLayout(integridadLayout);
+    mainLayout->addWidget(grupoIntegridad);
     // Conectar el combo box a la función de validación
     connect(cmbTipoRelacion, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, &RelacionDialog::validarRelacion);

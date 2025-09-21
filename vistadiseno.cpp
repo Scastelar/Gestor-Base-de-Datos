@@ -37,6 +37,10 @@ VistaDiseno::VistaDiseno(QWidget *parent)
             this, &VistaDiseno::on_tablaCampos_cellChanged);
     connect(tablaCampos, &QTableWidget::itemChanged, this, &VistaDiseno::on_campoEditado);
 
+    connect(tablaCampos, &QTableWidget::cellDoubleClicked,
+            this, &VistaDiseno::onCellDoubleClicked);
+
+
     tablaPropiedades = new QTableWidget(0, 2, this);
     configurarTablaPropiedades();
 
@@ -565,33 +569,17 @@ void VistaDiseno::on_campoEditado(QTableWidgetItem *item) {
         QString nombreAnterior;
 
         // 🔹 Obtener el nombre anterior del campo (antes del cambio)
-        // Necesitamos almacenar los nombres anteriores
         if (nombresAnteriores.contains(row)) {
             nombreAnterior = nombresAnteriores[row];
         }
 
         QString nuevoNombre = item->text();
 
-        // 🔹 Verificar si el campo YA ESTABA RELACIONADO (nombre anterior)
-        if (!nombreAnterior.isEmpty() && esCampoRelacionado(nombreAnterior)) {
-            QMessageBox::warning(this, "Campo relacionado",
-                                 "No se puede modificar campos relacionados a otras tablas.");
-
-            // Revertir al nombre anterior
+        // 🔹 Evitar nombres vacíos
+        if (nuevoNombre.trimmed().isEmpty()) {
             bloqueandoEdicion = true;
-            item->setText(nombreAnterior);
-            bloqueandoEdicion = false;
-            return;
-        }
-
-        // 🔹 También verificar si el nuevo nombre ya está relacionado
-        if (esCampoRelacionado(nuevoNombre)) {
-            QMessageBox::warning(this, "Campo relacionado",
-                                 "No se puede usar un nombre que ya está relacionado en otra tabla.");
-
-            // Revertir al nombre anterior si existe, o dejar vacío
-            bloqueandoEdicion = true;
-            item->setText(nombreAnterior.isEmpty() ? "" : nombreAnterior);
+            item->setText(nombreAnterior.isEmpty() ? "Campo" + QString::number(row + 1)
+                                                   : nombreAnterior);
             bloqueandoEdicion = false;
             return;
         }
@@ -603,6 +591,7 @@ void VistaDiseno::on_campoEditado(QTableWidgetItem *item) {
     // Guardar metadatos
     guardarMetadatos();
 }
+
 
 void VistaDiseno::guardarMetadatos() {
     if (nombreTablaActual.isEmpty() || guardandoMetadatos) return;
@@ -630,6 +619,19 @@ void VistaDiseno::guardarMetadatos() {
     }
 
     guardandoMetadatos = false;
+}
+void VistaDiseno::onCellDoubleClicked(int row, int column)
+{
+    if (column == 1) { // Columna "Nombre del Campo"
+        QTableWidgetItem *item = tablaCampos->item(row, column);
+        if (!item) return;
+
+        QString nombreCampo = item->text();
+        if (esCampoRelacionado(nombreCampo)) {
+            QMessageBox::warning(this, "Campo relacionado",
+                                 "No se puede modificar campos relacionados a otras tablas.");
+        }
+    }
 }
 
 

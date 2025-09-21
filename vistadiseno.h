@@ -40,6 +40,7 @@ public:
     void setCamposRelacionados(const QSet<QString>& camposRelacionados);
     void setNombreTabla(const QString& nombre);
     void guardarMetadatos(); // Guardar automáticamente
+    void onCellDoubleClicked(int row, int column);
 signals:
     void metadatosModificados();
 
