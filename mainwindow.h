@@ -17,6 +17,7 @@
 #include "vistadatos.h"
 #include "relacioneswidget.h"
 #include "querydesignerwidget.h"
+#include "reportewidget.h"
 class MainWindow : public QMainWindow
 {
     Q_OBJECT

@@ -17,6 +17,7 @@ SOURCES += \
     relacionesview.cpp \
     relacioneswidget.cpp \
     relationitem.cpp \
+    reportewidget.cpp \
     validadorrelaciones.cpp \
     vistaconsulta.cpp \
     vistadatos.cpp \
@@ -33,6 +34,7 @@ HEADERS += \
     relacionesview.h \
     relacioneswidget.h \
     relationitem.h \
+    reportewidget.h \
     validadorrelaciones.h \
     vistaconsulta.h \
     vistadatos.h \

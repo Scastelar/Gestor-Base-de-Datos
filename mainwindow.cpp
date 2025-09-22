@@ -524,6 +524,7 @@ void MainWindow::crearRibbonCrear()
     formsLayout->addWidget(btnDisenoFormulario);
 
     // Sección Reportes
+    // Sección Reportes
     QFrame *reportsFrame = crearSeccionRibbon("Reportes");
     QHBoxLayout *reportsLayout = new QHBoxLayout(reportsFrame);
 
@@ -541,6 +542,25 @@ void MainWindow::crearRibbonCrear()
 
     crearWidget->setLayout(crearLayout);
     ribbonCrear->addWidget(crearWidget);
+
+    connect(btnReporte, &QToolButton::clicked, this, [=]() {
+        QVector<Metadata> metadatos;
+
+        // 🔹 Cargar todas las tablas disponibles
+        QDir dir(QDir::currentPath() + "/tables");
+        QStringList archivosMeta = dir.entryList(QStringList() << "*.meta", QDir::Files);
+        for (const QString &fileName : archivosMeta) {
+            Metadata meta = Metadata::cargar(dir.filePath(fileName));
+            metadatos.append(meta);
+        }
+
+        // 🔹 Crear y mostrar el reporte
+        ReporteWidget *reporte = new ReporteWidget(this);
+        reporte->generarReporte(metadatos);
+        reporte->exec();
+    });
+
+
 }
 
 QFrame* MainWindow::crearSeccionRibbon(const QString &titulo)
