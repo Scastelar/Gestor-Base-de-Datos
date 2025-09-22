@@ -446,14 +446,30 @@ void VistaDatos::onCellChanged(int row, int column)
                 const Campo &campo = camposMetadata[campoIndex];
                 QString texto = item->text();
                 if (campo.tipo == "NUMERO" && !valor.isEmpty()) {
-                    bool ok;
-                    valor.toInt(&ok);
+                    QString subTipo = campo.obtenerPropiedad().toString();
+                    bool ok = false;
+
+                    if (subTipo == "entero") {
+                        valor.toInt(&ok);
+                    }
+                    else if (subTipo == "decimal" || subTipo == "doble") {
+                        valor.toDouble(&ok);
+                    }
+                    else if (subTipo == "byte") {
+                        int num = valor.toInt(&ok);
+                        if (ok && (num < 0 || num > 255)) ok = false;
+                    }
+
                     if (!ok) {
                         item->setBackground(QBrush(QColor(255, 200, 200)));
                         item->setToolTip("Valor numérico inválido");
                         return;
+                    } else {
+                        item->setBackground(QBrush(Qt::white));
+                        item->setToolTip("");
                     }
                 }
+
                 else if (campo.tipo == "MONEDA") {
                     texto.remove("Lps").remove("$").remove("€").remove("₡").remove(",");
                     double valor = texto.toDouble();

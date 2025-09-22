@@ -47,15 +47,23 @@ void VistaConsulta::aplicarConsulta(const QString &sqlLike,
         return;
     }
 
-    // Partes
-    QString selectPart = sql.mid(6, idxFrom - 6).trimmed(); // entre SELECT y FROM
-    QString fromPart   = sql.mid(idxFrom + 6).trimmed();    // lo que sigue al FROM
+    // Separar SELECT y FROM
+    QString selectPart = sql.mid(6, idxFrom - 6).trimmed();
+    QString fromPart   = sql.mid(idxFrom + 6).trimmed();
 
-    // Separar campos
+    // Criterios (si existen)
+    QString wherePart = "";
+    int idxWhere = fromPart.toUpper().indexOf(" WHERE ");
+    if (idxWhere != -1) {
+        wherePart = fromPart.mid(idxWhere + 7).trimmed();
+        fromPart = fromPart.left(idxWhere).trimmed();
+    }
+
+    // Campos
     QStringList campos = selectPart.split(",", Qt::SkipEmptyParts);
     for (QString &c : campos) c = c.trimmed();
 
-    // Nombre de tabla (solo 1 de momento)
+    // Nombre de tabla
     QString nombreTabla = fromPart.section(' ', 0, 0).trimmed();
 
     // Buscar metadata
@@ -74,44 +82,65 @@ void VistaConsulta::aplicarConsulta(const QString &sqlLike,
         return;
     }
 
-    // Abrir archivo .data
-    QString dataFile = QDir::currentPath() + "/tables/" + nombreTabla + ".data";
-    QFile file(dataFile);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QMessageBox::warning(this, "Error", "No se pudo abrir " + dataFile);
-        return;
-    }
-
-    QTextStream in(&file);
-
-    // Limpiar tabla ANTES de configurar columnas
+    // Limpiar tabla
     tablaResultados->clearContents();
-    tablaResultados->setRowCount(0);   // 🔹 eliminar todas las filas previas
+    tablaResultados->setRowCount(0);
     tablaResultados->setColumnCount(campos.size());
     tablaResultados->setHorizontalHeaderLabels(campos);
 
+    // Preparar criterios
+    QString criterioCampo, criterioOperador, criterioValor;
+    if (!wherePart.isEmpty()) {
+        QStringList parts = wherePart.split(" ", Qt::SkipEmptyParts);
+        if (parts.size() >= 3) {
+            criterioCampo = parts[0];
+            criterioOperador = parts[1];
+            criterioValor = parts[2];
+            criterioValor.remove("'"); // quitar comillas
+        }
+    }
 
+    // Mostrar resultados
     int row = 0;
     for (const auto &registro : meta.registros) {
-        tablaResultados->insertRow(row);
+        bool coincide = true;
 
+        if (!criterioCampo.isEmpty()) {
+            QVariant valor = registro.value(criterioCampo);
+            QString valorStr = valor.toString();
+
+            if (criterioOperador == "=") {
+                coincide = (valorStr == criterioValor);
+            } else if (criterioOperador == ">") {
+                coincide = valor.toDouble() > criterioValor.toDouble();
+            } else if (criterioOperador == ">=") {
+                coincide = valor.toDouble() >= criterioValor.toDouble();
+            } else if (criterioOperador == "<") {
+                coincide = valor.toDouble() < criterioValor.toDouble();
+            } else if (criterioOperador == "<=") {
+                coincide = valor.toDouble() <= criterioValor.toDouble();
+            }
+        }
+
+        if (!coincide) continue;
+
+        tablaResultados->insertRow(row);
         for (int c = 0; c < campos.size(); c++) {
             QString campo = campos[c];
             QVariant valor;
 
-            // Buscar el campo en la metadata
             for (const Campo &campoMeta : meta.campos) {
                 if (campoMeta.nombre.compare(campo, Qt::CaseInsensitive) == 0) {
                     valor = registro.value(campoMeta.nombre);
                     break;
                 }
             }
-
             tablaResultados->setItem(row, c, new QTableWidgetItem(valor.toString()));
         }
         row++;
     }
 }
+
 
 
 

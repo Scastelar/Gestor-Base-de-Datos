@@ -103,6 +103,7 @@ void VistaDiseno::configurarTablaPropiedades() {
 }
 
 void VistaDiseno::agregarCampo() {
+    tablaCampos->blockSignals(true);
     int row = tablaCampos->rowCount();
     tablaCampos->insertRow(row);
 
@@ -130,9 +131,11 @@ void VistaDiseno::agregarCampo() {
     tablaCampos->setCellWidget(row, 2, tipoCombo);
 
     guardarMetadatos();
+    tablaCampos->blockSignals(false);
 }
 
 void VistaDiseno::eliminarCampo() {
+    tablaCampos->blockSignals(true);
     int currentRow = tablaCampos->currentRow();
     if (currentRow == -1) {
         QMessageBox::information(this, "Selección requerida", "Por favor, seleccione un campo para eliminar.");
@@ -168,11 +171,13 @@ void VistaDiseno::eliminarCampo() {
         tablaCampos->removeRow(currentRow);
         guardarMetadatos();
     }
+    tablaCampos->blockSignals(false);
 }
 
 
 // Método público para establecer PK desde otra clase
 void VistaDiseno::establecerPK() {
+    tablaCampos->blockSignals(true);
     int currentRow = tablaCampos->currentRow();
     if (currentRow == -1) {
         QMessageBox::information(this, "Selección requerida", "Por favor, seleccione una fila primero.");
@@ -204,6 +209,7 @@ void VistaDiseno::establecerPK() {
     }
     //QTimer::singleShot(100, this, &VistaDiseno::guardarMetadatos);
     guardarMetadatos();
+    tablaCampos->blockSignals(false);
 
 }
 
@@ -276,6 +282,7 @@ QVector<Campo> VistaDiseno::obtenerCampos() const {
 
 // 🔹 Cargar campos desde Metadata con propiedades
 void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
+    tablaCampos->blockSignals(true);
     tablaCampos->setRowCount(0); // limpiar
     propiedadesPorFila.clear();
     nombresAnteriores.clear(); // 🔹 Limpiar nombres anteriores
@@ -373,6 +380,7 @@ void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
         tablaCampos->setCurrentCell(0, 1);
         actualizarPropiedades();
     }
+    tablaCampos->blockSignals(false);
 }
 
 // 🔹 Actualizar propiedades cuando cambia el tipo de dato
@@ -564,10 +572,15 @@ void VistaDiseno::guardarPropiedadFila(int row) {
 
 // 🔹 Limpiar propiedades cuando se elimina una fila
 void VistaDiseno::on_tablaCampos_cellChanged(int row, int column) {
+
+    if (bloqueandoEdicion) return;
+    bloqueandoEdicion = true;
     // Si se elimina una fila, remover su propiedad
     if (column == 0 && row >= tablaCampos->rowCount()) {
         propiedadesPorFila.remove(row);
     }
+
+    bloqueandoEdicion = false;
 }
 
 // Método para validar que existe exactamente una PK
@@ -649,6 +662,9 @@ void VistaDiseno::actualizarEstadoCampos() {
 
 void VistaDiseno::on_campoEditado(QTableWidgetItem *item) {
     if (bloqueandoEdicion) return;
+    bloqueandoEdicion = true;
+
+    if (bloqueandoEdicion) return;
 
     if (item->column() == 1) { // Columna de nombre
         int row = item->row();
@@ -681,6 +697,7 @@ void VistaDiseno::on_campoEditado(QTableWidgetItem *item) {
             guardarMetadatos();
         }
     }
+    bloqueandoEdicion = false;
 }
 
 

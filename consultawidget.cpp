@@ -17,16 +17,13 @@ ConsultaWidget::ConsultaWidget(QWidget *parent)
     paginaDiseno = new QWidget(this);
     QVBoxLayout *layoutDiseno = new QVBoxLayout(paginaDiseno);
 
-    // Splitter horizontal → escena + lista de tablas
     QSplitter *splitterH = new QSplitter(Qt::Horizontal, paginaDiseno);
 
-    // Escena y vista
     scene = new QGraphicsScene(this);
     view = new QGraphicsView(scene, this);
     view->setRenderHint(QPainter::Antialiasing);
     view->setDragMode(QGraphicsView::ScrollHandDrag);
 
-    // Lista de tablas
     listaTablas = new QListWidget(this);
     QPushButton *btnAgregar = new QPushButton("Agregar Tabla", this);
     QVBoxLayout *rightLayout = new QVBoxLayout();
@@ -35,16 +32,15 @@ ConsultaWidget::ConsultaWidget(QWidget *parent)
 
     QWidget *rightPanel = new QWidget();
     rightPanel->setLayout(rightLayout);
+    rightPanel->setMaximumWidth(220);
 
     splitterH->addWidget(view);
     splitterH->addWidget(rightPanel);
     splitterH->setStretchFactor(0, 3);
     splitterH->setStretchFactor(1, 1);
 
-    // Grid de diseño (abajo)
     gridDesigner = new QueryDesignerWidget(this);
 
-    // Layout principal de diseño
     layoutDiseno->addWidget(splitterH);
     layoutDiseno->addWidget(gridDesigner);
 
@@ -54,7 +50,6 @@ ConsultaWidget::ConsultaWidget(QWidget *parent)
     paginaResultado = new QWidget(this);
     QVBoxLayout *layoutRes = new QVBoxLayout(paginaResultado);
 
-    // Barra superior con botón volver
     QHBoxLayout *topBar = new QHBoxLayout();
     QLabel *lblTitulo = new QLabel("Resultados de la Consulta");
     btnVolver = new QPushButton("X");
@@ -67,14 +62,10 @@ ConsultaWidget::ConsultaWidget(QWidget *parent)
 
     connect(btnVolver, &QPushButton::clicked, this, &ConsultaWidget::volverADiseno);
 
-    // Vista de resultados
     vistaResultado = new VistaConsulta(this);
     layoutRes->addLayout(topBar);
     layoutRes->addWidget(vistaResultado);
 
-    // -----------------------
-    // 🔹 Agregar páginas al stack
-    // -----------------------
     stack->addWidget(paginaDiseno);
     stack->addWidget(paginaResultado);
 
@@ -82,22 +73,17 @@ ConsultaWidget::ConsultaWidget(QWidget *parent)
     mainLayout->addWidget(stack);
     setLayout(mainLayout);
 
-    // Mostrar el diseñador al inicio
     stack->setCurrentWidget(paginaDiseno);
 
-    // -----------------------
-    // 🔹 Conexiones
-    // -----------------------
     connect(btnAgregar, &QPushButton::clicked, this, &ConsultaWidget::agregarTabla);
     connect(gridDesigner, &QueryDesignerWidget::ejecutarConsulta,
             this, &ConsultaWidget::ejecutarConsulta);
 
-    // Cargar nombres de tablas disponibles
     QDir dir(QDir::currentPath() + "/tables");
     QStringList archivosMeta = dir.entryList(QStringList() << "*.meta", QDir::Files);
     for (const QString &fileName : archivosMeta) {
         QString nombreTabla = fileName;
-        nombreTabla.chop(5); // quitar ".meta"
+        nombreTabla.chop(5);
         listaTablas->addItem(nombreTabla);
     }
 }
@@ -115,7 +101,7 @@ void ConsultaWidget::agregarTabla()
 
     QDir dir(QDir::currentPath() + "/tables");
     Metadata meta = Metadata::cargar(dir.filePath(tablaSeleccionada + ".meta"));
-    metasDisponibles.append(meta); // 🔹 Guardar metadata para consultas
+    metasDisponibles.append(meta);
 
     TableItem *tablaItem = new TableItem(meta);
     scene->addItem(tablaItem);
@@ -123,7 +109,6 @@ void ConsultaWidget::agregarTabla()
 
     tablas[tablaSeleccionada] = tablaItem;
 
-    // Doble clic en campo → agregarlo al grid
     connect(tablaItem, &TableItem::iniciarDragCampo,
             this, [=](const QString &tabla, const QString &campo, const QPointF &) {
                 gridDesigner->agregarCampo(tabla, campo);
@@ -132,14 +117,11 @@ void ConsultaWidget::agregarTabla()
 
 void ConsultaWidget::ejecutarConsulta(const QString &sql)
 {
-    // 🔹 Refrescar siempre las metas desde disco antes de ejecutar
     metasDisponibles.clear();
 
     QDir dir(QDir::currentPath() + "/tables");
     QStringList archivosMeta = dir.entryList(QStringList() << "*.meta", QDir::Files);
     for (const QString &fileName : archivosMeta) {
-        QString nombreTabla = fileName;
-        nombreTabla.chop(5); // quitar ".meta"
         Metadata meta = Metadata::cargar(dir.filePath(fileName));
         metasDisponibles.append(meta);
     }
@@ -152,3 +134,4 @@ void ConsultaWidget::volverADiseno()
 {
     stack->setCurrentWidget(paginaDiseno);
 }
+
