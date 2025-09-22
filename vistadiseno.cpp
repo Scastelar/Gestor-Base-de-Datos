@@ -253,34 +253,19 @@ QVector<Campo> VistaDiseno::obtenerCampos() const {
             c.esPK = (pkItem->text() == "🔑");
         }
 
-        // Obtener propiedad según el tipo
-        if (c.tipo == "TEXTO") {
-            // Buscar en tabla de propiedades
-            if (propiedadesPorFila.contains(row)) {
-                c.propiedad = propiedadesPorFila.value(row);
-            } else {
-                c.propiedad = 255; // Valor por defecto
-            }
-        }
-        else if (c.tipo == "NUMERO") {
-            if (propiedadesPorFila.contains(row)) {
-                c.propiedad = propiedadesPorFila.value(row);
-            } else {
-                c.propiedad = "entero"; // Valor por defecto
-            }
-        }
-        else if (c.tipo == "MONEDA") {
-            if (propiedadesPorFila.contains(row)) {
-                c.propiedad = propiedadesPorFila.value(row);
-            } else {
-                c.propiedad = "Lempira"; // Valor por defecto
-            }
-        }
-        else if (c.tipo == "FECHA") {
-            if (propiedadesPorFila.contains(row)) {
-                c.propiedad = propiedadesPorFila.value(row);
-            } else {
-                c.propiedad = "DD-MM-YY"; // Valor por defecto
+        // ⭐ OBTENER PROPIEDAD CON VALIDACIÓN
+        if (propiedadesPorFila.contains(row)) {
+            c.propiedad = propiedadesPorFila.value(row);
+        } else {
+            // Establecer valor por defecto si no existe
+            if (c.tipo == "TEXTO") {
+                c.propiedad = 255;
+            } else if (c.tipo == "NUMERO") {
+                c.propiedad = "entero";
+            } else if (c.tipo == "MONEDA") {
+                c.propiedad = "Lempira";
+            } else if (c.tipo == "FECHA") {
+                c.propiedad = "DD-MM-YY";
             }
         }
 
@@ -329,28 +314,59 @@ void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
                 });
         tablaCampos->setCellWidget(row, 2, tipoCombo);
 
-        // Guardar propiedad en el mapa
+        // ⭐ VALIDAR PROPIEDAD SEGÚN EL TIPO ANTES DE GUARDAR
+                QVariant propiedadCorrecta;
         if (c.propiedad.isValid()) {
-            propiedadesPorFila[row] = c.propiedad;
+            // Verificar que la propiedad coincida con el tipo
+            if (c.tipo == "TEXTO") {
+                bool ok;
+                int valorTexto = c.propiedad.toInt(&ok);
+                propiedadCorrecta = ok && valorTexto > 0 ? valorTexto : 255;
+            } else if (c.tipo == "NUMERO") {
+                QString valorNumero = c.propiedad.toString();
+                if (valorNumero == "entero" || valorNumero == "decimal" ||
+                    valorNumero == "doble" || valorNumero == "byte") {
+                    propiedadCorrecta = valorNumero;
+                } else {
+                    propiedadCorrecta = "entero"; // Corregir valor inválido
+                }
+            } else if (c.tipo == "MONEDA") {
+                QString valorMoneda = c.propiedad.toString();
+                if (valorMoneda == "Lempira" || valorMoneda == "Dólar" ||
+                    valorMoneda == "Euros" || valorMoneda == "Millares") {
+                    propiedadCorrecta = valorMoneda;
+                } else {
+                    propiedadCorrecta = "Lempira"; // Corregir valor inválido
+                }
+            } else if (c.tipo == "FECHA") {
+                QString valorFecha = c.propiedad.toString();
+                if (valorFecha == "DD-MM-YY" || valorFecha == "DD/MM/YY" ||
+                    valorFecha == "DD/MES/YYYY" || valorFecha == "YYYY-MM-DD") {
+                    propiedadCorrecta = valorFecha;
+                } else {
+                    propiedadCorrecta = "DD-MM-YY"; // Corregir valor inválido
+                }
+            }
         } else {
             // Establecer propiedad por defecto según el tipo
             if (c.tipo == "TEXTO") {
-                propiedadesPorFila[row] = 255;
+                propiedadCorrecta = 255;
             } else if (c.tipo == "NUMERO") {
-                propiedadesPorFila[row] = "entero";
+                propiedadCorrecta = "entero";
             } else if (c.tipo == "MONEDA") {
-                propiedadesPorFila[row] = "Lempira";
+                propiedadCorrecta = "Lempira";
             } else if (c.tipo == "FECHA") {
-                propiedadesPorFila[row] = "DD-MM-YY";
+                propiedadCorrecta = "DD-MM-YY";
             }
         }
+        propiedadesPorFila[row] = propiedadCorrecta;
     }
 
     // ⭐ CRÍTICO: Actualizar estado de campos relacionados DESPUÉS de cargar
-                       QTimer::singleShot(100, this, [this]() {
-                           actualizarEstadoCampos();
-                           qDebug() << "🔒 Campos relacionados actualizados:" << camposRelacionados;
-                       });
+    QTimer::singleShot(100, this, [this]() {
+        actualizarEstadoCampos();
+        qDebug() << "🔒 Campos relacionados actualizados:" << camposRelacionados;
+    });
 
     // Forzar actualización de propiedades para la primera fila
     if (tablaCampos->rowCount() > 0) {
@@ -372,6 +388,40 @@ void VistaDiseno::actualizarPropiedades() {
 
     QString tipoDato = tipoCombo->currentText();
 
+    // ⭐ LIMPIAR PROPIEDAD ANTERIOR SI EL TIPO CAMBIÓ
+    QString tipoAnterior = "";
+    if (propiedadesPorFila.contains(currentRow)) {
+        QVariant propAnterior = propiedadesPorFila[currentRow];
+
+        // Determinar tipo anterior basado en el valor de la propiedad
+        if (propAnterior.typeId() == QMetaType::Int) {
+            tipoAnterior = "TEXTO";
+        } else if (propAnterior.toString() == "entero" || propAnterior.toString() == "decimal" ||
+                   propAnterior.toString() == "doble" || propAnterior.toString() == "byte") {
+            tipoAnterior = "NUMERO";
+        } else if (propAnterior.toString() == "Lempira" || propAnterior.toString() == "Dólar" ||
+                   propAnterior.toString() == "Euros" || propAnterior.toString() == "Millares") {
+            tipoAnterior = "MONEDA";
+        } else if (propAnterior.toString().contains("-") || propAnterior.toString().contains("/")) {
+            tipoAnterior = "FECHA";
+        }
+    }
+
+    // Si cambió el tipo, establecer valor por defecto
+    if (tipoAnterior != "" && tipoAnterior != tipoDato) {
+        qDebug() << "⚠️ Tipo cambió de" << tipoAnterior << "a" << tipoDato << "- Estableciendo valor por defecto";
+
+        if (tipoDato == "TEXTO") {
+            propiedadesPorFila[currentRow] = 255;
+        } else if (tipoDato == "NUMERO") {
+            propiedadesPorFila[currentRow] = "entero";
+        } else if (tipoDato == "MONEDA") {
+            propiedadesPorFila[currentRow] = "Lempira";
+        } else if (tipoDato == "FECHA") {
+            propiedadesPorFila[currentRow] = "DD-MM-YY";
+        }
+    }
+
     if (tipoDato == "TEXTO") {
         tablaPropiedades->setRowCount(1);
         tablaPropiedades->setItem(0, 0, new QTableWidgetItem("Tamaño de campo"));
@@ -386,7 +436,7 @@ void VistaDiseno::actualizarPropiedades() {
         connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged),
                 [this, currentRow](int value) {
                     propiedadesPorFila[currentRow] = value;
-
+                    guardarMetadatos();
                 });
 
         tablaPropiedades->setCellWidget(0, 1, spinBox);
@@ -406,6 +456,7 @@ void VistaDiseno::actualizarPropiedades() {
         connect(numeroCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 [this, currentRow, numeroCombo](int index) {
                     propiedadesPorFila[currentRow] = numeroCombo->currentText();
+                    guardarMetadatos();
                 });
 
         tablaPropiedades->setCellWidget(0, 1, numeroCombo);
@@ -425,6 +476,7 @@ void VistaDiseno::actualizarPropiedades() {
         connect(monedaCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 [this, currentRow, monedaCombo](int index) {
                     propiedadesPorFila[currentRow] = monedaCombo->currentText();
+                    guardarMetadatos();
                 });
 
         tablaPropiedades->setCellWidget(0, 1, monedaCombo);
@@ -444,6 +496,7 @@ void VistaDiseno::actualizarPropiedades() {
         connect(fechaCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 [this, currentRow, fechaCombo](int index) {
                     propiedadesPorFila[currentRow] = fechaCombo->currentText();
+                    guardarMetadatos();
                 });
 
         tablaPropiedades->setCellWidget(0, 1, fechaCombo);
@@ -478,28 +531,35 @@ void VistaDiseno::guardarPropiedadFila(int row) {
     if (tipoDato == "TEXTO") {
         QSpinBox *spinBox = qobject_cast<QSpinBox*>(tablaPropiedades->cellWidget(0, 1));
         if (spinBox) {
-            propiedadesPorFila[row] = spinBox->value();
+            int valor = spinBox->value();
+            propiedadesPorFila[row] = valor;
         }
     }
     else if (tipoDato == "NUMERO") {
         QComboBox *combo = qobject_cast<QComboBox*>(tablaPropiedades->cellWidget(0, 1));
         if (combo) {
-            propiedadesPorFila[row] = combo->currentText();
+            QString valor = combo->currentText();
+            propiedadesPorFila[row] = valor;
         }
     }
     else if (tipoDato == "MONEDA") {
         QComboBox *combo = qobject_cast<QComboBox*>(tablaPropiedades->cellWidget(0, 1));
         if (combo) {
-            propiedadesPorFila[row] = combo->currentText();
+            QString valor = combo->currentText();
+            propiedadesPorFila[row] = valor;
         }
     }
     else if (tipoDato == "FECHA") {
         QComboBox *combo = qobject_cast<QComboBox*>(tablaPropiedades->cellWidget(0, 1));
         if (combo) {
-            propiedadesPorFila[row] = combo->currentText();
+            QString valor = combo->currentText();
+            propiedadesPorFila[row] = valor;
         }
     }
-    guardarMetadatos();
+    // ⭐ GUARDAR AUTOMÁTICAMENTE DESPUÉS DE CAMBIAR FILA
+    QTimer::singleShot(100, this, [this]() {
+        guardarMetadatos();
+    });
 }
 
 // 🔹 Limpiar propiedades cuando se elimina una fila
@@ -610,12 +670,17 @@ void VistaDiseno::on_campoEditado(QTableWidgetItem *item) {
             return;
         }
 
-        // 🔹 Actualizar el nombre anterior para la próxima vez
-        nombresAnteriores[row] = nuevoNombre;
-    }
+        // ⭐ DETECTAR SI REALMENTE CAMBIÓ EL NOMBRE
+        if (nombreAnterior != nuevoNombre) {
+            qDebug() << "📝 Nombre de campo cambió:" << nombreAnterior << "→" << nuevoNombre;
 
-    // Guardar metadatos
-    guardarMetadatos();
+            // Actualizar el nombre anterior para la próxima vez
+            nombresAnteriores[row] = nuevoNombre;
+
+            // ⭐ GUARDAR INMEDIATAMENTE AL CAMBIAR NOMBRE
+            guardarMetadatos();
+        }
+    }
 }
 
 
