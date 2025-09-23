@@ -126,7 +126,7 @@ void VistaDiseno::agregarCampo() {
     connect(tipoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this]() {
                 actualizarPropiedades();
-                guardarMetadatos();   // 🔹 Guardar al cambiar tipo
+                guardarMetadatos();   //  Guardar al cambiar tipo
             });
     tablaCampos->setCellWidget(row, 2, tipoCombo);
 
@@ -194,30 +194,28 @@ void VistaDiseno::establecerPK() {
         return;
     }
 
-    // Verificar si hay algún campo relacionado que sea PK actualmente
-    for (int row = 0; row < tablaCampos->rowCount(); ++row) {
-        QTableWidgetItem *pkCheck = tablaCampos->item(row, 0);
-        QTableWidgetItem *nombreCheck = tablaCampos->item(row, 1);
-
-        if (pkCheck && pkCheck->text() == "🔑" && nombreCheck &&
-            esCampoRelacionado(nombreCheck->text())) {
-            tablaCampos->blockSignals(false);
-            return;
-        }
-    }
-
-    // Quitar PK de cualquier otra fila
-    for (int row = 0; row < tablaCampos->rowCount(); ++row) {
-        QTableWidgetItem *pkItem = tablaCampos->item(row, 0);
-        if (pkItem && pkItem->text() == "🔑") {
-            pkItem->setText("");
-            pkItem->setToolTip("");
-        }
-    }
-
-    // Establecer PK en la fila seleccionada
     QTableWidgetItem *pkItem = tablaCampos->item(currentRow, 0);
-    if (pkItem) {
+    if (!pkItem) {
+        tablaCampos->blockSignals(false);
+        return;
+    }
+
+    // Toggle PK
+    if (pkItem->text() == "🔑") {
+        // Ya es PK, quitarla
+        pkItem->setText("");
+        pkItem->setToolTip("");
+    } else {
+        // Quitar PK de cualquier otra fila primero (máximo 1 PK)
+        for (int row = 0; row < tablaCampos->rowCount(); ++row) {
+            QTableWidgetItem *otherPkItem = tablaCampos->item(row, 0);
+            if (otherPkItem && otherPkItem->text() == "🔑") {
+                otherPkItem->setText("");
+                otherPkItem->setToolTip("");
+            }
+        }
+
+        // Establecer nueva PK
         pkItem->setText("🔑");
         pkItem->setToolTip("Llave Primaria");
     }
@@ -847,7 +845,7 @@ void VistaDiseno::guardarMetadatos() {
         // Validar PK antes de guardar
         if (!meta.validarPK()) {
             QMessageBox::warning(this, "Error de validación",
-                                 "Debe existir exactamente una clave primaria (PK).");
+                                 "Debe existir maximo una clave primaria (PK).");
             guardandoMetadatos = false;
             return;
         }

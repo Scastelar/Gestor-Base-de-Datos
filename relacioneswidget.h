@@ -9,6 +9,7 @@
 #include "tableitem.h"
 #include "relationitem.h"
 #include "relacionesview.h"
+#include "validadorrelaciones.h"
 
 class RelacionesWidget : public QWidget
 {

@@ -42,6 +42,25 @@ void ValidadorRelaciones::cargarRelaciones(const QString &archivoRelaciones)
     qDebug() << "✅ Total de relaciones FK cargadas:" << relaciones.size();
 }
 
+bool ValidadorRelaciones::puedeCrearRelacionMM(const QString &tabla1, const QString &tabla2)
+{
+    Metadata meta1 = obtenerMetadata(tabla1);
+    Metadata meta2 = obtenerMetadata(tabla2);
+
+    bool tabla1TienePK = meta1.tienePK();
+    bool tabla2TienePK = meta2.tienePK();
+
+    // M:M solo permitida si NINGUNA tabla tiene PK
+    bool permitida = !tabla1TienePK && !tabla2TienePK;
+
+    qDebug() << "🔍 Verificando M:M entre" << tabla1 << "y" << tabla2
+             << "- Tabla1 PK:" << tabla1TienePK
+             << "- Tabla2 PK:" << tabla2TienePK
+             << "- M:M permitida:" << permitida;
+
+    return permitida;
+}
+
 RelacionFK ValidadorRelaciones::procesarRelacion(const QStringList &partes)
 {
     QString tabla1 = partes[0];
@@ -53,6 +72,8 @@ RelacionFK ValidadorRelaciones::procesarRelacion(const QStringList &partes)
     Metadata meta1 = obtenerMetadata(tabla1);
     Metadata meta2 = obtenerMetadata(tabla2);
 
+    bool tabla1TienePK = meta1.tienePK();
+    bool tabla2TienePK = meta2.tienePK();
     bool campo1EsPK = false, campo2EsPK = false;
 
     // Buscar si campo1 es PK en tabla1
@@ -98,16 +119,25 @@ RelacionFK ValidadorRelaciones::procesarRelacion(const QStringList &partes)
         rel.tipoRelacion = "1:1";
     }
     else {
-        // Ninguno es PK: relación M:M (no validamos FK directamente)
-        rel.tablaPrincipal = tabla1;
-        rel.campoPrincipal = campo1;
-        rel.tablaForanea = tabla2;
-        rel.campoForaneo = campo2;
-        rel.tipoRelacion = "M:M";
+        // NUEVA LÓGICA: M:M solo si NINGUNA tabla tiene PK
+        if (!tabla1TienePK && !tabla2TienePK) {
+            rel.tablaPrincipal = tabla1;
+            rel.campoPrincipal = campo1;
+            rel.tablaForanea = tabla2;
+            rel.campoForaneo = campo2;
+            rel.tipoRelacion = "M:M";
+            qDebug() << "✅ Relación M:M permitida - ninguna tabla tiene PK";
+        } else {
+            // Una o ambas tablas tienen PK pero los campos relacionados no son PK
+            // Esto sería una relación inválida
+            qDebug() << "❌ Relación inválida: tablas con PK pero campos no son PK";
+            return RelacionFK(); // Retornar relación vacía
+        }
     }
 
     return rel;
 }
+
 
 Metadata ValidadorRelaciones::obtenerMetadata(const QString &nombreTabla)
 {
@@ -141,32 +171,38 @@ bool ValidadorRelaciones::validarClaveForanea(const QString &tablaForanea,
 
     // Buscar la relación correspondiente
     for (const RelacionFK &rel : relaciones) {
-        if (rel.tablaForanea == tablaForanea &&
-            rel.campoForaneo == campoForaneo &&
-            (rel.tipoRelacion == "1:M" || rel.tipoRelacion == "1:1")) {
+        if (rel.tablaForanea == tablaForanea && rel.campoForaneo == campoForaneo) {
 
-            // Obtener metadata de la tabla principal
-            Metadata metaPrincipal = obtenerMetadata(rel.tablaPrincipal);
-
-            // Buscar el valor en los registros de la tabla principal
-            for (const auto &registro : metaPrincipal.registros) {
-                QVariant valorPrincipal = registro.value(rel.campoPrincipal);
-
-                // Comparar valores (convertir a string para comparación)
-                if (valorPrincipal.toString() == valor.toString()) {
-                    qDebug() << "✅ FK válida:" << valor.toString() << "encontrado en"
-                             << rel.tablaPrincipal << "." << rel.campoPrincipal;
-                    return true; // ✅ Valor encontrado
-                }
+            if (rel.tipoRelacion == "M:M") {
+                // Para relaciones M:M, no validamos FK tradicional
+                // Los valores pueden ser cualquier cosa válida para el tipo de campo
+                qDebug() << "🔗 Relación M:M detectada - validación FK omitida";
+                return true;
             }
 
-            qDebug() << "❌ FK inválida:" << valor.toString() << "NO encontrado en"
-                     << rel.tablaPrincipal << "." << rel.campoPrincipal;
-            return false; // ❌ Valor no encontrado en tabla principal
+            if (rel.tipoRelacion == "1:M" || rel.tipoRelacion == "1:1") {
+                // Obtener metadata de la tabla principal
+                Metadata metaPrincipal = obtenerMetadata(rel.tablaPrincipal);
+
+                // Buscar el valor en los registros de la tabla principal
+                for (const auto &registro : metaPrincipal.registros) {
+                    QVariant valorPrincipal = registro.value(rel.campoPrincipal);
+
+                    if (valorPrincipal.toString() == valor.toString()) {
+                        qDebug() << "✅ FK válida:" << valor.toString() << "encontrado en"
+                                 << rel.tablaPrincipal << "." << rel.campoPrincipal;
+                        return true;
+                    }
+                }
+
+                qDebug() << "❌ FK inválida:" << valor.toString() << "NO encontrado en"
+                         << rel.tablaPrincipal << "." << rel.campoPrincipal;
+                return false;
+            }
         }
     }
 
-    return true; // No hay relación FK para este campo, permitir cualquier valor
+    return true; // No hay relación FK para este campo
 }
 
 QStringList ValidadorRelaciones::obtenerValoresValidos(const QString &tablaForanea,

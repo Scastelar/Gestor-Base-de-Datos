@@ -39,6 +39,8 @@ public:
     QStringList obtenerValoresValidos(const QString &tablaForanea,
                                       const QString &campoForaneo);
 
+    bool puedeCrearRelacionMM(const QString &tabla1, const QString &tabla2);
+
     // Verificar si un campo es clave foránea
     bool esCampoClaveForanea(const QString &tabla, const QString &campo);
 

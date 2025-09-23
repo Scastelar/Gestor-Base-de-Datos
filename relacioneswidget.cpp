@@ -577,36 +577,31 @@ void RelacionesWidget::validarRelacionesExistentes()
         }
 
         // Validar si la relación sigue siendo válida
+        bool origenEsPK = campoO.esPK;
+        bool destinoEsPK = campoD.esPK;
         if (!encontradoO || !encontradoD) {
-            // Campo eliminado
             relacionesInvalidas.append(rel);
         }
         else if (campoO.tipo != campoD.tipo) {
-            // Tipos cambiaron y ya no coinciden
             relacionesInvalidas.append(rel);
-            QMessageBox::warning(this, "Relación inválida",
-                                 QString("La relación entre %1.%2 y %3.%4 ya no es válida.\n"
-                                         "Los tipos de dato cambiaron y ya no coinciden.\n"
-                                         "La relación será eliminada.")
-                                     .arg(tablaOrigen).arg(campoOrigen)
-                                     .arg(tablaDestino).arg(campoDestino));
         }
         else if ((campoO.esPK && campoD.esPK) && (campoO.nombre != campoD.nombre)) {
-            // Nombres cambiaron y ya no coinciden
             relacionesInvalidas.append(rel);
-            QMessageBox::warning(this, "Relación inválida",
-                                 QString("La relación entre %1.%2 y %3.%4 ya no es válida.\n"
-                                         "Los nombres de campo cambiaron y ya no coinciden.\n"
-                                         "La relación será eliminada.")
-                                     .arg(tablaOrigen).arg(campoOrigen)
-                                     .arg(tablaDestino).arg(campoDestino));
+        }
+        else if (!origenEsPK && !destinoEsPK) {
+            // Esta sería una relación M:M potencial - validar con ValidadorRelaciones
+            ValidadorRelaciones validador;
+            if (!validador.puedeCrearRelacionMM(tablaOrigen, tablaDestino)) {
+                // ❌ Cancelar relación y salir sin guardar
+                relacionesInvalidas.append(rel);
+                qDebug() << "❌ Relación M:M inválida entre" << tablaOrigen << "y" << tablaDestino
+                         << "- al menos una tabla tiene PK, no se guardará en relationships.dat";
+                break; // 🔴 salimos del for
+            }
         }
         else {
             // Validar reglas de PK/FK según el tipo de relación
-            bool origenEsPK = campoO.esPK;
-            bool destinoEsPK = campoD.esPK;
             bool esValida = true;
-
             switch (rel->getTipoRelacion()) {
             case TipoRelacion::UnoAUno:
                 esValida = (origenEsPK && destinoEsPK);
@@ -618,25 +613,18 @@ void RelacionesWidget::validarRelacionesExistentes()
                 esValida = (!origenEsPK && !destinoEsPK);
                 break;
             }
-
             if (!esValida) {
                 relacionesInvalidas.append(rel);
-                QMessageBox::warning(this, "Relación inválida",
-                                     QString("La relación %1 entre %2.%3 y %4.%5 ya no es válida.\n"
-                                             "Las propiedades PK/FK cambiaron y no cumplen con las reglas del tipo de relación.\n"
-                                             "La relación será eliminada.")
-                                         .arg(rel->getTipoRelacionString())
-                                         .arg(tablaOrigen).arg(campoOrigen)
-                                         .arg(tablaDestino).arg(campoDestino));
             }
         }
     }
 
-    // Eliminar relaciones inválidas
+    // Eliminar relaciones inválidas sin mostrar popups
     for (RelationItem *rel : relacionesInvalidas) {
         eliminarRelacion(rel);
     }
 }
+
 
 void RelacionesWidget::eliminarRelacion(RelationItem *rel)
 {

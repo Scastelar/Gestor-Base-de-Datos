@@ -94,22 +94,27 @@ public:
         for (const Campo &c : campos) {
             if (c.esPK) countPK++;
         }
-        return countPK == 1;
+        return countPK <= 1; // 0 o 1 PK permitida
+    }
+
+    bool tienePK() const {
+        for (const Campo &c : campos) {
+            if (c.esPK) return true;
+        }
+        return false;
+    }
+
+    QString obtenerNombrePK() const {
+        for (const Campo &c : campos) {
+            if (c.esPK) return c.nombre;
+        }
+        return "";
     }
 
     void guardar() const {
-        // 🔹 Validar PK antes de guardar
-        int countPK = 0;
-        for (const Campo &c : campos) {
-            if (c.esPK) countPK++;
-        }
-
-        if (countPK == 0 && !campos.isEmpty()) {
-
-            throw std::runtime_error("Debe existir exactamente una clave primaria (PK)");
-        }
-        else if (countPK > 1) {
-            throw std::runtime_error("Solo debe existir una clave primaria (PK)");
+        // Validar PK antes de guardar (ahora permite 0 o 1)
+        if (!validarPK()) {
+            throw std::runtime_error("Solo se permite máximo una clave primaria (PK) por tabla");
         }
 
         QDir dir(QDir::currentPath() + "/tables");
@@ -117,7 +122,7 @@ public:
             dir.mkpath(".");
         }
 
-        // 🔹 Guardar definición (.meta)
+        // Guardar definición (.meta)
         QFile file(dir.filePath(nombreTabla + ".meta"));
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             throw std::runtime_error("No se pudo abrir el archivo de metadatos para escritura");
@@ -135,11 +140,12 @@ public:
             else if (c.tipo == "NUMERO" || c.tipo == "MONEDA" || c.tipo == "FECHA") {
                 out << " " << c.obtenerPropiedad().toString();
             }
+
             out << "\n";
         }
         file.close();
 
-        //  Guardar registros (.data)
+        // Guardar registros (.data)
         QFile dataFile(dir.filePath(nombreTabla + ".data"));
         if (!dataFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
             throw std::runtime_error("No se pudo abrir el archivo de datos para escritura");
@@ -151,9 +157,7 @@ public:
             for (const Campo &c : campos) {
                 QVariant valor = registro.value(c.nombre);
 
-                // Convertir a string según el tipo de campo
                 if (c.tipo == "FECHA" && valor.canConvert<QDateTime>()) {
-                    // Guardar fecha en formato ISO para consistencia
                     valores << valor.toDateTime().toString(Qt::ISODate);
                 } else {
                     valores << valor.toString();
