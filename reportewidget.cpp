@@ -6,18 +6,40 @@ ReporteWidget::ReporteWidget(QWidget *parent)
     : QDialog(parent)
 {
     setWindowTitle("Reporte de base de datos (MiniAccess)");
-    setMinimumSize(500, 400);
+    setMinimumSize(600, 500);
 
     resumen = new QTextEdit(this);
     resumen->setReadOnly(true);
+
+    QFont fontResumen;
+    fontResumen.setPointSize(12);
+    fontResumen.setBold(true);
+    resumen->setFont(fontResumen);
+
+    resumen->setStyleSheet(
+        "QTextEdit { "
+        "padding: 14px; "
+        "background-color: #fafafa; "
+        "line-height: 240%; "    // separación de renglones
+        "}"
+        );
 
     detalle = new QTableWidget(this);
     detalle->setColumnCount(4);
     detalle->setHorizontalHeaderLabels({"Tabla", "Campos", "PK", "Registros"});
     detalle->horizontalHeader()->setStretchLastSection(true);
 
+    QFont fontDetalle;
+    fontDetalle.setPointSize(11);
+    detalle->setFont(fontDetalle);
+
+    detalle->verticalHeader()->setDefaultSectionSize(30);
+
     btnCopiar = new QPushButton("Copiar", this);
     btnCerrar = new QPushButton("Cerrar", this);
+
+    btnCopiar->setStyleSheet("QPushButton { font-size: 11pt; padding: 6px 14px; }");
+    btnCerrar->setStyleSheet("QPushButton { font-size: 11pt; padding: 6px 14px; }");
 
     QHBoxLayout *botones = new QHBoxLayout();
     botones->addStretch();
@@ -50,16 +72,34 @@ QString ReporteWidget::generarTextoResumen(const QVector<Metadata> &metadatos) {
         totalRegistros += m.registros.size();
     }
 
+    // Leer relaciones desde relationships.dat (texto plano)
+    int totalRelaciones = 0;
+    QFile relFile(QDir::currentPath() + "/relationships.dat");
+    if (relFile.exists() && relFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&relFile);
+        while (!in.atEnd()) {
+            QString linea = in.readLine().trimmed();
+            if (!linea.isEmpty()) {
+                QStringList partes = linea.split("|");
+                if (partes.size() == 4) {
+                    totalRelaciones++;
+                }
+            }
+        }
+        relFile.close();
+    }
+
     QString texto;
     texto += QString("• Tablas: %1\n").arg(totalTablas);
-    texto += QString("• Campos totales: %1 · Claves primarias: %2 · Índices sin duplicados: 0\n")
+    texto += QString("• Campos totales: %1 · Claves primarias: %2\n")
                  .arg(totalCampos).arg(totalPK);
     texto += QString("• Registros totales (todas las tablas): %1\n").arg(totalRegistros);
-    texto += QString("• Relaciones: (por ahora 0)\n"); //  Aquí puedes integrar con tu relacioneswidget
-    texto += QString("• Consultas guardadas: 0\n");
-    texto += QString("• Formularios guardados: 0\n");
+    texto += QString("• Relaciones: %1\n").arg(totalRelaciones);
+
     return texto;
 }
+
+
 
 void ReporteWidget::generarReporte(const QVector<Metadata> &metadatos) {
     resumen->setText(generarTextoResumen(metadatos));

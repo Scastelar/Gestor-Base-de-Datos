@@ -33,7 +33,7 @@ public:
         bloques.append(BloqueDisponible(0, tamMemoria));
     }
 
-    // ================== Operaciones con campos ==================
+    //Operaciones con campos
     bool insertarCampo(const Campo& nuevoCampo, int tamaño) {
         int dir = asignar(tamaño);
         if (dir != -1) {
@@ -75,7 +75,7 @@ public:
         return campos;
     }
 
-    // ================== Operaciones con registros ==================
+    //Operaciones con registros
     void insertarRegistro(const QMap<QString, QVariant>& registro, int tamaño) {
         int dir = asignar(tamaño);
         if (dir != -1) {
@@ -98,7 +98,6 @@ public:
         return registros;
     }
 
-    // ================== Core de AvailList ==================
     int asignar(int tamañoSolicitado) {
         for (int i = 0; i < bloques.size(); i++) {
             if (!bloques[i].ocupado && bloques[i].tamaño >= tamañoSolicitado) {
