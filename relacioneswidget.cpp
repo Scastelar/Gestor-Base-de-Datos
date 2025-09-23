@@ -185,19 +185,46 @@ RelacionesWidget::~RelacionesWidget()
     tablas.clear();
 }
 
-void RelacionesWidget::guardarRelacionEnArchivo(const QString &tabla1, const QString &campo1,
-                                                const QString &tabla2, const QString &campo2)
+void RelacionesWidget::guardarRelacionEnArchivo(const QString &tabla1,
+                                                const QString &campo1,
+                                                const QString &tabla2,
+                                                const QString &campo2)
 {
-    QFile relacionesFile("relationships.dat");
-    if (relacionesFile.open(QIODevice::WriteOnly | QIODevice::Append)) {
-        QTextStream out(&relacionesFile);
-        out << tabla1 << "|" << campo1 << "|" << tabla2 << "|" << campo2 << "\n";
-        relacionesFile.close();
+    ValidadorRelaciones validador;
 
-        // Emitir señal para que se actualicen los validadores
-        emit relacionesActualizadas();
+    // Verificar si sería una relación M:M inválida
+    if (!validador.puedeCrearRelacionMM(tabla1, tabla2)) {
+        qDebug() << "❌ Relación M:M inválida entre" << tabla1 << "y" << tabla2
+                 << "- no se guardará en relationships.dat";
+        return; // 🚫 no guardar
+    }
+
+    // Evitar duplicados
+    QFile file("relationships.dat");
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "⚠️ No se pudo abrir relationships.dat para verificar duplicados";
+    } else {
+        QTextStream in(&file);
+        while (!in.atEnd()) {
+            QString linea = in.readLine().trimmed();
+            if (linea == tabla1 + "|" + campo1 + "|" + tabla2 + "|" + campo2) {
+                qDebug() << "⚠️ Relación ya existe, no se duplicará";
+                file.close();
+                return;
+            }
+        }
+        file.close();
+    }
+
+    // Guardar si pasó validaciones
+    if (file.open(QIODevice::Append | QIODevice::Text)) {
+        QTextStream out(&file);
+        out << tabla1 << "|" << campo1 << "|" << tabla2 << "|" << campo2 << "\n";
+        file.close();
+        qDebug() << "✅ Relación guardada en relationships.dat:" << tabla1 << campo1 << "->" << tabla2 << campo2;
     }
 }
+
 
 void RelacionesWidget::crearToolbar()
 {

@@ -145,8 +145,8 @@ public:
         }
         file.close();
 
-        // Guardar registros (.data)
-        QFile dataFile(dir.filePath(nombreTabla + ".data"));
+        // Guardar registros (.dat)
+        QFile dataFile(dir.filePath(nombreTabla + ".dat"));
         if (!dataFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
             throw std::runtime_error("No se pudo abrir el archivo de datos para escritura");
         }
@@ -216,9 +216,9 @@ public:
         }
         file.close();
 
-        //  Leer archivo .data
+        //  Leer archivo .dat
         QDir dir(QDir::currentPath() + "/tables");
-        QFile dataFile(dir.filePath(meta.nombreTabla + ".data"));
+        QFile dataFile(dir.filePath(meta.nombreTabla + ".dat"));
         if (dataFile.exists()) {
             if (!dataFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
                 throw std::runtime_error("No se pudo abrir el archivo de datos para lectura");

@@ -963,7 +963,7 @@ void MainWindow::cambiarVista()
     }
 
     try {
-        meta.guardar();  // guarda estructura + datos en .meta y .data
+        meta.guardar();  // guarda estructura + datos en .meta y .dat
         qDebug() << "Metadatos guardados exitosamente";
     } catch (const std::runtime_error &e) {
         qDebug() << "ERROR al guardar metadatos:" << e.what();
@@ -1541,7 +1541,7 @@ void MainWindow::eliminarTabla(const QString& nombreTabla)
 
     // Verificar que los archivos existen ANTES de hacer cualquier cosa
     QString metaPath = QDir::currentPath() + "/tables/" + nombreTabla + ".meta";
-    QString dataPath = QDir::currentPath() + "/tables/" + nombreTabla + ".data";
+    QString dataPath = QDir::currentPath() + "/tables/" + nombreTabla + ".dat";
 
     qDebug() << "Verificando archivos:";
     qDebug() << "Meta path:" << metaPath << "Existe:" << QFile::exists(metaPath);
@@ -1613,9 +1613,9 @@ void MainWindow::eliminarTabla(const QString& nombreTabla)
 
     if (dataFile.exists()) {
         dataEliminado = dataFile.remove();
-        qDebug() << "Eliminación archivo .data:" << (dataEliminado ? "ÉXITO" : "FALLO");
+        qDebug() << "Eliminación archivo .dat:" << (dataEliminado ? "ÉXITO" : "FALLO");
     } else {
-        qDebug() << "Archivo .data no existía";
+        qDebug() << "Archivo .dat no existía";
     }
 
     // PASO 6: Reconectar señales y actualizar solo si todo salió bien
@@ -1739,9 +1739,9 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
 
     // Rutas de archivos
     QString viejoMetaPath = QDir::currentPath() + "/tables/" + nombreTabla + ".meta";
-    QString viejoDataPath = QDir::currentPath() + "/tables/" + nombreTabla + ".data"; // Corregido: .data no .dat
+    QString viejoDataPath = QDir::currentPath() + "/tables/" + nombreTabla + ".dat"; // Corregido: .dat no .dat
     QString nuevoMetaPath = QDir::currentPath() + "/tables/" + nuevoNombre + ".meta";
-    QString nuevoDataPath = QDir::currentPath() + "/tables/" + nuevoNombre + ".data";
+    QString nuevoDataPath = QDir::currentPath() + "/tables/" + nuevoNombre + ".dat";
 
     // 3. Renombrar el archivo .meta
     if (!QFile::exists(viejoMetaPath)) {
@@ -1753,10 +1753,10 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
         return;
     }
 
-    // 4. Renombrar el archivo .data (si existe)
+    // 4. Renombrar el archivo .dat (si existe)
     if (QFile::exists(viejoDataPath)) {
         if (!QFile::rename(viejoDataPath, nuevoDataPath)) {
-            QMessageBox::warning(this, "Advertencia", "No se pudo renombrar el archivo .data. La tabla ha sido renombrada, pero podría haber una inconsistencia.");
+            QMessageBox::warning(this, "Advertencia", "No se pudo renombrar el archivo .dat. La tabla ha sido renombrada, pero podría haber una inconsistencia.");
         }
     }
 
