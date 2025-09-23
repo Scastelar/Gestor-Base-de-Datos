@@ -854,6 +854,8 @@ void VistaDiseno::guardarMetadatos() {
 
         meta.guardar();
         emit metadatosModificados();
+        emit tablaActualizada(nombreTablaActual);
+
 
     } catch (const std::runtime_error& e) {
         QMessageBox::critical(this, "Error al guardar", e.what());

@@ -1,6 +1,6 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
-
+#include "formulariowidget.h"
 #include <QMainWindow>
 #include <QListWidget>
 #include <QTabWidget>
@@ -34,7 +34,8 @@ private slots:
     void crearToolbars();
     void crearRibbonInicio();
     void crearRibbonCrear();
-
+    void onTabChanged(int index);
+    void actualizarFormularios(const QString& nombreTabla);
     void eliminarRelacionesDeTabla(const QString& nombreTabla);
     void renombrarTablaEnRelaciones(const QString& nombreViejo, const QString& nombreNuevo);
 
@@ -80,7 +81,9 @@ private:
     // Estado
     bool vistaHojaDatos;
     bool filtroActivo;
-
+    void actualizarFormularioDesdeTabla(const QString& nombreTabla);
+    void recargarVistaDatos(const QString& nombreTabla);
+    void actualizarVistaDatosDesdeFormulario(const QString& nombreTabla);
     // Referencias de tabla actual
     QWidget *tablaActual;
     QString tablaActualNombre;

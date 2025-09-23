@@ -3,7 +3,7 @@
 #include "relacioneswidget.h"
 #include "metadata.h"
 #include "vistadiseno.h"
-
+#include <QDockWidget>
 #include <QDebug>
 #include <QInputDialog>
 #include <QScreen>
@@ -33,6 +33,7 @@
 #include <QPushButton> // Include QPushButton
 #include <QToolButton> // Include QToolButton
 #include "consultawidget.h"
+#include "gestorformularios.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), vistaHojaDatos(false), filtroActivo(false), tablaActual(nullptr),
@@ -141,7 +142,7 @@ MainWindow::MainWindow(QWidget *parent)
     zonaCentral->setTabsClosable(true);
     zonaCentral->setMovable(true);
 
-    // Conectar señales
+    // Conectar seÃ±ales
     connect(zonaCentral, &QTabWidget::tabCloseRequested, this, &MainWindow::cerrarTab);
     connect(zonaCentral, &QTabWidget::currentChanged, this, &MainWindow::cambiarTablaActual);
 
@@ -175,7 +176,7 @@ MainWindow::MainWindow(QWidget *parent)
     resize(QGuiApplication::primaryScreen()->availableSize() * 0.8);
     setMinimumSize(1000, 700);
 
-    // Estilos para la aplicación
+    // Estilos para la aplicaciÃ³n
     aplicarEstilos();
 
     // Mostrar ribbon inicial (Inicio)
@@ -187,12 +188,11 @@ MainWindow::MainWindow(QWidget *parent)
         vistaHojaDatos = (index == 1);
         cambiarVista();
     });
-
-
+    connect(zonaCentral, &QTabWidget::currentChanged, this, &MainWindow::onTabChanged);
 
     // Conectar botones de insertar y eliminar fila
     // connect(btnInsertarFila, &QToolButton::clicked, this, &MainWindow::insertarFilaActual);
-    // connect(btnEliminarFila, &QToolButton::clicked, this, &MainWindow::eliminarFilaActual);
+    // connect(btnEliminarFila, &QToolButton::clicked, this, &MainWindow::eliminarFilaActual);z
 }
 
 void MainWindow::aplicarEstilos()
@@ -305,7 +305,7 @@ void MainWindow::crearRibbonTabs()
     ribbonTabLayout->setSpacing(0);
     ribbonTabLayout->setContentsMargins(20, 0, 0, 0);
 
-    // Botón Inicio
+    // BotÃ³n Inicio
     QToolButton *btnInicio = new QToolButton();
     btnInicio->setText("Inicio");
     btnInicio->setCheckable(true);
@@ -327,7 +327,7 @@ void MainWindow::crearRibbonTabs()
         );
     connect(btnInicio, &QToolButton::clicked, this, &MainWindow::mostrarRibbonInicio);
 
-    // Botón Crear
+    // BotÃ³n Crear
     QToolButton *btnCrear = new QToolButton();
     btnCrear->setText("Crear");
     btnCrear->setCheckable(true);
@@ -371,19 +371,19 @@ void MainWindow::crearRibbonInicio()
     inicioLayout->setSpacing(10);
     inicioLayout->setContentsMargins(15, 5, 15, 5);
 
-    // Sección Vista
+    // SecciÃ³n Vista
     QFrame *vistaFrame = crearSeccionRibbon("Vista");
     QVBoxLayout *vistaLayout = new QVBoxLayout(vistaFrame);
 
     comboVista = new QComboBox();
-    comboVista->addItem(QIcon(":/imgs/design-view.png"), "Vista Diseño");
+    comboVista->addItem(QIcon(":/imgs/design-view.png"), "Vista DiseÃ±o");
     comboVista->addItem(QIcon(":/imgs/datasheet-view.png"), "Vista Hoja de Datos");
     comboVista->setStyleSheet("QComboBox { height: 50px; }");
 
     vistaLayout->addWidget(comboVista);
     vistaFrame->setLayout(vistaLayout);
 
-    // Sección Filtros
+    // SecciÃ³n Filtros
     QFrame *filtrosFrame = crearSeccionRibbon("Filtros");
     QVBoxLayout *filtrosLayout = new QVBoxLayout(filtrosFrame);
 
@@ -391,7 +391,7 @@ void MainWindow::crearRibbonInicio()
     filtrosLayout->addWidget(btnFiltrar);
     filtrosFrame->setVisible(false);
 
-    // Sección Orden
+    // SecciÃ³n Orden
     QFrame *ordenFrame = crearSeccionRibbon("Orden");
     QHBoxLayout *ordenLayout = new QHBoxLayout(ordenFrame);
 
@@ -417,14 +417,14 @@ void MainWindow::crearRibbonInicio()
     separador->setStyleSheet("background-color: #d0d0d0;");
     separador->setVisible(false);
 
-    // Sección Llave Primaria
+    // SecciÃ³n Llave Primaria
     QFrame *primaryKeyFrame = crearSeccionRibbon("Clave");
     QVBoxLayout *primaryKeyLayout = new QVBoxLayout(primaryKeyFrame);
 
     btnLlavePrimaria = crearBotonRibbon(":/imgs/key.png", "Llave Primaria");
     primaryKeyLayout->addWidget(btnLlavePrimaria);
 
-    // Sección Filas - CORREGIDA
+    // SecciÃ³n Filas - CORREGIDA
     QFrame *filasFrame = crearSeccionRibbon("Filas");
     QHBoxLayout *filasMainLayout = new QHBoxLayout(filasFrame);
 
@@ -453,7 +453,7 @@ void MainWindow::crearRibbonInicio()
     botonesFilasWidget->setLayout(botonesFilasHLayout);
     filasMainLayout->addWidget(botonesFilasWidget);
 
-    // Sección Relaciones
+    // SecciÃ³n Relaciones
     QFrame *relacionesFrame = crearSeccionRibbon("Relaciones");
     QVBoxLayout *relacionesLayout = new QVBoxLayout(relacionesFrame);
 
@@ -491,46 +491,84 @@ void MainWindow::crearRibbonCrear()
     crearLayout->setSpacing(10);
     crearLayout->setContentsMargins(15, 5, 15, 5);
 
-    // Sección Tablas
+    // SecciÃ³n Tablas
     QFrame *tablasFrame = crearSeccionRibbon("Tablas");
     QHBoxLayout *tablasLayout = new QHBoxLayout(tablasFrame);
 
     QToolButton *btnTabla = crearBotonRibbon(":/imgs/datasheet-view.png", "Tabla");
-    QToolButton *btnDisenoTabla = crearBotonRibbon(":/imgs/form-design.png", "Diseño");
+    QToolButton *btnDisenoTabla = crearBotonRibbon(":/imgs/form-design.png", "DiseÃ±o");
     connect(btnTabla, &QToolButton::clicked, this, &MainWindow::crearNuevaTabla);
 
     tablasLayout->addWidget(btnTabla);
     tablasLayout->addWidget(btnDisenoTabla);
 
-    // Sección Consultas
+    // SecciÃ³n Consultas
     QFrame *queriesFrame = crearSeccionRibbon("Consultas");
     QHBoxLayout *queriesLayout = new QHBoxLayout(queriesFrame);
 
     QToolButton *btnConsulta = crearBotonRibbon(":/imgs/query.png", "Consulta");
     connect(btnConsulta, &QToolButton::clicked, this, &MainWindow::crearNuevaConsulta);
 
-    QToolButton *btnDisenoConsulta = crearBotonRibbon(":/imgs/form-design.png", "Diseño");
+    QToolButton *btnDisenoConsulta = crearBotonRibbon(":/imgs/form-design.png", "DiseÃ±o");
 
     queriesLayout->addWidget(btnConsulta);
     queriesLayout->addWidget(btnDisenoConsulta);
 
-    // Sección Formularios
+    // ----------------------
+    // SecciÃ³n Formularios
+    // ----------------------
     QFrame *formsFrame = crearSeccionRibbon("Formularios");
     QHBoxLayout *formsLayout = new QHBoxLayout(formsFrame);
 
+    // BotÃ³n de Formulario
     QToolButton *btnFormulario = crearBotonRibbon(":/imgs/form.png", "Formulario");
-    QToolButton *btnDisenoFormulario = crearBotonRibbon(":/imgs/form-design.png", "Diseño");
+    btnFormulario->setToolTip("Crear un formulario basado en la tabla actual");
+    connect(btnFormulario, &QToolButton::clicked, this, [this]() {
+        if (!tablaActual) {
+            QMessageBox::warning(this, "Error", "Debe abrir primero una tabla para crear un formulario.");
+            return;
+        }
+
+        VistaDatos *vistaDatosActual = tablaActual->property("tablaDataSheet").value<VistaDatos*>();
+        if (!vistaDatosActual) {
+            QMessageBox::warning(this, "Error", "La tabla actual no tiene vista de datos.");
+            return;
+        }
+
+        Metadata meta = vistaDatosActual->getMetadataActual();
+        FormularioWidget *form = new FormularioWidget(meta, vistaDatosActual, this);
+
+        // Conectar seÃ±al para actualizar tabla cuando se inserte desde formulario
+        connect(form, &FormularioWidget::registroInsertado,
+                this, [this, nombreTabla = meta.nombreTabla]() {
+                    actualizarVistaDatosDesdeFormulario(nombreTabla);
+                });
+
+        // ðŸ”¹ Guardar en formularios.json
+        static GestorFormularios gestor;
+        gestor.guardarFormulario("Formulario" + meta.nombreTabla, meta);
+
+        int index = zonaCentral->addTab(form, "Formulario " + meta.nombreTabla);
+        zonaCentral->setCurrentIndex(index);
+    });
+
+
+    // BotÃ³n de diseÃ±o de formulario (placeholder)
+    QToolButton *btnDisenoFormulario = crearBotonRibbon(":/imgs/form-design.png", "DiseÃ±o");
+    btnDisenoFormulario->setToolTip("Abrir el diseÃ±ador de formularios (en construcciÃ³n)");
+    connect(btnDisenoFormulario, &QToolButton::clicked, this, [this]() {
+        QMessageBox::information(this, "DiseÃ±o de formularios", "La opciÃ³n de diseÃ±o de formularios estÃ¡ en desarrollo.");
+    });
 
     formsLayout->addWidget(btnFormulario);
     formsLayout->addWidget(btnDisenoFormulario);
 
-    // Sección Reportes
-    // Sección Reportes
+    // SecciÃ³n Reportes
     QFrame *reportsFrame = crearSeccionRibbon("Reportes");
     QHBoxLayout *reportsLayout = new QHBoxLayout(reportsFrame);
 
     QToolButton *btnReporte = crearBotonRibbon(":/imgs/report.png", "Reporte");
-    QToolButton *btnDisenoReporte = crearBotonRibbon(":/imgs/form-design.png", "Diseño");
+    QToolButton *btnDisenoReporte = crearBotonRibbon(":/imgs/form-design.png", "DiseÃ±o");
 
     reportsLayout->addWidget(btnReporte);
     reportsLayout->addWidget(btnDisenoReporte);
@@ -547,7 +585,7 @@ void MainWindow::crearRibbonCrear()
     connect(btnReporte, &QToolButton::clicked, this, [=]() {
         QVector<Metadata> metadatos;
 
-        // 🔹 Cargar todas las tablas disponibles
+        // ðŸ”¹ Cargar todas las tablas disponibles
         QDir dir(QDir::currentPath() + "/tables");
         QStringList archivosMeta = dir.entryList(QStringList() << "*.meta", QDir::Files);
         for (const QString &fileName : archivosMeta) {
@@ -555,7 +593,7 @@ void MainWindow::crearRibbonCrear()
             metadatos.append(meta);
         }
 
-        // 🔹 Crear y mostrar el reporte
+        // ðŸ”¹ Crear y mostrar el reporte
         ReporteWidget *reporte = new ReporteWidget(this);
         reporte->generarReporte(metadatos);
         reporte->exec();
@@ -595,7 +633,7 @@ void MainWindow::mostrarRibbonInicio()
         ribbonCrear->setVisible(false);
     }
 
-    // Mostrar el ribbon de Inicio si no está visible
+    // Mostrar el ribbon de Inicio si no estÃ¡ visible
     if (ribbonInicio && !ribbonInicio->isVisible()) {
         addToolBar(Qt::TopToolBarArea, ribbonInicio);
         ribbonInicio->setVisible(true);
@@ -604,7 +642,7 @@ void MainWindow::mostrarRibbonInicio()
     // Usar el estado actual del combo box
     bool esHojaDatos = (comboVista && comboVista->currentIndex() == 1);
 
-    // Mostrar/ocultar secciones según la vista
+    // Mostrar/ocultar secciones segÃºn la vista
     foreach(QFrame *frame, seccionesVistaHojaDatos) {
         if (frame) frame->setVisible(esHojaDatos);
     }
@@ -614,14 +652,14 @@ void MainWindow::mostrarRibbonInicio()
     }
 
     if (!esHojaDatos){
-            // Actualizar propiedades para la vista diseño si existe una tabla abierta
-            QWidget *currentTab = zonaCentral->currentWidget();
-            if (currentTab && currentTab != zonaCentral->widget(0)) {
-                VistaDiseno *tablaDesign = currentTab->property("tablaDesign").value<VistaDiseno*>();
-                if (tablaDesign) {
-                    tablaDesign->actualizarPropiedades();
-                }
+        // Actualizar propiedades para la vista diseÃ±o si existe una tabla abierta
+        QWidget *currentTab = zonaCentral->currentWidget();
+        if (currentTab && currentTab != zonaCentral->widget(0)) {
+            VistaDiseno *tablaDesign = currentTab->property("tablaDesign").value<VistaDiseno*>();
+            if (tablaDesign) {
+                tablaDesign->actualizarPropiedades();
             }
+        }
     }
 }
 
@@ -633,7 +671,7 @@ void MainWindow::mostrarRibbonCrear()
         ribbonInicio->setVisible(false);
     }
 
-    // Mostrar el ribbon de Crear si no está visible
+    // Mostrar el ribbon de Crear si no estÃ¡ visible
     if (ribbonCrear && !ribbonCrear->isVisible()) {
         addToolBar(Qt::TopToolBarArea, ribbonCrear);
         ribbonCrear->setVisible(true);
@@ -667,13 +705,13 @@ void MainWindow::abrirTabla(QListWidgetItem *item)
     tablaActualNombre = item->data(Qt::UserRole).toString();
     Metadata meta;
 
-    // Si el nombre está vacío, significa que el item no es una tabla real
+    // Si el nombre estÃ¡ vacÃ­o, significa que el item no es una tabla real
     if (tablaActualNombre.isEmpty()) {
         qDebug() << "Intento de abrir un item sin nombre de tabla.";
         return;
     }
 
-    // Ya existe una pestaña abierta para esta tabla?
+    // Ya existe una pestaÃ±a abierta para esta tabla?
     for (int i = 0; i < zonaCentral->count(); ++i) {
         if (zonaCentral->tabText(i) == tablaActualNombre) {
             zonaCentral->setCurrentIndex(i);
@@ -694,14 +732,16 @@ void MainWindow::abrirTabla(QListWidgetItem *item)
     QVBoxLayout *containerLayout = new QVBoxLayout(tablaContainer);
     containerLayout->setContentsMargins(0, 0, 0, 0);
 
-    // Crear stacked widget para alternar entre vista diseño y hoja de datos
+    // Crear stacked widget para alternar entre vista diseÃ±o y hoja de datos
     QStackedWidget *tablaStacked = new QStackedWidget();
 
     // Crear ambas vistas
     VistaDiseno *tablaDesign = new VistaDiseno();
     VistaDatos *tablaDataSheet = new VistaDatos();
+    connect(tablaDataSheet, &VistaDatos::datosModificados,
+            this, &MainWindow::actualizarFormularioDesdeTabla);
 
-    // ⭐ CRÍTICO: Establecer nombre de tabla ANTES de cargar metadatos
+    // â­ CRÃTICO: Establecer nombre de tabla ANTES de cargar metadatos
     tablaDataSheet->establecerNombreTabla(tablaActualNombre);
 
     // Cargar estructura en ambas vistas
@@ -709,7 +749,7 @@ void MainWindow::abrirTabla(QListWidgetItem *item)
     tablaDataSheet->cargarDesdeMetadata(meta);
     tablaDataSheet->cargarRelaciones("relationships.dat");
 
-    // Añadir ambas vistas al stacked widget
+    // AÃ±adir ambas vistas al stacked widget
     tablaStacked->addWidget(tablaDesign);
     tablaStacked->addWidget(tablaDataSheet);
 
@@ -719,11 +759,11 @@ void MainWindow::abrirTabla(QListWidgetItem *item)
     tablaDesign->setNombreTabla(tablaActualNombre);
     tablaDesign->setCamposRelacionados(camposRelacionados);
 
-    // Conectar señal de modificación
+    // Conectar seÃ±al de modificaciÃ³n
     connect(tablaDesign, &VistaDiseno::metadatosModificados,
             this, &MainWindow::onMetadatosModificados);
 
-    // Configurar la vista inicial según comboVista
+    // Configurar la vista inicial segÃºn comboVista
     if (comboVista->currentIndex() == 1) {
         tablaStacked->setCurrentWidget(tablaDataSheet);
     } else {
@@ -732,7 +772,7 @@ void MainWindow::abrirTabla(QListWidgetItem *item)
 
     containerLayout->addWidget(tablaStacked);
 
-    // Añadir el nuevo tab
+    // AÃ±adir el nuevo tab
     int newTabIndex = zonaCentral->addTab(tablaContainer, tablaActualNombre);
     zonaCentral->setCurrentIndex(newTabIndex);
 
@@ -741,7 +781,7 @@ void MainWindow::abrirTabla(QListWidgetItem *item)
     tablaContainer->setProperty("tablaDataSheet", QVariant::fromValue(tablaDataSheet));
     tablaContainer->setProperty("tablaStacked", QVariant::fromValue(tablaStacked));
 
-    // Conectar botón de PK a la vista activa
+    // Conectar botÃ³n de PK a la vista activa
     //disconnect(btnLlavePrimaria, &QToolButton::clicked, 0, 0);
     actualizarConexionesBotones();
     if (comboVista->currentIndex() == 1) {
@@ -768,10 +808,10 @@ void MainWindow::cambiarTablaActual(int index)
     if (tabName == "Relaciones") {
         RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(index));
         if (relaciones) {
-            relaciones->refrescarTablas();  // 🔹 ahora refresca sin perder relaciones
+            relaciones->refrescarTablas();  // ðŸ”¹ ahora refresca sin perder relaciones
             // En el constructor o donde crees RelacionesWidget
             connect(this, &MainWindow::actualizarRelaciones, this, [this]() {
-                // Buscar la pestaña de relaciones y actualizarla
+                // Buscar la pestaÃ±a de relaciones y actualizarla
                 for (int i = 0; i < zonaCentral->count(); ++i) {
                     RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
                     if (relaciones) {
@@ -793,13 +833,13 @@ void MainWindow::cambiarTablaActual(int index)
 }
 //Metodo nuevo
 void MainWindow::actualizarTablasAbiertasConRelaciones() {
-    qDebug() << "🔄 Actualizando todas las tablas abiertas con nuevas relaciones...";
+    qDebug() << "ðŸ”„ Actualizando todas las tablas abiertas con nuevas relaciones...";
 
     for (int i = 0; i < zonaCentral->count(); ++i) {
         QString tabName = zonaCentral->tabText(i);
 
-        // Ignorar pestañas especiales
-        if (tabName.startsWith("Diseño de Consulta") ||
+        // Ignorar pestaÃ±as especiales
+        if (tabName.startsWith("DiseÃ±o de Consulta") ||
             tabName.startsWith("Consulta") ||
             tabName.startsWith("Relaciones") ||
             tabName == "Inicio") {
@@ -814,26 +854,26 @@ void MainWindow::actualizarTablasAbiertasConRelaciones() {
         VistaDatos *tablaDataSheet = tabContainer->property("tablaDataSheet").value<VistaDatos*>();
 
         if (tablaDesign) {
-            // ⭐ ACTUALIZAR CAMPOS RELACIONADOS EN VISTA DISEÑO
+            // â­ ACTUALIZAR CAMPOS RELACIONADOS EN VISTA DISEÃ‘O
             QSet<QString> camposRelacionados = obtenerCamposRelacionados(tabName);
             tablaDesign->setCamposRelacionados(camposRelacionados);
             tablaDesign->actualizarEstadoCampos();
-            qDebug() << "✅ Actualizados campos relacionados para tabla" << tabName << ":" << camposRelacionados;
+            qDebug() << "âœ… Actualizados campos relacionados para tabla" << tabName << ":" << camposRelacionados;
         }
 
         if (tablaDataSheet) {
-            // ⭐ RECARGAR RELACIONES EN VISTA DATOS
+            // â­ RECARGAR RELACIONES EN VISTA DATOS
             tablaDataSheet->cargarRelaciones("relationships.dat");
-            qDebug() << "✅ Recargadas relaciones para VistaDatos de tabla" << tabName;
+            qDebug() << "âœ… Recargadas relaciones para VistaDatos de tabla" << tabName;
         }
     }
-    // ⭐ TAMBIÉN ACTUALIZAR LA PESTAÑA DE RELACIONES SI ESTÁ ABIERTA
+    // â­ TAMBIÃ‰N ACTUALIZAR LA PESTAÃ‘A DE RELACIONES SI ESTÃ ABIERTA
     for (int i = 0; i < zonaCentral->count(); ++i) {
         if (zonaCentral->tabText(i) == "Relaciones") {
             RelacionesWidget *relacionesWidget = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
             if (relacionesWidget) {
                 relacionesWidget->refrescarTablas();
-                qDebug() << "✅ Pestaña de relaciones actualizada";
+                qDebug() << "âœ… PestaÃ±a de relaciones actualizada";
             }
             break;
         }
@@ -843,7 +883,7 @@ void MainWindow::actualizarTablasAbiertasConRelaciones() {
 void MainWindow::actualizarConexionesBotones()
 {
     if (!tablaActual) {
-        qDebug() << "⚠️ actualizarConexionesBotones: No hay tabla actual";
+        qDebug() << "âš ï¸ actualizarConexionesBotones: No hay tabla actual";
         return;
     }
 
@@ -857,11 +897,11 @@ void MainWindow::actualizarConexionesBotones()
     VistaDatos *tablaDataSheet = tablaActual->property("tablaDataSheet").value<VistaDatos*>();
 
     if (vistaHojaDatos && tablaDataSheet) {
-        qDebug() << "🔗 Conectando botones a VistaDatos para tabla:" << tablaActualNombre;
+        qDebug() << "ðŸ”— Conectando botones a VistaDatos para tabla:" << tablaActualNombre;
 
-        // ⭐ VERIFICAR que VistaDatos tiene nombre de tabla configurado
+        // â­ VERIFICAR que VistaDatos tiene nombre de tabla configurado
         if (tablaDataSheet->obtenerNombreTabla().isEmpty()) {
-            qDebug() << "⚠️ VistaDatos no tiene nombre de tabla, configurando:" << tablaActualNombre;
+            qDebug() << "âš ï¸ VistaDatos no tiene nombre de tabla, configurando:" << tablaActualNombre;
             tablaDataSheet->establecerNombreTabla(tablaActualNombre);
         }
 
@@ -870,8 +910,10 @@ void MainWindow::actualizarConexionesBotones()
         connect(btnEliminarFila, &QToolButton::clicked, tablaDataSheet, &VistaDatos::eliminarRegistro);
         connect(tablaDataSheet, &VistaDatos::solicitarDatosRelacionados,
                 this, &MainWindow::onSolicitarDatosRelacionados);
+        connect(tablaDataSheet, &VistaDatos::datosModificados,
+                this, &MainWindow::actualizarFormularioDesdeTabla, Qt::UniqueConnection);
     } else if (tablaDesign) {
-        qDebug() << "🔗 Conectando botones a VistaDiseno para tabla:" << tablaActualNombre;
+        qDebug() << "ðŸ”— Conectando botones a VistaDiseno para tabla:" << tablaActualNombre;
         connect(btnLlavePrimaria, &QToolButton::clicked, tablaDesign, &VistaDiseno::establecerPK);
         connect(btnInsertarFila, &QToolButton::clicked, tablaDesign, &VistaDiseno::agregarCampo);
         connect(btnEliminarFila, &QToolButton::clicked, tablaDesign, &VistaDiseno::eliminarCampo);
@@ -906,7 +948,7 @@ void MainWindow::eliminarFilaActual()
 
 void MainWindow::onSolicitarDatosRelacionados(const QString &tabla, const QString &campo, const QString &valor)
 {
-    // Si quieres cargar datos existentes además de permitir edición:
+    // Si quieres cargar datos existentes ademÃ¡s de permitir ediciÃ³n:
     //QList<QMap<QString, QVariant>> datosExistentes = baseDeDatos.obtenerRelacionesExistentes(tabla, campo, valor);
 
     // Enviar datos existentes al widget
@@ -922,8 +964,8 @@ void MainWindow::cambiarVista()
 
     QString tabName = zonaCentral->tabText(zonaCentral->currentIndex());
 
-    // 🔹 No guardar consultas ni relaciones como tablas
-    if (tabName.startsWith("Diseño de Consulta") ||
+    // ðŸ”¹ No guardar consultas ni relaciones como tablas
+    if (tabName.startsWith("DiseÃ±o de Consulta") ||
         tabName.startsWith("Consulta") ||
         tabName.startsWith("Relaciones")) {
         return;
@@ -939,7 +981,7 @@ void MainWindow::cambiarVista()
 
     // En el constructor o donde crees RelacionesWidget
     connect(this, &MainWindow::actualizarRelaciones, this, [this]() {
-        // Buscar la pestaña de relaciones y actualizarla
+        // Buscar la pestaÃ±a de relaciones y actualizarla
         for (int i = 0; i < zonaCentral->count(); ++i) {
             RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
             if (relaciones) {
@@ -951,13 +993,13 @@ void MainWindow::cambiarVista()
 
     if (!tablaStacked) return;
 
-    // ⭐ CRÍTICO: Asegurar que VistaDatos tiene el nombre de tabla correcto
+    // â­ CRÃTICO: Asegurar que VistaDatos tiene el nombre de tabla correcto
     if (tablaDataSheet && !tablaActualNombre.isEmpty()) {
         tablaDataSheet->establecerNombreTabla(tablaActualNombre);
         tablaDataSheet->cargarRelaciones("relationships.dat");
     }
 
-    // 🔹 Crear metadata con lo que esté actualmente en memoria
+    // ðŸ”¹ Crear metadata con lo que estÃ© actualmente en memoria
     Metadata meta(tablaActualNombre);
 
     if (tablaDesign) {
@@ -974,7 +1016,7 @@ void MainWindow::cambiarVista()
         return;
     }
 
-    // 🔹 Desconectar combo temporalmente para evitar loops
+    // ðŸ”¹ Desconectar combo temporalmente para evitar loops
     disconnect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), 0, 0);
 
     if (vistaHojaDatos) {
@@ -983,7 +1025,7 @@ void MainWindow::cambiarVista()
         if (tablaDataSheet) {
             Metadata recargada = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
 
-            // ⭐ IMPORTANTE: Establecer nombre ANTES de cargar
+            // â­ IMPORTANTE: Establecer nombre ANTES de cargar
             tablaDataSheet->establecerNombreTabla(tablaActualNombre);
             tablaDataSheet->cargarDesdeMetadata(recargada);
             tablaDataSheet->cargarRelaciones("relationships.dat");
@@ -999,7 +1041,7 @@ void MainWindow::cambiarVista()
                 tablaDesign->cargarCampos(recargada.campos);
                 tablaDesign->setNombreTabla(tablaActualNombre);
 
-                // ⭐ CRÍTICO: Actualizar campos relacionados DESPUÉS de cargar
+                // â­ CRÃTICO: Actualizar campos relacionados DESPUÃ‰S de cargar
                 QSet<QString> camposRelacionados = obtenerCamposRelacionados(tablaActualNombre);
                 tablaDesign->setCamposRelacionados(camposRelacionados);
 
@@ -1008,7 +1050,7 @@ void MainWindow::cambiarVista()
                 tablaDesign->actualizarPropiedades();
             } catch (const std::runtime_error& e) {
                 QMessageBox::critical(this, "Error de Recarga",
-                                      QString("No se pudo recargar el diseño de la tabla. Error: %1").arg(e.what()));
+                                      QString("No se pudo recargar el diseÃ±o de la tabla. Error: %1").arg(e.what()));
             }
         }
     }
@@ -1021,18 +1063,18 @@ void MainWindow::cambiarVista()
 
     actualizarConexionesBotones();
     mostrarRibbonInicio();
-    qDebug() << "✅ Vista cambiada para tabla:" << tablaActualNombre;
+    qDebug() << "âœ… Vista cambiada para tabla:" << tablaActualNombre;
 }
 
 
 void MainWindow::abrirRelaciones()
 {
-    // 🔹 Verificar si ya existe una pestaña "Relaciones"
+    // ðŸ”¹ Verificar si ya existe una pestaÃ±a "Relaciones"
     for (int i = 0; i < zonaCentral->count(); ++i) {
         if (zonaCentral->tabText(i) == "Relaciones") {
-            zonaCentral->setCurrentIndex(i); // seleccionar pestaña existente
+            zonaCentral->setCurrentIndex(i); // seleccionar pestaÃ±a existente
 
-            // ⭐ REFRESCAR LA PESTAÑA EXISTENTE
+            // â­ REFRESCAR LA PESTAÃ‘A EXISTENTE
             RelacionesWidget *relacionesWidget = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
             if (relacionesWidget) {
                 relacionesWidget->refrescarTablas();
@@ -1042,7 +1084,7 @@ void MainWindow::abrirRelaciones()
         }
     }
 
-    // 🔹 Guardar metadatos de la tabla actual si hay una abierta
+    // ðŸ”¹ Guardar metadatos de la tabla actual si hay una abierta
     if (tablaActual) {
         VistaDiseno *tablaDesign = tablaActual->property("tablaDesign").value<VistaDiseno*>();
         VistaDatos *tablaDataSheet = tablaActual->property("tablaDataSheet").value<VistaDatos*>();
@@ -1060,7 +1102,7 @@ void MainWindow::abrirRelaciones()
         }
     }
 
-    // 🔹 Crear nueva pestaña de relaciones solo si no existía
+    // ðŸ”¹ Crear nueva pestaÃ±a de relaciones solo si no existÃ­a
     RelacionesWidget *relacionesWidget = new RelacionesWidget();
     int tabIndex = zonaCentral->addTab(relacionesWidget, "Relaciones");
     zonaCentral->setCurrentIndex(tabIndex);
@@ -1088,10 +1130,10 @@ void MainWindow::abrirRelaciones()
 void MainWindow::guardarRelacionEnBD(const QString &tabla1, const QString &campo1,
                                      const QString &tabla2, const QString &campo2)
 {
-    qDebug() << "💾 Guardando relación:" << tabla1 << "." << campo1
+    qDebug() << "ðŸ’¾ Guardando relaciÃ³n:" << tabla1 << "." << campo1
              << "->" << tabla2 << "." << campo2;
 
-    // Verificar que la relación no existe ya
+    // Verificar que la relaciÃ³n no existe ya
     QFile relacionesFile("relationships.dat");
     if (relacionesFile.open(QIODevice::ReadOnly)) {
         QTextStream in(&relacionesFile);
@@ -1101,7 +1143,7 @@ void MainWindow::guardarRelacionEnBD(const QString &tabla1, const QString &campo
             if (parts.size() == 4) {
                 if (parts[0] == tabla1 && parts[1] == campo1 &&
                     parts[2] == tabla2 && parts[3] == campo2) {
-                    qDebug() << "⚠️ Relación ya existe, no se guardará duplicada";
+                    qDebug() << "âš ï¸ RelaciÃ³n ya existe, no se guardarÃ¡ duplicada";
                     relacionesFile.close();
                     return;
                 }
@@ -1110,28 +1152,28 @@ void MainWindow::guardarRelacionEnBD(const QString &tabla1, const QString &campo
         relacionesFile.close();
     }
 
-    // Guardar nueva relación
+    // Guardar nueva relaciÃ³n
     if (relacionesFile.open(QIODevice::WriteOnly | QIODevice::Append)) {
         QTextStream stream(&relacionesFile);
         stream << tabla1 << "|" << campo1 << "|" << tabla2 << "|" << campo2 << "\n";
         relacionesFile.close();
 
-        qDebug() << "✅ Relación guardada correctamente";
+        qDebug() << "âœ… RelaciÃ³n guardada correctamente";
 
-        // ⭐ ACTUALIZAR TODAS LAS TABLAS ABIERTAS
+        // â­ ACTUALIZAR TODAS LAS TABLAS ABIERTAS
         actualizarTablasAbiertasConRelaciones();
 
-        // Emitir señal para actualizar otros componentes
+        // Emitir seÃ±al para actualizar otros componentes
         emit actualizarRelaciones();
     } else {
-        qDebug() << "❌ Error al guardar relación en archivo";
+        qDebug() << "âŒ Error al guardar relaciÃ³n en archivo";
     }
 }
-// ⭐ NUEVO MÉTODO: Eliminar relación de BD (si no existe, agregarlo)
+// â­ NUEVO MÃ‰TODO: Eliminar relaciÃ³n de BD (si no existe, agregarlo)
 void MainWindow::eliminarRelacionDeBD(const QString &tabla1, const QString &campo1,
                                       const QString &tabla2, const QString &campo2)
 {
-    qDebug() << "Eliminando relación:" << tabla1 << "." << campo1
+    qDebug() << "Eliminando relaciÃ³n:" << tabla1 << "." << campo1
              << "->" << tabla2 << "." << campo2;
 
     QFile relacionesFile("relationships.dat");
@@ -1155,12 +1197,12 @@ void MainWindow::eliminarRelacionDeBD(const QString &tabla1, const QString &camp
             QString t2 = parts[2].trimmed();
             QString c2 = parts[3].trimmed();
 
-            // COMPARACIÓN EXACTA - eliminar solo la relación específica
+            // COMPARACIÃ“N EXACTA - eliminar solo la relaciÃ³n especÃ­fica
             if (t1 == tabla1 && c1 == campo1 && t2 == tabla2 && c2 == campo2) {
                 relacionEliminada = true;
-                qDebug() << "Relación encontrada y marcada para eliminación";
+                qDebug() << "RelaciÃ³n encontrada y marcada para eliminaciÃ³n";
             } else {
-                // Mantener todas las demás relaciones
+                // Mantener todas las demÃ¡s relaciones
                 relacionesRestantes.append(line);
             }
         }
@@ -1168,7 +1210,7 @@ void MainWindow::eliminarRelacionDeBD(const QString &tabla1, const QString &camp
     relacionesFile.close();
 
     if (!relacionEliminada) {
-        qDebug() << "ADVERTENCIA: No se encontró la relación exacta a eliminar";
+        qDebug() << "ADVERTENCIA: No se encontrÃ³ la relaciÃ³n exacta a eliminar";
         qDebug() << "Buscaba:" << tabla1 << "|" << campo1 << "|" << tabla2 << "|" << campo2;
         return;
     }
@@ -1181,13 +1223,13 @@ void MainWindow::eliminarRelacionDeBD(const QString &tabla1, const QString &camp
         }
         relacionesFile.close();
 
-        qDebug() << "Relación eliminada correctamente del archivo";
+        qDebug() << "RelaciÃ³n eliminada correctamente del archivo";
         qDebug() << "Relaciones restantes:" << relacionesRestantes.size();
 
-        // Actualizar todas las tablas abiertas DESPUÉS de confirmar eliminación del archivo
+        // Actualizar todas las tablas abiertas DESPUÃ‰S de confirmar eliminaciÃ³n del archivo
         actualizarTablasAbiertasConRelaciones();
 
-        // Emitir señal para actualizar otros componentes
+        // Emitir seÃ±al para actualizar otros componentes
         emit actualizarRelaciones();
     } else {
         qDebug() << "ERROR: No se pudo reescribir archivo de relaciones";
@@ -1196,7 +1238,7 @@ void MainWindow::eliminarRelacionDeBD(const QString &tabla1, const QString &camp
 
 void MainWindow::cerrarRelacionesYVolver()
 {
-    // Buscar la pestaña de relaciones
+    // Buscar la pestaÃ±a de relaciones
     for (int i = 0; i < zonaCentral->count(); ++i) {
         QWidget *tabWidget = zonaCentral->widget(i);
         if (qobject_cast<RelacionesWidget*>(tabWidget)) {
@@ -1216,8 +1258,8 @@ void MainWindow::cerrarTab(int index)
 
     QString tabName = zonaCentral->tabText(index);
 
-    // 🔹 Evitar guardar consultas y relaciones como tablas
-    if (tabName.startsWith("Diseño de Consulta") ||
+    // ðŸ”¹ Evitar guardar consultas y relaciones como tablas
+    if (tabName.startsWith("DiseÃ±o de Consulta") ||
         tabName.startsWith("Consulta") ||
         tabName.startsWith("Relaciones")) {
         zonaCentral->removeTab(index);
@@ -1281,7 +1323,7 @@ void MainWindow::crearNuevaTabla() {
                                                 "TablaNueva", &ok);
     if (!ok || nombreTabla.isEmpty()) return;
 
-    // Validar nombre único
+    // Validar nombre Ãºnico
     if (!nombreTablaEsUnico(nombreTabla)) {
         QMessageBox::critical(this, tr("Tabla NO creada"), tr("Nombre ya registrado, ingrese uno diferente."));
         return;
@@ -1304,7 +1346,7 @@ void MainWindow::crearNuevaTabla() {
         return;
     }
 
-    // 🔹 Inicia la creación del QListWidgetItem con el widget personalizado
+    // ðŸ”¹ Inicia la creaciÃ³n del QListWidgetItem con el widget personalizado
     QListWidgetItem *item = new QListWidgetItem(listaTablas);
     item->setData(Qt::UserRole, nombreTabla); // Almacenar el nombre de la tabla
 
@@ -1334,7 +1376,7 @@ void MainWindow::crearNuevaTabla() {
     itemLayout->addWidget(menuButton);
     itemLayout->setContentsMargins(0, 0, 0, 0);
 
-    // Es importante ajustar el tamaño y añadir el item a la lista
+    // Es importante ajustar el tamaÃ±o y aÃ±adir el item a la lista
     item->setSizeHint(itemWidget->sizeHint());
     listaTablas->addItem(item);
     listaTablas->setItemWidget(item, itemWidget);
@@ -1344,32 +1386,32 @@ void MainWindow::crearNuevaTabla() {
     QVBoxLayout *containerLayout = new QVBoxLayout(tablaContainer);
     containerLayout->setContentsMargins(0, 0, 0, 0);
 
-    // Crear stacked widget para alternar entre vista diseño y hoja de datos
+    // Crear stacked widget para alternar entre vista diseÃ±o y hoja de datos
     QStackedWidget *tablaStacked = new QStackedWidget();
 
     // Crear ambas vistas
     VistaDiseno *tablaDesign = new VistaDiseno();
     VistaDatos *tablaDataSheet = new VistaDatos();
 
-    // ⭐ CRÍTICO: Establecer nombre de tabla ANTES de cargar cualquier cosa
+    // â­ CRÃTICO: Establecer nombre de tabla ANTES de cargar cualquier cosa
     tablaDataSheet->establecerNombreTabla(nombreTabla);
-    // Cargar campos en vista diseño
+    // Cargar campos en vista diseÃ±o
     tablaDesign->cargarCampos(meta.campos);
     tablaDesign->setNombreTabla(nombreTabla);
 
     // Cargar metadata en vista datos
     tablaDataSheet->cargarDesdeMetadata(meta);
 
-    // Añadir ambas vistas al stacked widget
+    // AÃ±adir ambas vistas al stacked widget
     tablaStacked->addWidget(tablaDesign);
     tablaStacked->addWidget(tablaDataSheet);
 
-    // Configurar la vista inicial según el modo actual (vista diseño por defecto)
+    // Configurar la vista inicial segÃºn el modo actual (vista diseÃ±o por defecto)
     tablaStacked->setCurrentWidget(tablaDesign);
 
     containerLayout->addWidget(tablaStacked);
 
-    // Añadir el nuevo tab
+    // AÃ±adir el nuevo tab
     int newTabIndex = zonaCentral->addTab(tablaContainer, nombreTabla);
     zonaCentral->setCurrentIndex(newTabIndex);
 
@@ -1382,19 +1424,19 @@ void MainWindow::crearNuevaTabla() {
     tablaActual = tablaContainer;
     tablaActualNombre = nombreTabla;
 
-    // Conectar señales según la vista actual (vista diseño)
+    // Conectar seÃ±ales segÃºn la vista actual (vista diseÃ±o)
     actualizarConexionesBotones();
     connect(btnLlavePrimaria, &QToolButton::clicked,
             tablaDesign, &VistaDiseno::establecerPK);
 
-    // Conectar señal de modificación
+    // Conectar seÃ±al de modificaciÃ³n
     connect(tablaDesign, &VistaDiseno::metadatosModificados,
             this, &MainWindow::onMetadatosModificados);
 
     // Mostrar ribbon de Inicio
     mostrarRibbonInicio();
 
-    qDebug() << "✅ Tabla creada y configurada:" << nombreTabla;
+    qDebug() << "âœ… Tabla creada y configurada:" << nombreTabla;
 
 
     // Abrir la nueva tabla
@@ -1407,8 +1449,8 @@ void MainWindow::guardarTablasAbiertas()
 
         QString tabName = zonaCentral->tabText(i);
 
-        // 🔹 Ignorar consultas y relaciones
-        if (tabName.startsWith("Diseño de Consulta") ||
+        // ðŸ”¹ Ignorar consultas y relaciones
+        if (tabName.startsWith("DiseÃ±o de Consulta") ||
             tabName.startsWith("Consulta") ||
             tabName.startsWith("Relaciones")) {
             continue;
@@ -1440,7 +1482,7 @@ void MainWindow::ordenarRegistros(Qt::SortOrder order)
 
     VistaDatos *tablaDataSheet = tablaStacked->findChild<VistaDatos*>();
     if (tablaDataSheet) {
-        // Llamar a la función de ordenamiento en VistaDatos
+        // Llamar a la funciÃ³n de ordenamiento en VistaDatos
         tablaDataSheet->ordenar(order);
     }
 }
@@ -1474,7 +1516,7 @@ void MainWindow::onMetadatosModificados() {
     if (!tablaActualNombre.isEmpty()) {
         QSet<QString> camposRelacionados = obtenerCamposRelacionados(tablaActualNombre);
 
-        // Obtener la vista de diseño actual
+        // Obtener la vista de diseÃ±o actual
         QWidget *currentTab = zonaCentral->currentWidget();
         if (currentTab) {
             VistaDiseno *tablaDesign = currentTab->property("tablaDesign").value<VistaDiseno*>();
@@ -1490,7 +1532,7 @@ void MainWindow::onMetadatosModificados() {
 
 void MainWindow::crearNuevaConsulta() {
     ConsultaWidget *cw = new ConsultaWidget();
-    int idx = zonaCentral->addTab(cw, "Diseño de Consulta");
+    int idx = zonaCentral->addTab(cw, "DiseÃ±o de Consulta");
     zonaCentral->setCurrentIndex(idx);
 }
 
@@ -1505,55 +1547,55 @@ void MainWindow::eliminarTabla(const QString& nombreTabla)
     // Confirmar con el usuario antes de eliminar
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, "Eliminar Tabla",
-                                  "¿Está seguro de que desea eliminar la tabla '" + nombreTabla + "'? Esta acción es irreversible.",
+                                  "Â¿EstÃ¡ seguro de que desea eliminar la tabla '" + nombreTabla + "'? Esta acciÃ³n es irreversible.",
                                   QMessageBox::Yes | QMessageBox::No);
     if (reply == QMessageBox::No) {
         return;
     }
-// 1. Cerrar la pestaña si está abierta
-for (int i = 0; i < zonaCentral->count(); ++i) {
-    if (zonaCentral->tabText(i) == nombreTabla) {
-        zonaCentral->removeTab(i);
-        break;
+    // 1. Cerrar la pestaÃ±a si estÃ¡ abierta
+    for (int i = 0; i < zonaCentral->count(); ++i) {
+        if (zonaCentral->tabText(i) == nombreTabla) {
+            zonaCentral->removeTab(i);
+            break;
+        }
     }
-}
 
-// 2. Eliminar de la lista de tablas (QListWidget)
-QListWidgetItem* itemToRemove = nullptr;
-for (int i = 0; i < listaTablas->count(); ++i) {
-    QListWidgetItem* item = listaTablas->item(i);
-    if (item->data(Qt::UserRole).toString() == nombreTabla) {
-        itemToRemove = item;
-        break;
+    // 2. Eliminar de la lista de tablas (QListWidget)
+    QListWidgetItem* itemToRemove = nullptr;
+    for (int i = 0; i < listaTablas->count(); ++i) {
+        QListWidgetItem* item = listaTablas->item(i);
+        if (item->data(Qt::UserRole).toString() == nombreTabla) {
+            itemToRemove = item;
+            break;
+        }
     }
-}
 
-if (itemToRemove) {
-    listaTablas->takeItem(listaTablas->row(itemToRemove));
-    delete itemToRemove;
-}
+    if (itemToRemove) {
+        listaTablas->takeItem(listaTablas->row(itemToRemove));
+        delete itemToRemove;
+    }
 
-// 3. Eliminar los archivos de metadatos y datos
-QString metaPath = QDir::currentPath() + "/tables/" + nombreTabla + ".meta";
-QString dataPath = QDir::currentPath() + "/tables/" + nombreTabla + ".dat";
+    // 3. Eliminar los archivos de metadatos y datos
+    QString metaPath = QDir::currentPath() + "/tables/" + nombreTabla + ".meta";
+    QString dataPath = QDir::currentPath() + "/tables/" + nombreTabla + ".dat";
 
-QFile metaFile(metaPath);
-QFile dataFile(dataPath);
+    QFile metaFile(metaPath);
+    QFile dataFile(dataPath);
 
-bool metaEliminado = metaFile.remove();
-bool dataEliminado = dataFile.exists() ? dataFile.remove() : true;
+    bool metaEliminado = metaFile.remove();
+    bool dataEliminado = dataFile.exists() ? dataFile.remove() : true;
 
-if (metaEliminado && dataEliminado) {
-    QMessageBox::information(this, "Eliminar Tabla", "La tabla '" + nombreTabla + "' ha sido eliminada correctamente.");
-} else {
-    QMessageBox::warning(this, "Eliminar Tabla",
-                         "No se pudieron eliminar todos los archivos de la tabla.\n"
-                         "Meta: " + QString(metaEliminado ? "Sí" : "No") + "\n" +
-                             "Data: " + QString(dataEliminado ? "Sí" : "No"));
-}
+    if (metaEliminado && dataEliminado) {
+        QMessageBox::information(this, "Eliminar Tabla", "La tabla '" + nombreTabla + "' ha sido eliminada correctamente.");
+    } else {
+        QMessageBox::warning(this, "Eliminar Tabla",
+                             "No se pudieron eliminar todos los archivos de la tabla.\n"
+                             "Meta: " + QString(metaEliminado ? "SÃ­" : "No") + "\n" +
+                                 "Data: " + QString(dataEliminado ? "SÃ­" : "No"));
+    }
 
-// 4. Actualizar la lista en RelacionesWidget si está abierta
-emit actualizarRelaciones();
+    // 4. Actualizar la lista en RelacionesWidget si estÃ¡ abierta
+    emit actualizarRelaciones();
 }
 
 
@@ -1585,7 +1627,7 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
     // 3. Renombrar el archivo .meta
     // Si el archivo .meta no existe, no se puede continuar.
     if (!QFile::exists(viejoMetaPath)) {
-        QMessageBox::critical(this, "Error", "El archivo de metadatos de la tabla no se encontró.");
+        QMessageBox::critical(this, "Error", "El archivo de metadatos de la tabla no se encontrÃ³.");
         return;
     }
     if (!QFile::rename(viejoMetaPath, nuevoMetaPath)) {
@@ -1593,11 +1635,11 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
         return;
     }
 
-    // 4. Renombrar el archivo .dat (opcional, no es crítico si falla)
+    // 4. Renombrar el archivo .dat (opcional, no es crÃ­tico si falla)
     // Se verifica si el archivo existe antes de intentar renombrarlo.
     if (QFile::exists(viejoDataPath)) {
         if (!QFile::rename(viejoDataPath, nuevoDataPath)) {
-            QMessageBox::warning(this, "Advertencia", "No se pudo renombrar el archivo .dat. La tabla ha sido renombrada, pero podría haber una inconsistencia.");
+            QMessageBox::warning(this, "Advertencia", "No se pudo renombrar el archivo .dat. La tabla ha sido renombrada, pero podrÃ­a haber una inconsistencia.");
         }
     }
 
@@ -1639,7 +1681,7 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
         cargarListaTablasDesdeArchivos(); // Recargar la lista si el item no se encuentra
     }
 
-    // 8. Actualizar la pestaña si la tabla está abierta
+    // 8. Actualizar la pestaÃ±a si la tabla estÃ¡ abierta
     for (int i = 0; i < zonaCentral->count(); ++i) {
         if (zonaCentral->tabText(i) == nombreTabla) {
             zonaCentral->setTabText(i, nuevoNombre);
@@ -1662,7 +1704,7 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
         }
     }
 
-    // 9. Emitir señales para actualizar otras partes de la aplicación
+    // 9. Emitir seÃ±ales para actualizar otras partes de la aplicaciÃ³n
     actualizarTablasAbiertasConRelaciones();
     emit actualizarRelaciones();
 
@@ -1671,11 +1713,11 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
 
 void MainWindow::eliminarRelacionesDeTabla(const QString& nombreTabla)
 {
-    qDebug() << "🗑️ Eliminando todas las relaciones de la tabla:" << nombreTabla;
+    qDebug() << "ðŸ—‘ï¸ Eliminando todas las relaciones de la tabla:" << nombreTabla;
 
     QFile relacionesFile("relationships.dat");
     if (!relacionesFile.open(QIODevice::ReadOnly)) {
-        qDebug() << "❌ No se pudo abrir archivo de relaciones para eliminar";
+        qDebug() << "âŒ No se pudo abrir archivo de relaciones para eliminar";
         return;
     }
 
@@ -1687,7 +1729,7 @@ void MainWindow::eliminarRelacionesDeTabla(const QString& nombreTabla)
         if (parts.size() == 4) {
             // No agregar relaciones que involucren a la tabla eliminada
             if (parts[0] == nombreTabla || parts[2] == nombreTabla) {
-                qDebug() << "❌ Eliminando relación:" << line;
+                qDebug() << "âŒ Eliminando relaciÃ³n:" << line;
                 continue;
             }
             relaciones.append(line);
@@ -1702,19 +1744,19 @@ void MainWindow::eliminarRelacionesDeTabla(const QString& nombreTabla)
             out << relacion << "\n";
         }
         relacionesFile.close();
-        qDebug() << "✅ Relaciones de la tabla" << nombreTabla << "eliminadas correctamente";
+        qDebug() << "âœ… Relaciones de la tabla" << nombreTabla << "eliminadas correctamente";
     } else {
-        qDebug() << "❌ Error al reescribir archivo de relaciones";
+        qDebug() << "âŒ Error al reescribir archivo de relaciones";
     }
 }
 
 void MainWindow::renombrarTablaEnRelaciones(const QString& nombreViejo, const QString& nombreNuevo)
 {
-    qDebug() << "✏️ Renombrando tabla en relaciones:" << nombreViejo << "->" << nombreNuevo;
+    qDebug() << "âœï¸ Renombrando tabla en relaciones:" << nombreViejo << "->" << nombreNuevo;
 
     QFile relacionesFile("relationships.dat");
     if (!relacionesFile.open(QIODevice::ReadOnly)) {
-        qDebug() << "❌ No se pudo abrir archivo de relaciones para renombrar";
+        qDebug() << "âŒ No se pudo abrir archivo de relaciones para renombrar";
         return;
     }
 
@@ -1744,9 +1786,9 @@ void MainWindow::renombrarTablaEnRelaciones(const QString& nombreViejo, const QS
             out << relacion << "\n";
         }
         relacionesFile.close();
-        qDebug() << "✅ Tabla renombrada en relaciones correctamente";
+        qDebug() << "âœ… Tabla renombrada en relaciones correctamente";
     } else {
-        qDebug() << "❌ Error al reescribir archivo de relaciones";
+        qDebug() << "âŒ Error al reescribir archivo de relaciones";
     }
 }
 
@@ -1758,7 +1800,7 @@ void MainWindow::actualizarNombreEnArchivoMeta(const QString& nombreTabla, const
     QFile metaFile(filePath);
 
     if (!metaFile.open(QIODevice::ReadWrite | QIODevice::Text)) {
-        qDebug() << "❌ No se pudo abrir el archivo .meta para actualizar el nombre:" << filePath;
+        qDebug() << "âŒ No se pudo abrir el archivo .meta para actualizar el nombre:" << filePath;
         return;
     }
 
@@ -1769,7 +1811,7 @@ void MainWindow::actualizarNombreEnArchivoMeta(const QString& nombreTabla, const
         lineas << in.readLine();
     }
 
-    // Actualizar la primera línea (que contiene "Tabla: [nombre]")
+    // Actualizar la primera lÃ­nea (que contiene "Tabla: [nombre]")
     if (!lineas.isEmpty() && lineas[0].startsWith("Tabla: ")) {
         lineas[0] = "Tabla: " + nombreTabla;
     }
@@ -1782,7 +1824,7 @@ void MainWindow::actualizarNombreEnArchivoMeta(const QString& nombreTabla, const
     }
 
     metaFile.close();
-    qDebug() << "✅ Nombre actualizado en archivo .meta:" << nombreTabla;
+    qDebug() << "âœ… Nombre actualizado en archivo .meta:" << nombreTabla;
 }
 
 void MainWindow::cargarListaTablasDesdeArchivos()
@@ -1855,8 +1897,8 @@ bool MainWindow::tablaTieneRelaciones(const QString& nombreTabla)
         if (parts.size() == 4) {
             if (parts[0] == nombreTabla || parts[2] == nombreTabla) {
                 relacionesFile.close();
-                // El error está aquí. Si hay relaciones, el método retorna
-                // inmediatamente, impidiendo la eliminación de los archivos.
+                // El error estÃ¡ aquÃ­. Si hay relaciones, el mÃ©todo retorna
+                // inmediatamente, impidiendo la eliminaciÃ³n de los archivos.
                 return true;
             }
         }
@@ -1866,4 +1908,89 @@ bool MainWindow::tablaTieneRelaciones(const QString& nombreTabla)
     return false;
 }
 
+void MainWindow::onTabChanged(int index) {
+    if (index <= 0) return;
 
+    QString tabName = zonaCentral->tabText(index);
+    QWidget* currentTab = zonaCentral->widget(index);
+
+    // Si es un formulario, actualizar sus datos desde la tabla
+    FormularioWidget* formulario = qobject_cast<FormularioWidget*>(currentTab);
+    if (formulario) {
+        QString nombreTablaFormulario = formulario->getNombreTabla();
+        actualizarFormularioDesdeTabla(nombreTablaFormulario);
+        return;
+    }
+
+    // Si es una vista de datos, recargar desde archivo
+    VistaDatos* vistaDatos = currentTab->property("tablaDataSheet").value<VistaDatos*>();
+    if (vistaDatos && !tabName.startsWith("DiseÃ±o") && !tabName.startsWith("Consulta") &&
+        !tabName.startsWith("Relaciones") && !tabName.startsWith("Formulario")) {
+        recargarVistaDatos(tabName);
+    }
+}
+
+void MainWindow::actualizarFormularioDesdeTabla(const QString& nombreTabla) {
+    try {
+        // Recargar metadata desde archivo para obtener datos actualizados
+        Metadata meta = Metadata::cargar(QDir::currentPath() + "/tables/" + nombreTabla + ".meta");
+
+        // Buscar todas las pestaÃ±as de formularios de esta tabla y actualizarlas
+        for (int i = 0; i < zonaCentral->count(); ++i) {
+            QString tabText = zonaCentral->tabText(i);
+            if (tabText.startsWith("Formulario " + nombreTabla)) {
+                FormularioWidget* form = qobject_cast<FormularioWidget*>(zonaCentral->widget(i));
+                if (form) {
+                    form->actualizarDesdeMetadata(meta);
+                }
+            }
+        }
+    } catch (const std::runtime_error& e) {
+        qDebug() << "Error al actualizar formulario:" << e.what();
+    }
+}
+
+void MainWindow::recargarVistaDatos(const QString& nombreTabla) {
+    try {
+        Metadata meta = Metadata::cargar(QDir::currentPath() + "/tables/" + nombreTabla + ".meta");
+
+        // Buscar la pestaÃ±a de la tabla y recargar sus datos
+        for (int i = 0; i < zonaCentral->count(); ++i) {
+            if (zonaCentral->tabText(i) == nombreTabla) {
+                QWidget* tabContainer = zonaCentral->widget(i);
+                VistaDatos* tablaDataSheet = tabContainer->property("tablaDataSheet").value<VistaDatos*>();
+
+                if (tablaDataSheet) {
+                    tablaDataSheet->establecerNombreTabla(nombreTabla);
+                    tablaDataSheet->cargarDesdeMetadata(meta);
+                    tablaDataSheet->cargarRelaciones("relationships.dat");
+                    qDebug() << "Vista de datos actualizada para tabla:" << nombreTabla;
+                }
+                break;
+            }
+        }
+    } catch (const std::runtime_error& e) {
+        qDebug() << "Error al recargar vista de datos:" << e.what();
+    }
+}
+
+void MainWindow::actualizarVistaDatosDesdeFormulario(const QString& nombreTabla) {
+    try {
+        Metadata meta = Metadata::cargar(QDir::currentPath() + "/tables/" + nombreTabla + ".meta");
+
+        for (int i = 0; i < zonaCentral->count(); ++i) {
+            if (zonaCentral->tabText(i) == nombreTabla) {
+                QWidget* tabContainer = zonaCentral->widget(i);
+                VistaDatos* tablaDataSheet = tabContainer->property("tablaDataSheet").value<VistaDatos*>();
+
+                if (tablaDataSheet) {
+                    tablaDataSheet->cargarDesdeMetadata(meta);
+                    qDebug() << "Tabla actualizada desde formulario:" << nombreTabla;
+                }
+                break;
+            }
+        }
+    } catch (const std::runtime_error& e) {
+        qDebug() << "Error al actualizar tabla desde formulario:" << e.what();
+    }
+}

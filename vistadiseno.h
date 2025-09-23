@@ -44,7 +44,8 @@ public:
     void onCellDoubleClicked(int row, int column);
 signals:
     void metadatosModificados();
-
+    void metadataActualizada(const QString &nombreTabla);
+    void tablaActualizada(const QString& nombreTabla);
 private slots:
 
     void on_campoEditado(QTableWidgetItem *item);

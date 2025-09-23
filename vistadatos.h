@@ -9,7 +9,7 @@
 #include <QMap>
 #include "metadata.h"
 #include "validadorrelaciones.h"
-
+#include "formulariowidget.h"
 class QTableWidget;
 class QTableWidgetItem;
 class QPushButton;
@@ -21,6 +21,9 @@ class VistaDatos : public QWidget
     Q_OBJECT
 
 public:
+    Metadata getMetadataActual() const;
+    void insertarRegistroDesdeFormulario(const QVariantMap &registro);
+    ValidadorRelaciones* getValidadorRelaciones() const { return validador; }
     explicit VistaDatos(QWidget *parent = nullptr);
     void cargarDesdeMetadata(const Metadata &meta);
     void agregarRegistro();
@@ -53,7 +56,7 @@ signals:
     void registroAgregado(int id, const QString &campo1);
     void registroModificado(int fila);
     void solicitarTablaRelacionada(const QString &tablaRelacionada, const QString &campoOrigen, const QString &valorOrigen);
-
+    void datosModificados(const QString& nombreTabla);
 public slots:
     void validarRegistroCompleto(int fila);
     void onDatosRelacionadosRecibidos(const QList<QMap<QString, QVariant>> &datos);

@@ -10,6 +10,8 @@ CONFIG += c++17
 
 SOURCES += \
     consultawidget.cpp \
+    formulariowidget.cpp \
+    gestorformularios.cpp \
     main.cpp \
     mainwindow.cpp \
     querydesignerwidget.cpp \
@@ -26,6 +28,8 @@ SOURCES += \
 
 HEADERS += \
     consultawidget.h \
+    formulariowidget.h \
+    gestorformularios.h \
     mainwindow.h \
     mainwindow.h \
     metadata.h \
