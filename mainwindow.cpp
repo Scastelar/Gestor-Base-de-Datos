@@ -1737,6 +1737,36 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
         return;
     }
 
+    // si la tabla tiene una relación existente, cerrar pestaña de Relaciones
+    QFile relacionesFile("relationships.dat");
+    bool tieneRelacion = false;
+    if (relacionesFile.open(QIODevice::ReadOnly)) {
+        QTextStream in(&relacionesFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.isEmpty()) continue;
+
+            QStringList parts = line.split("|");
+            if (parts.size() == 4) {
+                if (parts[0] == nombreTabla || parts[2] == nombreTabla) {
+                    tieneRelacion = true;
+                    break;
+                }
+            }
+        }
+        relacionesFile.close();
+    }
+
+    if (tieneRelacion) {
+        for (int i = 0; i < zonaCentral->count(); ++i) {
+            if (zonaCentral->tabText(i) == "Relaciones") {
+                zonaCentral->removeTab(i);
+                qDebug() << "⚠️ Pestaña de Relaciones cerrada por renombrar tabla con relaciones activas";
+                break;
+            }
+        }
+    }
+
     // Rutas de archivos
     QString viejoMetaPath = QDir::currentPath() + "/tables/" + nombreTabla + ".meta";
     QString viejoDataPath = QDir::currentPath() + "/tables/" + nombreTabla + ".dat"; // Corregido: .dat no .dat
@@ -1904,43 +1934,40 @@ void MainWindow::eliminarRelacionesDeTabla(const QString& nombreTabla)
 
 void MainWindow::renombrarTablaEnRelaciones(const QString& nombreViejo, const QString& nombreNuevo)
 {
-    qDebug() << "✏️ Renombrando tabla en relaciones:" << nombreViejo << "->" << nombreNuevo;
 
-    QFile relacionesFile("relationships.dat");
-    if (!relacionesFile.open(QIODevice::ReadOnly)) {
-        qDebug() << "❌ No se pudo abrir archivo de relaciones para renombrar";
+    QFile file("relationships.dat");
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "⚠️ No se pudo abrir relationships.dat para renombrar";
         return;
     }
 
-    QStringList relaciones;
-    QTextStream in(&relacionesFile);
+    QStringList lineasActualizadas;
+    QTextStream in(&file);
     while (!in.atEnd()) {
-        QString line = in.readLine();
-        QStringList parts = line.split("|");
+        QString linea = in.readLine().trimmed();
+        if (linea.isEmpty()) continue;
+
+        QStringList parts = linea.split("|");
         if (parts.size() == 4) {
-            // Renombrar la tabla donde aparezca
-            if (parts[0] == nombreViejo) {
-                parts[0] = nombreNuevo;
-            }
-            if (parts[2] == nombreViejo) {
-                parts[2] = nombreNuevo;
-            }
-            line = parts.join("|");
-            relaciones.append(line);
+            if (parts[0] == nombreViejo) parts[0] = nombreNuevo;
+            if (parts[2] == nombreViejo) parts[2] = nombreNuevo;
+            lineasActualizadas.append(parts.join("|"));
+        } else {
+            lineasActualizadas.append(linea);
         }
     }
-    relacionesFile.close();
+    file.close();
 
-    // Reescribir el archivo con los nombres actualizados
-    if (relacionesFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        QTextStream out(&relacionesFile);
-        for (const QString &relacion : relaciones) {
-            out << relacion << "\n";
+    // Reescribir archivo completo con los cambios
+    if (file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        QTextStream out(&file);
+        for (const QString &linea : lineasActualizadas) {
+            out << linea << "\n";
         }
-        relacionesFile.close();
-        qDebug() << "✅ Tabla renombrada en relaciones correctamente";
+        file.close();
+        qDebug() << "✅ relationships.dat actualizado con el nuevo nombre:" << nombreNuevo;
     } else {
-        qDebug() << "❌ Error al reescribir archivo de relaciones";
+        qDebug() << "❌ No se pudo reescribir relationships.dat";
     }
 }
 
