@@ -27,6 +27,7 @@ public:
 
 
 private slots:
+    void onTabChanged(int index);
     void crearNuevaConsulta();
     void aplicarEstilos();
     void crearMenus();
@@ -80,7 +81,9 @@ private:
     // Estado
     bool vistaHojaDatos;
     bool filtroActivo;
-
+    void actualizarFormularioDesdeTabla(const QString& nombreTabla);
+    void recargarVistaDatos(const QString& nombreTabla);
+    void actualizarVistaDatosDesdeFormulario(const QString& nombreTabla);
     // Referencias de tabla actual
     QWidget *tablaActual;
     QString tablaActualNombre;

@@ -20,7 +20,12 @@ class VistaDatos : public QWidget
 {
     Q_OBJECT
 
+
 public:
+
+    Metadata getMetadataActual() const;
+    void insertarRegistroDesdeFormulario(const QVariantMap &registro);
+    ValidadorRelaciones* getValidadorRelaciones() const { return validador; }
     explicit VistaDatos(QWidget *parent = nullptr);
     void cargarDesdeMetadata(const Metadata &meta);
     void agregarRegistro();
@@ -49,6 +54,7 @@ public:
     void mostrarTablaRelacionada(const QString &tablaDestino, const QString &campoOrigen, const QString &valor);
 
 signals:
+    void datosModificados(const QString& nombreTabla);
     void solicitarDatosRelacionados(const QString &tablaDestino, const QString &campoOrigen, const QString &valor);
     void registroAgregado(int id, const QString &campo1);
     void registroModificado(int fila);

@@ -971,6 +971,9 @@ void VistaDatos::guardarRegistros()
 
         qDebug() << "Registros guardados correctamente para tabla:" << nombreTablaActual;
 
+        // ✅ EMITIR SEÑAL PARA ACTUALIZAR FORMULARIOS
+        emit datosModificados(nombreTablaActual);
+
     } catch (const std::runtime_error &e) {
         qDebug() << "Error al guardar registros:" << e.what();
         QMessageBox::critical(this, "Error al guardar",
@@ -1220,4 +1223,30 @@ void VistaDatos::mostrarSelectorFK(int fila, int columna, const QStringList &val
         }
     }
 }
+void VistaDatos::insertarRegistroDesdeFormulario(const QVariantMap &registro) {
+    if (registro.isEmpty()) return;
+
+    int newRow = tablaRegistros->rowCount();
+    tablaRegistros->insertRow(newRow);
+
+    for (int col = 1; col < tablaRegistros->columnCount(); ++col) {
+        QString nombreCampo = tablaRegistros->horizontalHeaderItem(col)->text();
+        QVariant valor = registro.value(nombreCampo);
+        QTableWidgetItem *item = new QTableWidgetItem(valor.toString());
+        tablaRegistros->setItem(newRow, col, item);
+    }
+
+    QTableWidgetItem *asterisco = new QTableWidgetItem("*");
+    tablaRegistros->setItem(newRow, 0, asterisco);
+
+    guardarRegistros();
+}
+
+Metadata VistaDatos::getMetadataActual() const {
+    Metadata meta;
+    meta.nombreTabla = nombreTablaActual;
+    meta.campos = camposMetadata;
+    return meta;
+}
+
 

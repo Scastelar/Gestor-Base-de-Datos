@@ -33,6 +33,7 @@
 #include <QPushButton> // Include QPushButton
 #include <QToolButton> // Include QToolButton
 #include "consultawidget.h"
+#include "formulariowidget.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), vistaHojaDatos(false), filtroActivo(false), tablaActual(nullptr),
@@ -144,6 +145,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Conectar señales
     connect(zonaCentral, &QTabWidget::tabCloseRequested, this, &MainWindow::cerrarTab);
     connect(zonaCentral, &QTabWidget::currentChanged, this, &MainWindow::cambiarTablaActual);
+    connect(zonaCentral, &QTabWidget::currentChanged, this, &MainWindow::onTabChanged);
 
     // Widget de bienvenida inicial
     QLabel *welcomeLabel = new QLabel("<center><h2>Bienvenido a Base de Datos</h2>"
@@ -187,7 +189,7 @@ MainWindow::MainWindow(QWidget *parent)
         vistaHojaDatos = (index == 1);
         cambiarVista();
     });
-
+    connect(zonaCentral, &QTabWidget::currentChanged, this, &MainWindow::onTabChanged);
 
 
     // Conectar botones de insertar y eliminar fila
@@ -514,12 +516,47 @@ void MainWindow::crearRibbonCrear()
     queriesLayout->addWidget(btnConsulta);
     queriesLayout->addWidget(btnDisenoConsulta);
 
+    // ----------------------
     // Sección Formularios
+    // ----------------------
     QFrame *formsFrame = crearSeccionRibbon("Formularios");
     QHBoxLayout *formsLayout = new QHBoxLayout(formsFrame);
 
+    // Botón de Formulario
     QToolButton *btnFormulario = crearBotonRibbon(":/imgs/form.png", "Formulario");
+    btnFormulario->setToolTip("Crear un formulario basado en la tabla actual");
+    connect(btnFormulario, &QToolButton::clicked, this, [this]() {
+        if (!tablaActual) {
+            QMessageBox::warning(this, "Error", "Debe abrir primero una tabla para crear un formulario.");
+            return;
+        }
+
+        VistaDatos *vistaDatosActual = tablaActual->property("tablaDataSheet").value<VistaDatos*>();
+        if (!vistaDatosActual) {
+            QMessageBox::warning(this, "Error", "La tabla actual no tiene vista de datos.");
+            return;
+        }
+
+        Metadata meta = vistaDatosActual->getMetadataActual();
+        FormularioWidget *form = new FormularioWidget(meta, vistaDatosActual, this);
+
+        // Conectar señal para actualizar tabla cuando se inserte desde formulario
+        connect(form, &FormularioWidget::registroInsertado,
+                this, [this, nombreTabla = meta.nombreTabla]() {
+                    actualizarVistaDatosDesdeFormulario(nombreTabla);
+                });
+
+
+        int index = zonaCentral->addTab(form, "Formulario " + meta.nombreTabla);
+        zonaCentral->setCurrentIndex(index);
+    });
+
+    // Botón de diseño de formulario (placeholder)
     QToolButton *btnDisenoFormulario = crearBotonRibbon(":/imgs/form-design.png", "Diseño");
+    btnDisenoFormulario->setToolTip("Abrir el diseñador de formularios (en construcción)");
+    connect(btnDisenoFormulario, &QToolButton::clicked, this, [this]() {
+        QMessageBox::information(this, "Diseño de formularios", "La opción de diseño de formularios está en desarrollo.");
+    });
 
     formsLayout->addWidget(btnFormulario);
     formsLayout->addWidget(btnDisenoFormulario);
@@ -700,6 +737,8 @@ void MainWindow::abrirTabla(QListWidgetItem *item)
     // Crear ambas vistas
     VistaDiseno *tablaDesign = new VistaDiseno();
     VistaDatos *tablaDataSheet = new VistaDatos();
+    connect(tablaDataSheet, &VistaDatos::datosModificados,
+            this, &MainWindow::actualizarFormularioDesdeTabla);
 
     // ⭐ CRÍTICO: Establecer nombre de tabla ANTES de cargar metadatos
     tablaDataSheet->establecerNombreTabla(tablaActualNombre);
@@ -823,6 +862,8 @@ void MainWindow::actualizarConexionesBotones()
         connect(btnEliminarFila, &QToolButton::clicked, tablaDataSheet, &VistaDatos::eliminarRegistro);
         connect(tablaDataSheet, &VistaDatos::solicitarDatosRelacionados,
                 this, &MainWindow::onSolicitarDatosRelacionados);
+        connect(tablaDataSheet, &VistaDatos::datosModificados,
+                this, &MainWindow::actualizarFormularioDesdeTabla, Qt::UniqueConnection);
     } else if (tablaDesign) {
         qDebug() << "🔗 Conectando botones a VistaDiseno para tabla:" << tablaActualNombre;
         connect(btnLlavePrimaria, &QToolButton::clicked, tablaDesign, &VistaDiseno::establecerPK);
@@ -2035,6 +2076,90 @@ bool MainWindow::tablaTieneRelaciones(const QString& nombreTabla)
 
     relacionesFile.close();
     return false; // No se encontraron relaciones
+}
+
+void MainWindow::onTabChanged(int index) {
+    if (index <= 0) return;
+
+    QString tabName = zonaCentral->tabText(index);
+    QWidget* currentTab = zonaCentral->widget(index);
+
+    // Si es un formulario, actualizar sus datos desde la tabla
+    FormularioWidget* formulario = qobject_cast<FormularioWidget*>(currentTab);
+    if (formulario) {
+        QString nombreTablaFormulario = formulario->getNombreTabla();
+        actualizarFormularioDesdeTabla(nombreTablaFormulario);
+        return;
+    }
+
+    // Si es una vista de datos, recargar desde archivo
+    VistaDatos* vistaDatos = currentTab->property("tablaDataSheet").value<VistaDatos*>();
+    if (vistaDatos && !tabName.startsWith("Diseño") && !tabName.startsWith("Consulta") &&
+        !tabName.startsWith("Relaciones") && !tabName.startsWith("Formulario")) {
+        recargarVistaDatos(tabName);
+    }
+}
+void MainWindow::actualizarFormularioDesdeTabla(const QString& nombreTabla) {
+    try {
+        // Recargar metadata desde archivo para obtener datos actualizados
+        Metadata meta = Metadata::cargar(QDir::currentPath() + "/tables/" + nombreTabla + ".meta");
+
+        // Buscar todas las pestañas de formularios de esta tabla y actualizarlas
+        for (int i = 0; i < zonaCentral->count(); ++i) {
+            QString tabText = zonaCentral->tabText(i);
+            if (tabText.startsWith("Formulario " + nombreTabla)) {
+                FormularioWidget* form = qobject_cast<FormularioWidget*>(zonaCentral->widget(i));
+                if (form) {
+                    form->actualizarDesdeMetadata(meta);
+                }
+            }
+        }
+    } catch (const std::runtime_error& e) {
+        qDebug() << "Error al actualizar formulario:" << e.what();
+    }
+}
+void MainWindow::recargarVistaDatos(const QString& nombreTabla) {
+    try {
+        Metadata meta = Metadata::cargar(QDir::currentPath() + "/tables/" + nombreTabla + ".meta");
+
+        // Buscar la pestaña de la tabla y recargar sus datos
+        for (int i = 0; i < zonaCentral->count(); ++i) {
+            if (zonaCentral->tabText(i) == nombreTabla) {
+                QWidget* tabContainer = zonaCentral->widget(i);
+                VistaDatos* tablaDataSheet = tabContainer->property("tablaDataSheet").value<VistaDatos*>();
+
+                if (tablaDataSheet) {
+                    tablaDataSheet->establecerNombreTabla(nombreTabla);
+                    tablaDataSheet->cargarDesdeMetadata(meta);
+                    tablaDataSheet->cargarRelaciones("relationships.dat");
+                    qDebug() << "Vista de datos actualizada para tabla:" << nombreTabla;
+                }
+                break;
+            }
+        }
+    } catch (const std::runtime_error& e) {
+        qDebug() << "Error al recargar vista de datos:" << e.what();
+    }
+}
+void MainWindow::actualizarVistaDatosDesdeFormulario(const QString& nombreTabla) {
+    try {
+        Metadata meta = Metadata::cargar(QDir::currentPath() + "/tables/" + nombreTabla + ".meta");
+
+        for (int i = 0; i < zonaCentral->count(); ++i) {
+            if (zonaCentral->tabText(i) == nombreTabla) {
+                QWidget* tabContainer = zonaCentral->widget(i);
+                VistaDatos* tablaDataSheet = tabContainer->property("tablaDataSheet").value<VistaDatos*>();
+
+                if (tablaDataSheet) {
+                    tablaDataSheet->cargarDesdeMetadata(meta);
+                    qDebug() << "Tabla actualizada desde formulario:" << nombreTabla;
+                }
+                break;
+            }
+        }
+    } catch (const std::runtime_error& e) {
+        qDebug() << "Error al actualizar tabla desde formulario:" << e.what();
+    }
 }
 
 
