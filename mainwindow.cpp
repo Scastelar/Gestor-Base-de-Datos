@@ -29,6 +29,7 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QSet>
+#include <QTimer>
 #include <QPushButton> // Include QPushButton
 #include <QToolButton> // Include QToolButton
 #include "consultawidget.h"
@@ -790,7 +791,54 @@ void MainWindow::cambiarTablaActual(int index)
 
     actualizarConexionesBotones();
 }
+//Metodo nuevo
+void MainWindow::actualizarTablasAbiertasConRelaciones() {
+    qDebug() << "🔄 Actualizando todas las tablas abiertas con nuevas relaciones...";
 
+    for (int i = 0; i < zonaCentral->count(); ++i) {
+        QString tabName = zonaCentral->tabText(i);
+
+        // Ignorar pestañas especiales
+        if (tabName.startsWith("Diseño de Consulta") ||
+            tabName.startsWith("Consulta") ||
+            tabName.startsWith("Relaciones") ||
+            tabName == "Inicio") {
+            continue;
+        }
+
+        QWidget *tabContainer = zonaCentral->widget(i);
+        if (!tabContainer) continue;
+
+        // Obtener las vistas
+        VistaDiseno *tablaDesign = tabContainer->property("tablaDesign").value<VistaDiseno*>();
+        VistaDatos *tablaDataSheet = tabContainer->property("tablaDataSheet").value<VistaDatos*>();
+
+        if (tablaDesign) {
+            // ⭐ ACTUALIZAR CAMPOS RELACIONADOS EN VISTA DISEÑO
+            QSet<QString> camposRelacionados = obtenerCamposRelacionados(tabName);
+            tablaDesign->setCamposRelacionados(camposRelacionados);
+            tablaDesign->actualizarEstadoCampos();
+            qDebug() << "✅ Actualizados campos relacionados para tabla" << tabName << ":" << camposRelacionados;
+        }
+
+        if (tablaDataSheet) {
+            // ⭐ RECARGAR RELACIONES EN VISTA DATOS
+            tablaDataSheet->cargarRelaciones("relationships.dat");
+            qDebug() << "✅ Recargadas relaciones para VistaDatos de tabla" << tabName;
+        }
+    }
+    // ⭐ TAMBIÉN ACTUALIZAR LA PESTAÑA DE RELACIONES SI ESTÁ ABIERTA
+    for (int i = 0; i < zonaCentral->count(); ++i) {
+        if (zonaCentral->tabText(i) == "Relaciones") {
+            RelacionesWidget *relacionesWidget = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
+            if (relacionesWidget) {
+                relacionesWidget->refrescarTablas();
+                qDebug() << "✅ Pestaña de relaciones actualizada";
+            }
+            break;
+        }
+    }
+}
 
 void MainWindow::actualizarConexionesBotones()
 {
@@ -906,6 +954,7 @@ void MainWindow::cambiarVista()
     // ⭐ CRÍTICO: Asegurar que VistaDatos tiene el nombre de tabla correcto
     if (tablaDataSheet && !tablaActualNombre.isEmpty()) {
         tablaDataSheet->establecerNombreTabla(tablaActualNombre);
+        tablaDataSheet->cargarRelaciones("relationships.dat");
     }
 
     // 🔹 Crear metadata con lo que esté actualmente en memoria
@@ -919,7 +968,7 @@ void MainWindow::cambiarVista()
     }
 
     try {
-        meta.guardar();  // guarda estructura + datos en .meta y .data
+        meta.guardar();  // guarda estructura + datos en .meta y .dat
     } catch (const std::runtime_error &e) {
         QMessageBox::warning(this, "Error al guardar", e.what());
         return;
@@ -964,7 +1013,7 @@ void MainWindow::cambiarVista()
         }
     }
 
-    // 🔹 Reconectar combo
+    // Reconectar combo
     connect(comboVista, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) {
         vistaHojaDatos = (index == 1);
         cambiarVista();
@@ -982,6 +1031,13 @@ void MainWindow::abrirRelaciones()
     for (int i = 0; i < zonaCentral->count(); ++i) {
         if (zonaCentral->tabText(i) == "Relaciones") {
             zonaCentral->setCurrentIndex(i); // seleccionar pestaña existente
+
+            // ⭐ REFRESCAR LA PESTAÑA EXISTENTE
+            RelacionesWidget *relacionesWidget = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
+            if (relacionesWidget) {
+                relacionesWidget->refrescarTablas();
+            }
+
             return; // no crear otra
         }
     }
@@ -1020,6 +1076,7 @@ void MainWindow::abrirRelaciones()
             RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
             if (relaciones) {
                 relaciones->refrescarTablas();
+                relaciones->refrescarListaTablas();
                 break;
             }
         }
@@ -1028,21 +1085,112 @@ void MainWindow::abrirRelaciones()
     mostrarRibbonInicio();
 }
 
-
-
 void MainWindow::guardarRelacionEnBD(const QString &tabla1, const QString &campo1,
                                      const QString &tabla2, const QString &campo2)
 {
-    // Aquí implementarías la lógica para guardar la relación en tu base de datos
-    qDebug() << "Relación creada:" << tabla1 << "." << campo1
+    qDebug() << "💾 Guardando relación:" << tabla1 << "." << campo1
              << "->" << tabla2 << "." << campo2;
 
-    // Ejemplo: guardar en un archivo de relaciones
+    // Verificar que la relación no existe ya
     QFile relacionesFile("relationships.dat");
-    if (relacionesFile.open(QIODevice::Append)) {
+    if (relacionesFile.open(QIODevice::ReadOnly)) {
+        QTextStream in(&relacionesFile);
+        while (!in.atEnd()) {
+            QString line = in.readLine();
+            QStringList parts = line.split("|");
+            if (parts.size() == 4) {
+                if (parts[0] == tabla1 && parts[1] == campo1 &&
+                    parts[2] == tabla2 && parts[3] == campo2) {
+                    qDebug() << "⚠️ Relación ya existe, no se guardará duplicada";
+                    relacionesFile.close();
+                    return;
+                }
+            }
+        }
+        relacionesFile.close();
+    }
+
+    // Guardar nueva relación
+    if (relacionesFile.open(QIODevice::WriteOnly | QIODevice::Append)) {
         QTextStream stream(&relacionesFile);
         stream << tabla1 << "|" << campo1 << "|" << tabla2 << "|" << campo2 << "\n";
         relacionesFile.close();
+
+        qDebug() << "✅ Relación guardada correctamente";
+
+        // ⭐ ACTUALIZAR TODAS LAS TABLAS ABIERTAS
+        actualizarTablasAbiertasConRelaciones();
+
+        // Emitir señal para actualizar otros componentes
+        emit actualizarRelaciones();
+    } else {
+        qDebug() << "❌ Error al guardar relación en archivo";
+    }
+}
+// ⭐ NUEVO MÉTODO: Eliminar relación de BD (si no existe, agregarlo)
+void MainWindow::eliminarRelacionDeBD(const QString &tabla1, const QString &campo1,
+                                      const QString &tabla2, const QString &campo2)
+{
+    qDebug() << "Eliminando relación:" << tabla1 << "." << campo1
+             << "->" << tabla2 << "." << campo2;
+
+    QFile relacionesFile("relationships.dat");
+    if (!relacionesFile.open(QIODevice::ReadOnly)) {
+        qDebug() << "No se pudo abrir archivo de relaciones";
+        return;
+    }
+
+    QStringList relacionesRestantes;
+    QTextStream in(&relacionesFile);
+    bool relacionEliminada = false;
+
+    while (!in.atEnd()) {
+        QString line = in.readLine().trimmed();
+        if (line.isEmpty()) continue;
+
+        QStringList parts = line.split("|");
+        if (parts.size() == 4) {
+            QString t1 = parts[0].trimmed();
+            QString c1 = parts[1].trimmed();
+            QString t2 = parts[2].trimmed();
+            QString c2 = parts[3].trimmed();
+
+            // COMPARACIÓN EXACTA - eliminar solo la relación específica
+            if (t1 == tabla1 && c1 == campo1 && t2 == tabla2 && c2 == campo2) {
+                relacionEliminada = true;
+                qDebug() << "Relación encontrada y marcada para eliminación";
+            } else {
+                // Mantener todas las demás relaciones
+                relacionesRestantes.append(line);
+            }
+        }
+    }
+    relacionesFile.close();
+
+    if (!relacionEliminada) {
+        qDebug() << "ADVERTENCIA: No se encontró la relación exacta a eliminar";
+        qDebug() << "Buscaba:" << tabla1 << "|" << campo1 << "|" << tabla2 << "|" << campo2;
+        return;
+    }
+
+    // REESCRIBIR completamente el archivo
+    if (relacionesFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QTextStream out(&relacionesFile);
+        for (const QString &relacion : relacionesRestantes) {
+            out << relacion << "\n";
+        }
+        relacionesFile.close();
+
+        qDebug() << "Relación eliminada correctamente del archivo";
+        qDebug() << "Relaciones restantes:" << relacionesRestantes.size();
+
+        // Actualizar todas las tablas abiertas DESPUÉS de confirmar eliminación del archivo
+        actualizarTablasAbiertasConRelaciones();
+
+        // Emitir señal para actualizar otros componentes
+        emit actualizarRelaciones();
+    } else {
+        qDebug() << "ERROR: No se pudo reescribir archivo de relaciones";
     }
 }
 
@@ -1332,13 +1480,14 @@ void MainWindow::onMetadatosModificados() {
             VistaDiseno *tablaDesign = currentTab->property("tablaDesign").value<VistaDiseno*>();
             if (tablaDesign) {
                 tablaDesign->setCamposRelacionados(camposRelacionados);
+                QTimer::singleShot(100, tablaDesign, &VistaDiseno::actualizarEstadoCampos);
             }
         }
     }
-
-    // Emitir señal para actualizar relaciones si es necesario
+    actualizarTablasAbiertasConRelaciones();
     emit actualizarRelaciones();
 }
+
 void MainWindow::crearNuevaConsulta() {
     ConsultaWidget *cw = new ConsultaWidget();
     int idx = zonaCentral->addTab(cw, "Diseño de Consulta");
@@ -1346,10 +1495,14 @@ void MainWindow::crearNuevaConsulta() {
 }
 
 
-
 void MainWindow::eliminarTabla(const QString& nombreTabla)
 {
-    // Confirm with the user before deleting
+    // Verificar si la tabla tiene relaciones
+    if (tablaTieneRelaciones(nombreTabla)) {
+        return;
+    }
+
+    // Confirmar con el usuario antes de eliminar
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(this, "Eliminar Tabla",
                                   "¿Está seguro de que desea eliminar la tabla '" + nombreTabla + "'? Esta acción es irreversible.",
@@ -1357,40 +1510,52 @@ void MainWindow::eliminarTabla(const QString& nombreTabla)
     if (reply == QMessageBox::No) {
         return;
     }
-
-    // Close the tab if it's open
-    for (int i = 0; i < zonaCentral->count(); ++i) {
-        if (zonaCentral->tabText(i) == nombreTabla) {
-            zonaCentral->removeTab(i);
-            break;
-        }
+// 1. Cerrar la pestaña si está abierta
+for (int i = 0; i < zonaCentral->count(); ++i) {
+    if (zonaCentral->tabText(i) == nombreTabla) {
+        zonaCentral->removeTab(i);
+        break;
     }
-
-    QList<QListWidgetItem*> items;
-    for (int i = 0; i < listaTablas->count(); ++i) {
-        QListWidgetItem* item = listaTablas->item(i);
-        if (item->data(Qt::UserRole).toString() == nombreTabla) {
-            items.append(item);
-            break;
-        }
-    }
-
-    if (!items.isEmpty()) {
-        QListWidgetItem* item = items.first();
-        // `takeItem` es mejor porque elimina el item de la lista sin borrarlo de la memoria.
-        // Se puede usar `delete` sobre el item después para liberar la memoria.
-        listaTablas->takeItem(listaTablas->row(item));
-        delete item; // Liberar la memoria del item y su widget asociado
-    }
-
-    // Eliminar los archivos de metadatos y datos
-    QFile metaFile(QDir::currentPath() + "/tables/" + nombreTabla + ".meta");
-    QFile dataFile(QDir::currentPath() + "/tables/" + nombreTabla + ".data");
-    metaFile.remove();
-    dataFile.remove();
-
-    QMessageBox::information(this, "Eliminar Tabla", "La tabla '" + nombreTabla + "' ha sido eliminada.");
 }
+
+// 2. Eliminar de la lista de tablas (QListWidget)
+QListWidgetItem* itemToRemove = nullptr;
+for (int i = 0; i < listaTablas->count(); ++i) {
+    QListWidgetItem* item = listaTablas->item(i);
+    if (item->data(Qt::UserRole).toString() == nombreTabla) {
+        itemToRemove = item;
+        break;
+    }
+}
+
+if (itemToRemove) {
+    listaTablas->takeItem(listaTablas->row(itemToRemove));
+    delete itemToRemove;
+}
+
+// 3. Eliminar los archivos de metadatos y datos
+QString metaPath = QDir::currentPath() + "/tables/" + nombreTabla + ".meta";
+QString dataPath = QDir::currentPath() + "/tables/" + nombreTabla + ".dat";
+
+QFile metaFile(metaPath);
+QFile dataFile(dataPath);
+
+bool metaEliminado = metaFile.remove();
+bool dataEliminado = dataFile.exists() ? dataFile.remove() : true;
+
+if (metaEliminado && dataEliminado) {
+    QMessageBox::information(this, "Eliminar Tabla", "La tabla '" + nombreTabla + "' ha sido eliminada correctamente.");
+} else {
+    QMessageBox::warning(this, "Eliminar Tabla",
+                         "No se pudieron eliminar todos los archivos de la tabla.\n"
+                         "Meta: " + QString(metaEliminado ? "Sí" : "No") + "\n" +
+                             "Data: " + QString(dataEliminado ? "Sí" : "No"));
+}
+
+// 4. Actualizar la lista en RelacionesWidget si está abierta
+emit actualizarRelaciones();
+}
+
 
 void MainWindow::editarNombreTabla(const QString& nombreTabla)
 {
@@ -1400,16 +1565,60 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
                                                 QLineEdit::Normal,
                                                 nombreTabla, &ok);
 
+    // 1. Validar la entrada del usuario
     if (!ok || nuevoNombre.isEmpty() || nuevoNombre == nombreTabla) {
-        return; // User cancelled or name is the same
+        return;
     }
 
+    // 2. Verificar que el nuevo nombre no exista
     if (!nombreTablaEsUnico(nuevoNombre)) {
         QMessageBox::critical(this, "Error al Renombrar", "El nombre '" + nuevoNombre + "' ya existe.");
         return;
     }
 
-    // Buscar el item del QListWidget por el nombre de la tabla
+    // Rutas de archivos
+    QString viejoMetaPath = QDir::currentPath() + "/tables/" + nombreTabla + ".meta";
+    QString viejoDataPath = QDir::currentPath() + "/tables/" + nombreTabla + ".dat";
+    QString nuevoMetaPath = QDir::currentPath() + "/tables/" + nuevoNombre + ".meta";
+    QString nuevoDataPath = QDir::currentPath() + "/tables/" + nuevoNombre + ".dat";
+
+    // 3. Renombrar el archivo .meta
+    // Si el archivo .meta no existe, no se puede continuar.
+    if (!QFile::exists(viejoMetaPath)) {
+        QMessageBox::critical(this, "Error", "El archivo de metadatos de la tabla no se encontró.");
+        return;
+    }
+    if (!QFile::rename(viejoMetaPath, nuevoMetaPath)) {
+        QMessageBox::critical(this, "Error", "No se pudo renombrar el archivo .meta. Verifique los permisos.");
+        return;
+    }
+
+    // 4. Renombrar el archivo .dat (opcional, no es crítico si falla)
+    // Se verifica si el archivo existe antes de intentar renombrarlo.
+    if (QFile::exists(viejoDataPath)) {
+        if (!QFile::rename(viejoDataPath, nuevoDataPath)) {
+            QMessageBox::warning(this, "Advertencia", "No se pudo renombrar el archivo .dat. La tabla ha sido renombrada, pero podría haber una inconsistencia.");
+        }
+    }
+
+    // 5. Actualizar el nombre dentro del archivo .meta
+    // Se carga la metadata, se cambia el nombre y se guarda de nuevo.
+    try {
+        Metadata meta = Metadata::cargar(nuevoMetaPath);
+        meta.nombreTabla = nuevoNombre;
+        meta.guardar();
+    } catch (const std::exception& e) {
+        QMessageBox::critical(this, "Error", "No se pudo actualizar el nombre dentro del archivo .meta: " + QString(e.what()));
+        // Se revierte el cambio de nombre del archivo para evitar inconsistencias
+        QFile::rename(nuevoMetaPath, viejoMetaPath);
+        return;
+    }
+
+    // 6. Renombrar relaciones en relationships.dat (si es necesario)
+    renombrarTablaEnRelaciones(nombreTabla, nuevoNombre);
+
+    // 7. Actualizar la interfaz de usuario
+    // Buscar y actualizar el item en la lista de tablas
     QListWidgetItem* itemToRename = nullptr;
     for (int i = 0; i < listaTablas->count(); ++i) {
         QListWidgetItem* item = listaTablas->item(i);
@@ -1418,42 +1627,243 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
             break;
         }
     }
-
-    if (!itemToRename) {
-        // No se encontró el item, no se puede renombrar
-        QMessageBox::warning(this, "Error", "No se encontró el item en la lista para renombrar.");
-        return;
-    }
-
-
-    // Rename the files
-    QFile metaFile(QDir::currentPath() + "/tables/" + nombreTabla + ".meta");
-    QFile dataFile(QDir::currentPath() + "/tables/" + nombreTabla + ".data");
-    metaFile.rename(QDir::currentPath() + "/tables/" + nuevoNombre + ".meta");
-    dataFile.rename(QDir::currentPath() + "/tables/" + nuevoNombre + ".data");
-
-    // 🔹 Actualizar los datos del item y el texto de la etiqueta
-    itemToRename->setData(Qt::UserRole, nuevoNombre);
-
-    QWidget* itemWidget = listaTablas->itemWidget(itemToRename);
-    if (itemWidget) {
-        QLabel* label = itemWidget->findChild<QLabel*>();
-        if (label) {
-            label->setText(nuevoNombre);
+    if (itemToRename) {
+        itemToRename->setData(Qt::UserRole, nuevoNombre);
+        if (listaTablas->itemWidget(itemToRename)) {
+            QLabel* label = listaTablas->itemWidget(itemToRename)->findChild<QLabel*>();
+            if (label) {
+                label->setText(nuevoNombre);
+            }
         }
+    } else {
+        cargarListaTablasDesdeArchivos(); // Recargar la lista si el item no se encuentra
     }
 
-    // Actualizar el texto de la pestaña si está abierta
+    // 8. Actualizar la pestaña si la tabla está abierta
     for (int i = 0; i < zonaCentral->count(); ++i) {
         if (zonaCentral->tabText(i) == nombreTabla) {
             zonaCentral->setTabText(i, nuevoNombre);
+
+            QWidget* tabWidget = zonaCentral->widget(i);
+            if (tabWidget) {
+                VistaDiseno* tablaDesign = tabWidget->property("tablaDesign").value<VistaDiseno*>();
+                VistaDatos* tablaDataSheet = tabWidget->property("tablaDataSheet").value<VistaDatos*>();
+
+                if (tablaDesign) {
+                    tablaDesign->setNombreTabla(nuevoNombre);
+                    // No es necesario recargar campos si se actualiza el nombre en memoria
+                }
+                if (tablaDataSheet) {
+                    tablaDataSheet->establecerNombreTabla(nuevoNombre);
+                    // No es necesario recargar datos si se actualiza el nombre en memoria
+                }
+            }
             break;
         }
     }
 
+    // 9. Emitir señales para actualizar otras partes de la aplicación
+    actualizarTablasAbiertasConRelaciones();
+    emit actualizarRelaciones();
 
     QMessageBox::information(this, "Renombrar Tabla", "La tabla ha sido renombrada a '" + nuevoNombre + "'.");
 }
 
-// ... existing code ...
+void MainWindow::eliminarRelacionesDeTabla(const QString& nombreTabla)
+{
+    qDebug() << "🗑️ Eliminando todas las relaciones de la tabla:" << nombreTabla;
+
+    QFile relacionesFile("relationships.dat");
+    if (!relacionesFile.open(QIODevice::ReadOnly)) {
+        qDebug() << "❌ No se pudo abrir archivo de relaciones para eliminar";
+        return;
+    }
+
+    QStringList relaciones;
+    QTextStream in(&relacionesFile);
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+        QStringList parts = line.split("|");
+        if (parts.size() == 4) {
+            // No agregar relaciones que involucren a la tabla eliminada
+            if (parts[0] == nombreTabla || parts[2] == nombreTabla) {
+                qDebug() << "❌ Eliminando relación:" << line;
+                continue;
+            }
+            relaciones.append(line);
+        }
+    }
+    relacionesFile.close();
+
+    // Reescribir el archivo sin las relaciones eliminadas
+    if (relacionesFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QTextStream out(&relacionesFile);
+        for (const QString &relacion : relaciones) {
+            out << relacion << "\n";
+        }
+        relacionesFile.close();
+        qDebug() << "✅ Relaciones de la tabla" << nombreTabla << "eliminadas correctamente";
+    } else {
+        qDebug() << "❌ Error al reescribir archivo de relaciones";
+    }
+}
+
+void MainWindow::renombrarTablaEnRelaciones(const QString& nombreViejo, const QString& nombreNuevo)
+{
+    qDebug() << "✏️ Renombrando tabla en relaciones:" << nombreViejo << "->" << nombreNuevo;
+
+    QFile relacionesFile("relationships.dat");
+    if (!relacionesFile.open(QIODevice::ReadOnly)) {
+        qDebug() << "❌ No se pudo abrir archivo de relaciones para renombrar";
+        return;
+    }
+
+    QStringList relaciones;
+    QTextStream in(&relacionesFile);
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+        QStringList parts = line.split("|");
+        if (parts.size() == 4) {
+            // Renombrar la tabla donde aparezca
+            if (parts[0] == nombreViejo) {
+                parts[0] = nombreNuevo;
+            }
+            if (parts[2] == nombreViejo) {
+                parts[2] = nombreNuevo;
+            }
+            line = parts.join("|");
+            relaciones.append(line);
+        }
+    }
+    relacionesFile.close();
+
+    // Reescribir el archivo con los nombres actualizados
+    if (relacionesFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QTextStream out(&relacionesFile);
+        for (const QString &relacion : relaciones) {
+            out << relacion << "\n";
+        }
+        relacionesFile.close();
+        qDebug() << "✅ Tabla renombrada en relaciones correctamente";
+    } else {
+        qDebug() << "❌ Error al reescribir archivo de relaciones";
+    }
+}
+
+
+
+void MainWindow::actualizarNombreEnArchivoMeta(const QString& nombreTabla, const QString& nombreNuevo)
+{
+    QString filePath = QDir::currentPath() + "/tables/" + nombreTabla + ".meta";
+    QFile metaFile(filePath);
+
+    if (!metaFile.open(QIODevice::ReadWrite | QIODevice::Text)) {
+        qDebug() << "❌ No se pudo abrir el archivo .meta para actualizar el nombre:" << filePath;
+        return;
+    }
+
+    // Leer todo el contenido
+    QTextStream in(&metaFile);
+    QStringList lineas;
+    while (!in.atEnd()) {
+        lineas << in.readLine();
+    }
+
+    // Actualizar la primera línea (que contiene "Tabla: [nombre]")
+    if (!lineas.isEmpty() && lineas[0].startsWith("Tabla: ")) {
+        lineas[0] = "Tabla: " + nombreTabla;
+    }
+
+    // Volver al inicio y escribir el contenido actualizado
+    metaFile.resize(0);
+    QTextStream out(&metaFile);
+    for (const QString& linea : lineas) {
+        out << linea << "\n";
+    }
+
+    metaFile.close();
+    qDebug() << "✅ Nombre actualizado en archivo .meta:" << nombreTabla;
+}
+
+void MainWindow::cargarListaTablasDesdeArchivos()
+{
+    listaTablas->clear();
+
+    QDir dir(QDir::currentPath() + "/tables");
+    if (!dir.exists()) {
+        dir.mkpath(".");
+        return;
+    }
+
+    QStringList archivosMeta = dir.entryList(QStringList() << "*.meta", QDir::Files);
+
+    for (const QString &fileName : archivosMeta) {
+        try {
+            QString filePath = dir.filePath(fileName);
+            Metadata meta = Metadata::cargar(filePath);
+            if (!meta.nombreTabla.isEmpty()) {
+                QListWidgetItem *item = new QListWidgetItem(listaTablas);
+                item->setData(Qt::UserRole, meta.nombreTabla);
+
+                // Crear custom widget para el item
+                QWidget* itemWidget = new QWidget();
+                QHBoxLayout* itemLayout = new QHBoxLayout(itemWidget);
+                QLabel* nameLabel = new QLabel(meta.nombreTabla);
+                QToolButton* menuButton = new QToolButton();
+                menuButton->setIcon(QIcon(":/imgs/menu.png"));
+                menuButton->setAutoRaise(true);
+
+                QMenu* menu = new QMenu(this);
+                QAction* renameAction = menu->addAction("Editar Nombre");
+                QAction* deleteAction = menu->addAction("Eliminar");
+
+                connect(renameAction, &QAction::triggered, this, [this, meta]() {
+                    editarNombreTabla(meta.nombreTabla);
+                });
+                connect(deleteAction, &QAction::triggered, this, [this, meta]() {
+                    eliminarTabla(meta.nombreTabla);
+                });
+                menuButton->setMenu(menu);
+                menuButton->setPopupMode(QToolButton::InstantPopup);
+
+                itemLayout->addWidget(nameLabel);
+                itemLayout->addStretch();
+                itemLayout->addWidget(menuButton);
+                itemLayout->setContentsMargins(0, 0, 0, 0);
+
+                item->setSizeHint(itemWidget->sizeHint());
+                listaTablas->addItem(item);
+                listaTablas->setItemWidget(item, itemWidget);
+            }
+        } catch (const std::runtime_error& e) {
+            qDebug() << "Error al cargar tabla desde" << fileName << ":" << e.what();
+        }
+    }
+}
+
+bool MainWindow::tablaTieneRelaciones(const QString& nombreTabla)
+{
+    QFile relacionesFile("relationships.dat");
+    if (!relacionesFile.open(QIODevice::ReadOnly)) {
+        return false;
+    }
+
+    QTextStream in(&relacionesFile);
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+        QStringList parts = line.split("|");
+        if (parts.size() == 4) {
+            if (parts[0] == nombreTabla || parts[2] == nombreTabla) {
+                relacionesFile.close();
+                // El error está aquí. Si hay relaciones, el método retorna
+                // inmediatamente, impidiendo la eliminación de los archivos.
+                return true;
+            }
+        }
+    }
+
+    relacionesFile.close();
+    return false;
+}
+
 

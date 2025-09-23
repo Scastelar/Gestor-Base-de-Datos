@@ -5,6 +5,8 @@
 #include <QTableWidget>
 #include <QMap>
 #include <QVariant>
+#include <QPair>
+#include <QMap>
 #include "metadata.h"
 #include "validadorrelaciones.h"
 
@@ -36,6 +38,9 @@ public:
     void establecerNombreTabla(const QString &nombre);
     QString obtenerNombreTabla() const { return nombreTablaActual; }
     void actualizarValidadorRelaciones();
+
+    void guardarRegistros();
+    void prepararTabla();
 
     void mostrarSelectorFecha(int row, int col, const QString &formato);
     QString formatearFecha(const QVariant &fechaInput, const QString &formato) const;
@@ -77,11 +82,16 @@ private:
     ValidadorRelaciones *validador;
     QString nombreTablaActual;
 
-    // NUEVOS métodos:
     void configurarValidador();
     bool validarCampoFK(int fila, int columna, const QString &valor);
     void mostrarErrorValidacionFK(const QString &mensaje, const QStringList &valoresValidos);
     void mostrarSelectorFK(int fila, int columna, const QStringList &valoresValidos);
+
+    // NUEVOS métodos:
+    bool validandoFK;  // Agregar esta variable al header de VistaDatos
+    QString ultimoErrorFK;  // Para evitar mostrar el mismo error múltiples veces
+    QMap<QPair<int,int>, QString> valoresAnterioresFK; // Para restaurar valores inválidos
+
 
     void configurarTablaRegistros();
     void actualizarAsteriscoIndice(int nuevaFila, int viejaFila);

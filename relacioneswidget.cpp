@@ -673,3 +673,7 @@ void RelacionesWidget::eliminarRelacion(RelationItem *rel)
     delete rel;
 }
 
+void RelacionesWidget::refrescarListaTablas()
+{
+    cargarListaTablas();
+}

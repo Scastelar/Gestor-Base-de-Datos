@@ -35,6 +35,9 @@ private slots:
     void crearRibbonInicio();
     void crearRibbonCrear();
 
+    void eliminarRelacionesDeTabla(const QString& nombreTabla);
+    void renombrarTablaEnRelaciones(const QString& nombreViejo, const QString& nombreNuevo);
+
     void eliminarTabla(const QString& nombreTabla);
     void editarNombreTabla(const QString& nombreTabla);
 
@@ -52,11 +55,18 @@ private slots:
     void insertarFilaActual();
     void eliminarFilaActual();
     void cambiarVista();
+    void cargarListaTablasDesdeArchivos();
+
+
+    //Nuevo metodo
+    void actualizarTablasAbiertasConRelaciones();
 
     void abrirRelaciones();
     void cerrarRelacionesYVolver();
     void guardarRelacionEnBD(const QString &tabla1, const QString &campo1,
                              const QString &tabla2, const QString &campo2);
+    void eliminarRelacionDeBD(const QString &tabla1, const QString &campo1,
+                              const QString &tabla2, const QString &campo2);
     void cerrarTab(int index);
 
     bool nombreTablaEsUnico(const QString &nombreTabla);
@@ -111,6 +121,8 @@ private:
 
     QSplitter *splitter;
 
+    void actualizarNombreEnArchivoMeta(const QString& nombreViejo, const QString& nombreNuevo);
+    bool tablaTieneRelaciones(const QString& nombreTabla);
 };
 #endif // MAINWINDOW_H
 

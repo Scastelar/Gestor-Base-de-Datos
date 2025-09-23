@@ -139,6 +139,7 @@ void VistaDiseno::eliminarCampo() {
     int currentRow = tablaCampos->currentRow();
     if (currentRow == -1) {
         QMessageBox::information(this, "Selección requerida", "Por favor, seleccione un campo para eliminar.");
+        tablaCampos->blockSignals(false);
         return;
     }
 
@@ -146,16 +147,17 @@ void VistaDiseno::eliminarCampo() {
     QTableWidgetItem *pkItem = tablaCampos->item(currentRow, 0);
     if (pkItem && pkItem->text() == "🔑") {
         QMessageBox::warning(this, "Error", "No se puede eliminar el campo de clave primaria.");
+        tablaCampos->blockSignals(false);
         return;
     }
 
-    // Verificar si el campo está relacionado
+    // Bloquear campos con relaciones
     QTableWidgetItem *nombreItem = tablaCampos->item(currentRow, 1);
     if (nombreItem && esCampoRelacionado(nombreItem->text())) {
-        QMessageBox::warning(this, "Campo relacionado",
-                             "No se puede eliminar campos relacionados a otras tablas.");
+        tablaCampos->blockSignals(false);
         return;
     }
+
 
     // Confirmar eliminación
     QString nombreCampo = nombreItem ? nombreItem->text() : "Campo seleccionado";
@@ -181,15 +183,27 @@ void VistaDiseno::establecerPK() {
     int currentRow = tablaCampos->currentRow();
     if (currentRow == -1) {
         QMessageBox::information(this, "Selección requerida", "Por favor, seleccione una fila primero.");
+        tablaCampos->blockSignals(false);
         return;
     }
 
     // Verificar si el campo está relacionado
     QTableWidgetItem *nombreItem = tablaCampos->item(currentRow, 1);
     if (nombreItem && esCampoRelacionado(nombreItem->text())) {
-        QMessageBox::warning(this, "Campo relacionado",
-                             "No se puede modificar la PK de campos relacionados a otras tablas.");
+        tablaCampos->blockSignals(false);
         return;
+    }
+
+    // Verificar si hay algún campo relacionado que sea PK actualmente
+    for (int row = 0; row < tablaCampos->rowCount(); ++row) {
+        QTableWidgetItem *pkCheck = tablaCampos->item(row, 0);
+        QTableWidgetItem *nombreCheck = tablaCampos->item(row, 1);
+
+        if (pkCheck && pkCheck->text() == "🔑" && nombreCheck &&
+            esCampoRelacionado(nombreCheck->text())) {
+            tablaCampos->blockSignals(false);
+            return;
+        }
     }
 
     // Quitar PK de cualquier otra fila
@@ -207,10 +221,8 @@ void VistaDiseno::establecerPK() {
         pkItem->setText("🔑");
         pkItem->setToolTip("Llave Primaria");
     }
-    //QTimer::singleShot(100, this, &VistaDiseno::guardarMetadatos);
     guardarMetadatos();
     tablaCampos->blockSignals(false);
-
 }
 
 // Método para obtener la fila que actualmente es PK
@@ -236,7 +248,7 @@ QString VistaDiseno::obtenerNombrePK() const {
     return "";
 }
 
-// 🔹 Exportar todos los campos como QVector<Campo> con propiedades
+// Exportar todos los campos como QVector<Campo> con propiedades
 QVector<Campo> VistaDiseno::obtenerCampos() const {
     QVector<Campo> campos;
     for (int row = 0; row < tablaCampos->rowCount(); ++row) {
@@ -259,7 +271,7 @@ QVector<Campo> VistaDiseno::obtenerCampos() const {
             c.esPK = (pkItem->text() == "🔑");
         }
 
-        // ⭐ OBTENER PROPIEDAD CON VALIDACIÓN
+        // OBTENER PROPIEDAD CON VALIDACIÓN
         if (propiedadesPorFila.contains(row)) {
             c.propiedad = propiedadesPorFila.value(row);
         } else {
@@ -306,7 +318,7 @@ void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
         QTableWidgetItem *nombreItem = new QTableWidgetItem(c.nombre);
         tablaCampos->setItem(row, 1, nombreItem);
 
-        // 🔹 ALMACENAR NOMBRE INICIAL
+         // Almacenar nombre inicial
         nombresAnteriores[row] = c.nombre;
 
         // Tipo de dato
@@ -391,17 +403,20 @@ void VistaDiseno::actualizarPropiedades() {
     int currentRow = tablaCampos->currentRow();
     if (currentRow == -1) return;
 
+    // ⭐ NUEVA VALIDACIÓN: Verificar si el campo está relacionado
+    QTableWidgetItem *nombreItem = tablaCampos->item(currentRow, 1);
+    bool esRelacionado = nombreItem && esCampoRelacionado(nombreItem->text());
+
     QComboBox *tipoCombo = qobject_cast<QComboBox*>(tablaCampos->cellWidget(currentRow, 2));
     if (!tipoCombo) return;
 
     QString tipoDato = tipoCombo->currentText();
 
-    // ⭐ LIMPIAR PROPIEDAD ANTERIOR SI EL TIPO CAMBIÓ
+    // Limpiar propiedad anterior si el tipo cambió
     QString tipoAnterior = "";
     if (propiedadesPorFila.contains(currentRow)) {
         QVariant propAnterior = propiedadesPorFila[currentRow];
 
-        // Determinar tipo anterior basado en el valor de la propiedad
         if (propAnterior.typeId() == QMetaType::Int) {
             tipoAnterior = "TEXTO";
         } else if (propAnterior.toString() == "entero" || propAnterior.toString() == "decimal" ||
@@ -436,10 +451,16 @@ void VistaDiseno::actualizarPropiedades() {
 
         QSpinBox *spinBox = new QSpinBox();
         spinBox->setRange(1, 255);
+        spinBox->setEnabled(!esRelacionado); // ⭐ DESHABILITAR SI ESTÁ RELACIONADO
 
         // Cargar valor guardado o usar valor por defecto
         int valor = propiedadesPorFila.value(currentRow, 255).toInt();
         spinBox->setValue(valor);
+
+        if (esRelacionado) {
+            spinBox->setStyleSheet("QSpinBox { background-color: #f5f5f5; color: #888888; }");
+            spinBox->setToolTip("Propiedad bloqueada por relación");
+        }
 
         connect(spinBox, QOverload<int>::of(&QSpinBox::valueChanged),
                 [this, currentRow](int value) {
@@ -455,11 +476,17 @@ void VistaDiseno::actualizarPropiedades() {
 
         QComboBox *numeroCombo = new QComboBox();
         numeroCombo->addItems({"entero", "decimal", "doble", "byte"});
+        numeroCombo->setEnabled(!esRelacionado);
 
         // Cargar valor guardado o usar valor por defecto
         QString valor = propiedadesPorFila.value(currentRow, "entero").toString();
         int index = numeroCombo->findText(valor);
         if (index != -1) numeroCombo->setCurrentIndex(index);
+
+        if (esRelacionado) {
+            numeroCombo->setStyleSheet("QComboBox { background-color: #f5f5f5; color: #888888; }");
+            numeroCombo->setToolTip("Propiedad bloqueada por relación");
+        }
 
         connect(numeroCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 [this, currentRow, numeroCombo](int index) {
@@ -475,11 +502,17 @@ void VistaDiseno::actualizarPropiedades() {
 
         QComboBox *monedaCombo = new QComboBox();
         monedaCombo->addItems({"Lempira", "Dólar", "Euros", "Millares"});
+        monedaCombo->setEnabled(!esRelacionado);
 
         // Cargar valor guardado o usar valor por defecto
         QString valor = propiedadesPorFila.value(currentRow, "Lempira").toString();
         int index = monedaCombo->findText(valor);
         if (index != -1) monedaCombo->setCurrentIndex(index);
+
+        if (esRelacionado) {
+            monedaCombo->setStyleSheet("QComboBox { background-color: #f5f5f5; color: #888888; }");
+            monedaCombo->setToolTip("Propiedad bloqueada por relación");
+        }
 
         connect(monedaCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 [this, currentRow, monedaCombo](int index) {
@@ -495,11 +528,17 @@ void VistaDiseno::actualizarPropiedades() {
 
         QComboBox *fechaCombo = new QComboBox();
         fechaCombo->addItems({"DD-MM-YY", "DD/MM/YY", "DD/MES/YYYY", "YYYY-MM-DD"});
+        fechaCombo->setEnabled(!esRelacionado);
 
         // Cargar valor guardado o usar valor por defecto
         QString valor = propiedadesPorFila.value(currentRow, "DD-MM-YY").toString();
         int index = fechaCombo->findText(valor);
         if (index != -1) fechaCombo->setCurrentIndex(index);
+
+        if (esRelacionado) {
+            fechaCombo->setStyleSheet("QComboBox { background-color: #f5f5f5; color: #888888; }");
+            fechaCombo->setToolTip("Propiedad bloqueada por relación");
+        }
 
         connect(fechaCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 [this, currentRow, fechaCombo](int index) {
@@ -511,7 +550,7 @@ void VistaDiseno::actualizarPropiedades() {
     }
 }
 
-// 🔹 Guardar propiedad actual cuando cambia de fila
+// Guardar propiedad actual cuando cambia de fila
 void VistaDiseno::on_tablaCampos_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn) {
     Q_UNUSED(currentColumn);
     Q_UNUSED(previousColumn);
@@ -575,6 +614,7 @@ void VistaDiseno::on_tablaCampos_cellChanged(int row, int column) {
 
     if (bloqueandoEdicion) return;
     bloqueandoEdicion = true;
+
     // Si se elimina una fila, remover su propiedad
     if (column == 0 && row >= tablaCampos->rowCount()) {
         propiedadesPorFila.remove(row);
@@ -627,16 +667,46 @@ void VistaDiseno::actualizarEstadoCampos() {
                 nombresAnteriores[row] = nombreCampo;
             }
 
-            // ⭐ HACER EL CAMPO DE SOLO LECTURA SI ESTÁ RELACIONADO
-            if (esRelacionado) {
+            // ⭐ BLOQUEAR COMPLETAMENTE SI ESTÁ RELACIONADO
+                if (esRelacionado) {
+                // Hacer el campo de solo lectura
                 nombreItem->setFlags(nombreItem->flags() & ~Qt::ItemIsEditable);
                 nombreItem->setBackground(QBrush(QColor(245, 245, 245))); // Gris claro
                 nombreItem->setToolTip("Campo relacionado - No se puede modificar");
-            } else {
-                nombreItem->setFlags(nombreItem->flags() | Qt::ItemIsEditable);
-                nombreItem->setBackground(QBrush(Qt::white));
-                nombreItem->setToolTip("");
-            }
+
+                // Deshabilitar combo de tipo
+                QComboBox *tipoCombo = qobject_cast<QComboBox*>(tablaCampos->cellWidget(row, 2));
+                if (tipoCombo) {
+                    tipoCombo->setEnabled(false);
+                    tipoCombo->setStyleSheet("QComboBox { background-color: #f5f5f5; color: #888888; }");
+                    tipoCombo->setToolTip("Tipo bloqueado por relación");
+                }
+
+                // Bloquear cambios de PK
+                QTableWidgetItem *pkItem = tablaCampos->item(row, 0);
+                if (pkItem) {
+                    pkItem->setToolTip("PK bloqueada por relación - No se puede modificar");
+                    pkItem->setBackground(QBrush(QColor(245, 245, 245)));
+                }
+            } else{
+                    // Habilitar campos normales
+                    nombreItem->setFlags(nombreItem->flags() | Qt::ItemIsEditable);
+                    nombreItem->setBackground(QBrush(Qt::white));
+                    nombreItem->setToolTip("");
+
+                    QComboBox *tipoCombo = qobject_cast<QComboBox*>(tablaCampos->cellWidget(row, 2));
+                    if (tipoCombo) {
+                        tipoCombo->setEnabled(true);
+                        tipoCombo->setStyleSheet("");
+                        tipoCombo->setToolTip("");
+                    }
+
+                    QTableWidgetItem *pkItem = tablaCampos->item(row, 0);
+                    if (pkItem) {
+                        pkItem->setToolTip(pkItem->text() == "🔑" ? "Llave Primaria" : "");
+                        pkItem->setBackground(QBrush(Qt::white));
+                    }
+                }
 
             // ⭐ DESHABILITAR COMBO DE TIPO SI ESTÁ RELACIONADO
             QComboBox *tipoCombo = qobject_cast<QComboBox*>(tablaCampos->cellWidget(row, 2));
@@ -651,49 +721,112 @@ void VistaDiseno::actualizarEstadoCampos() {
                     tipoCombo->setToolTip("");
                 }
             }
-            // ⭐ BLOQUEAR BOTÓN PK SI ESTÁ RELACIONADO
-            QTableWidgetItem *pkItem = tablaCampos->item(row, 0);
-            if (pkItem && esRelacionado) {
-                pkItem->setToolTip("PK bloqueada por relación");
-            }
         }
     }
 }
 
+void VistaDiseno::actualizarRelacionesConNuevoCampo(const QString &nombreAnterior, const QString &nuevoNombre) {
+    if (nombreTablaActual.isEmpty()) return;
+
+    qDebug() << "🔄 Actualizando relaciones: campo" << nombreAnterior << "→" << nuevoNombre;
+
+    // Leer todas las relaciones existentes
+    QFile relacionesFile("relationships.dat");
+    if (!relacionesFile.open(QIODevice::ReadOnly)) {
+        qDebug() << "No se pudo abrir archivo de relaciones para lectura";
+        return;
+    }
+
+    QStringList relacionesActualizadas;
+    QTextStream in(&relacionesFile);
+    bool huboCambios = false;
+
+    while (!in.atEnd()) {
+        QString linea = in.readLine().trimmed();
+        if (linea.isEmpty()) continue;
+
+        QStringList partes = linea.split("|");
+        if (partes.size() == 4) {
+            QString tabla1 = partes[0];
+            QString campo1 = partes[1];
+            QString tabla2 = partes[2];
+            QString campo2 = partes[3];
+
+            // Actualizar si el campo pertenece a nuestra tabla
+            if (tabla1 == nombreTablaActual && campo1 == nombreAnterior) {
+                campo1 = nuevoNombre;
+                huboCambios = true;
+                qDebug() << "📝 Actualizada relación origen:" << tabla1 << "." << campo1;
+            }
+            if (tabla2 == nombreTablaActual && campo2 == nombreAnterior) {
+                campo2 = nuevoNombre;
+                huboCambios = true;
+                qDebug() << "📝 Actualizada relación destino:" << tabla2 << "." << campo2;
+            }
+
+            relacionesActualizadas.append(tabla1 + "|" + campo1 + "|" + tabla2 + "|" + campo2);
+        }
+    }
+    relacionesFile.close();
+
+    // Reescribir el archivo si hubo cambios
+    if (huboCambios) {
+        if (relacionesFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            QTextStream out(&relacionesFile);
+            for (const QString &relacion : relacionesActualizadas) {
+                out << relacion << "\n";
+            }
+            relacionesFile.close();
+
+            qDebug() << "✅ Relaciones actualizadas en archivo";
+
+            // ⭐ EMITIR SEÑAL PARA ACTUALIZAR OTRAS PARTES DE LA APLICACIÓN
+            emit metadatosModificados(); // Esto activará la actualización en MainWindow
+
+        } else {
+            qDebug() << "❌ Error al escribir archivo de relaciones actualizado";
+        }
+    }
+}
 void VistaDiseno::on_campoEditado(QTableWidgetItem *item) {
     if (bloqueandoEdicion) return;
     bloqueandoEdicion = true;
-
-    if (bloqueandoEdicion) return;
 
     if (item->column() == 1) { // Columna de nombre
         int row = item->row();
         QString nombreAnterior;
 
-        // 🔹 Obtener el nombre anterior del campo (antes del cambio)
+        //Obtener el nombre anterior del campo (antes del cambio)
         if (nombresAnteriores.contains(row)) {
             nombreAnterior = nombresAnteriores[row];
         }
 
         QString nuevoNombre = item->text();
 
-        // 🔹 Evitar nombres vacíos
+        // Verificar si el campo anterior estaba relacionado
+        if (!nombreAnterior.isEmpty() && esCampoRelacionado(nombreAnterior)) {
+            // Restaurar el nombre anterior
+            item->setText(nombreAnterior);
+            bloqueandoEdicion = false;
+            return;
+        }
+
+        // Evitar nombres vacíos
         if (nuevoNombre.trimmed().isEmpty()) {
-            bloqueandoEdicion = true;
             item->setText(nombreAnterior.isEmpty() ? "Campo" + QString::number(row + 1)
                                                    : nombreAnterior);
             bloqueandoEdicion = false;
             return;
         }
 
-        // ⭐ DETECTAR SI REALMENTE CAMBIÓ EL NOMBRE
+        // Detectar si realmente cambió el nombre
         if (nombreAnterior != nuevoNombre) {
             qDebug() << "📝 Nombre de campo cambió:" << nombreAnterior << "→" << nuevoNombre;
 
             // Actualizar el nombre anterior para la próxima vez
             nombresAnteriores[row] = nuevoNombre;
 
-            // ⭐ GUARDAR INMEDIATAMENTE AL CAMBIAR NOMBRE
+            // Guardar inmediatamente al cambiar nombre
             guardarMetadatos();
         }
     }

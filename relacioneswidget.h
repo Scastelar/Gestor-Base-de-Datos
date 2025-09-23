@@ -20,6 +20,7 @@ public:
     void cargarRelacionesPrevias(); // 🔹 nuevo método
     void limpiarTodo();
     void refrescarTablas();
+    void refrescarListaTablas();
 signals:
     void cerrada();
     void relacionesActualizadas();

@@ -22,7 +22,7 @@
 
 VistaDatos::VistaDatos(QWidget *parent)
     : QWidget(parent), indiceActual(-1), ultimoID(0), filaExpandida(-1), relacionExpandida(false),
-    validador(nullptr), nombreTablaActual("")
+    validador(nullptr), nombreTablaActual(""), validandoFK(false)
  {
     QVBoxLayout *layoutPrincipal = new QVBoxLayout(this);
     tablaRegistros = new QTableWidget(1, 1, this);
@@ -419,73 +419,124 @@ void VistaDatos::onCurrentCellChanged(int currentRow, int currentColumn, int pre
 
 void VistaDatos::onCellChanged(int row, int column)
 {
-    if (column >= 1) {
-        QTableWidgetItem *item = tablaRegistros->item(row, column);
-        if (item) {
-            QString valor = item->text().trimmed();
+    if (validandoFK) {
+        return; // Evitar validación recursiva
+    }
 
-            qDebug() << "📝 Celda cambiada: fila" << row << "columna" << column
-                     << "valor:" << valor << "tabla:" << nombreTablaActual;
+    validandoFK = true;
 
-            // 🔹 NUEVA VALIDACIÓN DE FK
-            if (!validarCampoFK(row, column, valor)) {
-                // Resaltar celda con error
-                item->setBackground(QBrush(QColor(255, 200, 200)));
-                item->setToolTip("❌ Clave foránea inválida");
-                qDebug() << "❌ Validación FK falló, celda resaltada en rojo";
-                return; // No procesar más si hay error FK
-            } else {
-                // Limpiar resaltado si el valor es válido
-                item->setBackground(QBrush(Qt::white));
-                item->setToolTip("");
+    QTableWidgetItem *item = tablaRegistros->item(row, column);  // ⭐ CORREGIDO: era tablaWidget
+    if (!item) {
+        validandoFK = false;
+        return;
+    }
+
+    QString valor = item->text();
+    QString nombreCampo = tablaRegistros->horizontalHeaderItem(column)->text();  // ⭐ CORREGIDO
+
+    qDebug() << "Celda cambiada: fila" << row << "columna" << column
+             << "valor:" << valor << "tabla:" << nombreTablaActual;
+
+    // ⭐ VALIDAR FK SOLO UNA VEZ
+    if (validador && validador->esCampoClaveForanea(nombreTablaActual, nombreCampo)) {
+        qDebug() << "Validando FK en tabla:" << nombreTablaActual
+                 << "campo:" << nombreCampo << "valor:" << valor;
+
+        bool esValido = validador->validarClaveForanea(nombreTablaActual, nombreCampo, valor);
+
+        if (!esValido && !valor.isEmpty()) {
+            QString mensajeError = QString("CLAVE FORÁNEA INVÁLIDA: El valor '%1' no existe en la tabla relacionada para el campo '%2'")
+                                       .arg(valor).arg(nombreCampo);
+
+            // ⭐ MOSTRAR ERROR SOLO UNA VEZ POR VALOR/CAMPO
+            QString claveError = QString("%1-%2").arg(nombreCampo).arg(valor);
+            if (ultimoErrorFK != claveError) {
+                ultimoErrorFK = claveError;
+                QMessageBox::warning(this, "Validación de Clave Foránea", mensajeError);
             }
 
-            // Tu código existente de formateo...
-            int campoIndex = column - 1;
-            if (campoIndex >= 0 && campoIndex < camposMetadata.size()) {
-                const Campo &campo = camposMetadata[campoIndex];
+            // ⭐ RESTAURAR VALOR ANTERIOR O LIMPIAR
+            QPair<int,int> coordenada(row, column);
+            if (valoresAnterioresFK.contains(coordenada)) {
+                QString valorAnterior = valoresAnterioresFK[coordenada];
+                qDebug() << "Restaurando valor anterior:" << valorAnterior;
+                item->setText(valorAnterior);
+            } else {
+                qDebug() << "Limpiando valor inválido";
+                item->setText("");
+            }
+
+            validandoFK = false;
+            return; // ⭐ NO GUARDAR SI ES INVÁLIDO
+        } else if (esValido) {
+            // ⭐ GUARDAR VALOR VÁLIDO COMO RESPALDO
+            QPair<int,int> coordenada(row, column);
+            valoresAnterioresFK[coordenada] = valor;
+            ultimoErrorFK.clear(); // Limpiar error anterior
+            qDebug() << "FK válida, guardando valor de respaldo:" << valor;
+        }
+    } else {
+        qDebug() << "Campo" << nombreCampo << "no es FK, validación pasada";
+
+        // ⭐ GUARDAR VALOR PARA CAMPOS NO-FK TAMBIÉN
+        QPair<int,int> coordenada(row, column);
+        valoresAnterioresFK[coordenada] = valor;
+    }
+
+    // ⭐ PROCESAR FORMATEO SOLO DESPUÉS DE VALIDAR FK
+    if (column >= 1) {
+        int campoIndex = column - 1;
+        if (campoIndex >= 0 && campoIndex < camposMetadata.size()) {
+            const Campo &campo = camposMetadata[campoIndex];
+
+            if (campo.tipo == "NUMERO" && !valor.isEmpty()) {
+                QString subTipo = campo.obtenerPropiedad().toString();
+                bool ok = false;
+
+                if (subTipo == "entero") {
+                    valor.toInt(&ok);
+                }
+                else if (subTipo == "decimal" || subTipo == "doble") {
+                    valor.toDouble(&ok);
+                }
+                else if (subTipo == "byte") {
+                    int num = valor.toInt(&ok);
+                    if (ok && (num < 0 || num > 255)) ok = false;
+                }
+
+                if (!ok) {
+                    item->setBackground(QBrush(QColor(255, 200, 200)));
+                    item->setToolTip("Valor numérico inválido");
+                    validandoFK = false;
+                    return;
+                } else {
+                    item->setBackground(QBrush(Qt::white));
+                    item->setToolTip("");
+                }
+            }
+            else if (campo.tipo == "MONEDA") {
                 QString texto = item->text();
-                if (campo.tipo == "NUMERO" && !valor.isEmpty()) {
-                    QString subTipo = campo.obtenerPropiedad().toString();
-                    bool ok = false;
-
-                    if (subTipo == "entero") {
-                        valor.toInt(&ok);
-                    }
-                    else if (subTipo == "decimal" || subTipo == "doble") {
-                        valor.toDouble(&ok);
-                    }
-                    else if (subTipo == "byte") {
-                        int num = valor.toInt(&ok);
-                        if (ok && (num < 0 || num > 255)) ok = false;
-                    }
-
-                    if (!ok) {
-                        item->setBackground(QBrush(QColor(255, 200, 200)));
-                        item->setToolTip("Valor numérico inválido");
-                        return;
-                    } else {
-                        item->setBackground(QBrush(Qt::white));
-                        item->setToolTip("");
-                    }
-                }
-
-                else if (campo.tipo == "MONEDA") {
-                    texto.remove("Lps").remove("$").remove("€").remove("₡").remove(",");
-                    double valor = texto.toDouble();
-                    QString simbolo = campo.obtenerPropiedad().toString();
-                    item->setText(formatearMoneda(valor, simbolo));
-                } else if (campo.propiedad == "decimal" || campo.propiedad == "doble") {
-                    double valor = texto.toDouble();
-                    item->setText(QString::number(valor, 'f', 2));
-                }
+                texto.remove("Lps").remove("$").remove("€").remove("₡").remove(",");
+                double valorNum = texto.toDouble();
+                QString simbolo = campo.obtenerPropiedad().toString();
+                item->setText(formatearMoneda(valorNum, simbolo));
+            }
+            else if (campo.tipo == "NUMERO" && (campo.propiedad == "decimal" || campo.propiedad == "doble")) {
+                double valorNum = valor.toDouble();
+                item->setText(QString::number(valorNum, 'f', 2));
             }
 
             agregarBotonRelacion(row, column);
-            QTimer::singleShot(100, this, [this, row]() { validarRegistroCompleto(row); });
-            emit registroModificado(row);
         }
+
+        QTimer::singleShot(100, this, [this, row]() {
+            validarRegistroCompleto(row);
+            guardarRegistros(); // ⭐ GUARDAR SOLO SI LLEGAMOS AQUÍ (datos válidos)
+        });
+        emit registroModificado(row);
     }
+
+    validandoFK = false;
 }
 
 void VistaDatos::onCellDoubleClicked(int row, int column)
@@ -548,26 +599,40 @@ void VistaDatos::actualizarValidadorRelaciones()
     }
 }
 
-void VistaDatos::establecerNombreTabla(const QString &nombre)
-{
-    if (nombre.isEmpty()) {
-        qDebug() << "⚠️ ADVERTENCIA: Se está estableciendo nombre de tabla vacío";
-        return;
+void VistaDatos::prepararTabla() {
+    if (!tablaRegistros) return;
+
+    tablaRegistros->blockSignals(true);
+
+    // Limpiar valores anteriores
+    valoresAnterioresFK.clear();
+    ultimoErrorFK.clear();
+
+    // Inicializar valores anteriores para celdas existentes
+    for (int row = 0; row < tablaRegistros->rowCount(); ++row) {
+        for (int col = 0; col < tablaRegistros->columnCount(); ++col) {
+            QTableWidgetItem *item = tablaRegistros->item(row, col);
+            if (item) {
+                QPair<int,int> coordenada(row, col);
+                valoresAnterioresFK[coordenada] = item->text();
+            }
+        }
     }
 
-    QString nombreAnterior = nombreTablaActual;
+    tablaRegistros->blockSignals(false);
+}
+
+
+// ⭐ MÉTODO PARA LIMPIAR ESTADO AL CAMBIAR DE TABLA
+void VistaDatos::establecerNombreTabla(const QString &nombre) {
     nombreTablaActual = nombre;
 
-    qDebug() << "📋 Nombre de tabla establecido:" << nombreAnterior << "→" << nombreTablaActual;
+    // ⭐ LIMPIAR ESTADO AL CAMBIAR DE TABLA
+    valoresAnterioresFK.clear();
+    ultimoErrorFK.clear();
+    validandoFK = false;
 
-    // Configurar o reconfigurar validador
-    if (!validador) {
-        configurarValidador();
-    } else {
-        // Recargar relaciones con el nuevo nombre
-        validador->cargarRelaciones();
-        qDebug() << "🔄 Validador reconfigurado para:" << nombreTablaActual;
-    }
+    qDebug() << "🏷️ Nombre de tabla establecido:" << nombreTablaActual;
 }
 
 void VistaDatos::establecerPK()
@@ -735,7 +800,12 @@ void VistaDatos::configurarCeldaNumero(QTableWidgetItem *item, const QVariant &v
 
 void VistaDatos::cargarDesdeMetadata(const Metadata &meta)
 {
-    camposMetadata = meta.campos;
+
+    if (nombreTablaActual.isEmpty()) {
+        qDebug() << "ERROR: Nombre de tabla vacío al cargar metadata";
+        return;
+    }
+    this->camposMetadata = meta.campos;
     disconnect(tablaRegistros, &QTableWidget::cellChanged, this, &VistaDatos::onCellChanged);
 
     tablaRegistros->setRowCount(0);
@@ -753,6 +823,10 @@ void VistaDatos::cargarDesdeMetadata(const Metadata &meta)
     indiceActual = -1;
     ultimoID = 0;
 
+    // ⭐ LIMPIAR ESTADO ANTES DE CARGAR
+    valoresAnterioresFK.clear();
+    ultimoErrorFK.clear();
+
     for (const auto &registro : meta.registros) {
         int row = tablaRegistros->rowCount();
         tablaRegistros->insertRow(row);
@@ -766,6 +840,13 @@ void VistaDatos::cargarDesdeMetadata(const Metadata &meta)
             const Campo &campo = meta.campos[i];
             QVariant valor = registro.value(campo.nombre);
             configurarCelda(row, i + 1, valor, campo);
+
+            // ⭐ INICIALIZAR VALOR ANTERIOR PARA ESTA CELDA
+            QTableWidgetItem *item = tablaRegistros->item(row, i + 1);
+            if (item) {
+                QPair<int,int> coordenada(row, i + 1);
+                valoresAnterioresFK[coordenada] = item->text();
+            }
         }
     }
 
@@ -776,27 +857,131 @@ void VistaDatos::cargarDesdeMetadata(const Metadata &meta)
         actualizarAsteriscoIndice(0, -1);
     }
 
-     // ⭐ DEBUG: Mostrar estado final
-    if (validador) {
-        validador->debugRelaciones(nombreTablaActual);
-    }
+    // Configurar validador después de cargar datos
+    configurarValidador();
 
     connect(tablaRegistros, &QTableWidget::cellChanged, this, &VistaDatos::onCellChanged);
+
+    qDebug() << "Metadata cargada para tabla:" << nombreTablaActual
+             << "con" << tablaRegistros->rowCount() << "registros";
 }
 
 void VistaDatos::eliminarRegistro() {
+    if (!tablaRegistros) return;
 
     int currentRow = tablaRegistros->currentRow();
     if (currentRow == -1) {
-        QMessageBox::information(this, "Selección requerida", "Por favor, seleccione un campo para eliminar.");
+        QMessageBox::information(this, "Selección requerida",
+                                 "Por favor, seleccione una fila para eliminar.");
         return;
     }
 
-    tablaRegistros->removeRow(currentRow);
+    // Confirmar eliminación
+    QMessageBox::StandardButton respuesta = QMessageBox::question(
+        this, "Confirmar eliminación",
+        QString("¿Está seguro de que desea eliminar el registro de la fila %1?").arg(currentRow + 1),
+        QMessageBox::Yes | QMessageBox::No
+        );
+
+    if (respuesta == QMessageBox::Yes) {
+        // ⭐ LIMPIAR VALORES ANTERIORES DE LA FILA ELIMINADA
+        for (int col = 0; col < tablaRegistros->columnCount(); ++col) {
+            QPair<int,int> coordenada(currentRow, col);
+            valoresAnterioresFK.remove(coordenada);
+        }
+
+        // ⭐ REAJUSTAR ÍNDICES DE FILAS POSTERIORES
+        QMap<QPair<int,int>, QString> nuevosValores;
+        for (auto it = valoresAnterioresFK.begin(); it != valoresAnterioresFK.end(); ++it) {
+            QPair<int,int> coordenada = it.key();
+            if (coordenada.first > currentRow) {
+                // Decrementar fila en 1
+                QPair<int,int> nuevaCoordenada(coordenada.first - 1, coordenada.second);
+                nuevosValores[nuevaCoordenada] = it.value();
+            } else if (coordenada.first < currentRow) {
+                // Mantener igual
+                nuevosValores[coordenada] = it.value();
+            }
+            // Los de la fila eliminada (coordenada.first == currentRow) se omiten
+        }
+        valoresAnterioresFK = nuevosValores;
+
+        tablaRegistros->removeRow(currentRow);
+        guardarRegistros();
+        qDebug() << "✅ Registro eliminado de fila:" << currentRow;
+    }
+}
+
+// ⭐ MÉTODO MEJORADO: Guardar registros solo con datos válidos
+void VistaDatos::guardarRegistros()
+{
+    if (nombreTablaActual.isEmpty() || validandoFK) {
+        qDebug() << "No se puede guardar: tabla vacia o validando FK";
+        return;
+    }
+
+    try {
+        // Validar todos los datos antes de guardar
+        bool todosValidos = true;
+
+        for (int row = 0; row < tablaRegistros->rowCount(); ++row) {
+            for (int col = 1; col < tablaRegistros->columnCount(); ++col) { // Empezar en col=1 (saltar asterisco)
+                QTableWidgetItem *item = tablaRegistros->item(row, col);
+                if (!item) continue;
+
+                QString nombreCampo = tablaRegistros->horizontalHeaderItem(col)->text();
+                QString valor = item->text();
+
+                // Validar FK si es necesario (usando misma lógica que validarCampoFK)
+                if (!validador) {
+                    continue; // Sin validador, continuar
+                }
+
+                if (col - 1 >= camposMetadata.size()) {
+                    continue;
+                }
+
+                int campoIndex = col - 1;
+                const Campo &campo = camposMetadata[campoIndex];
+
+                // Verificar si es una clave foránea
+                bool esCampoFK = validador->esCampoClaveForanea(nombreTablaActual, campo.nombre);
+                if (esCampoFK && !valor.isEmpty()) {
+                    bool esValido = validador->validarClaveForanea(nombreTablaActual, campo.nombre, valor);
+                    if (!esValido) {
+                        qDebug() << "Dato invalido encontrado en fila" << row << "columna" << col
+                                 << "campo:" << campo.nombre << "valor:" << valor;
+                        todosValidos = false;
+                        break;
+                    }
+                }
+            }
+            if (!todosValidos) break;
+        }
+
+        if (!todosValidos) {
+            qDebug() << "No se guardaran los registros porque hay datos invalidos";
+            return;
+        }
+
+        // Proceder con el guardado solo si todo es válido
+        Metadata meta = Metadata::cargar(QDir::currentPath() + "/tables/" + nombreTablaActual + ".meta");
+        meta.registros = obtenerRegistros(meta.campos);
+        meta.guardar();
+
+        qDebug() << "Registros guardados correctamente para tabla:" << nombreTablaActual;
+
+    } catch (const std::runtime_error &e) {
+        qDebug() << "Error al guardar registros:" << e.what();
+        QMessageBox::critical(this, "Error al guardar",
+                              QString("No se pudieron guardar los registros: %1").arg(e.what()));
+    }
 }
 
 void VistaDatos::agregarRegistro()
 {
+    tablaRegistros->blockSignals(true);
+
     int row = tablaRegistros->rowCount();
     tablaRegistros->insertRow(row);
 
@@ -808,14 +993,33 @@ void VistaDatos::agregarRegistro()
     for (int i = 0; i < camposMetadata.size(); i++) {
         const Campo &campo = camposMetadata[i];
         QVariant valor;
-        if (campo.tipo == "MONEDA") valor = 0.00;
-        else if (campo.tipo == "FECHA") valor = QDateTime::currentDateTime();
-        else if (campo.tipo == "NUMERO") valor = 0;
+        if (campo.tipo == "MONEDA"){ valor = 0.00;}
+        else if (campo.tipo == "FECHA"){ valor = QDateTime::currentDateTime();}
+        else if (campo.tipo == "NUMERO"){ valor = 0;}
+        else { valor = "";}
+
         configurarCelda(row, i + 1, valor, campo);
+        // ⭐ INICIALIZAR VALOR ANTERIOR PARA NUEVA CELDA
+        QTableWidgetItem *item = tablaRegistros->item(row, i + 1);
+        if (item) {
+            QPair<int,int> coordenada(row, i + 1);
+            valoresAnterioresFK[coordenada] = item->text();
+        }
     }
 
-    QTimer::singleShot(100, this, [this, row]() { validarRegistroCompleto(row); });
+    tablaRegistros->blockSignals(false);
+
+    // Enfocar la primera celda de la nueva fila
+    if (tablaRegistros->columnCount() > 1) {
+        tablaRegistros->setCurrentCell(row, 1);
+    }
+
+    QTimer::singleShot(100, this, [this, row]() {
+        validarRegistroCompleto(row);
+    });
     emit registroAgregado(row, "");
+
+    qDebug() << "Registro agregado en fila:" << row;
 }
 
 void VistaDatos::validarRegistroCompleto(int fila)

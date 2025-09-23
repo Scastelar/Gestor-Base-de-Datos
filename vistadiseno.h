@@ -35,6 +35,7 @@ public:
     void on_tablaCampos_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn);
     void on_tablaCampos_cellChanged(int row, int column);
     void guardarPropiedadFila(int row);
+    void actualizarEstadoCampos();
 
     // 🔹 Nuevos métodos para manejar campos relacionados
     void setCamposRelacionados(const QSet<QString>& camposRelacionados);
@@ -64,7 +65,8 @@ private:
     void manejarCambioPK(QTableWidgetItem *item);
 
     bool esCampoRelacionado(const QString& nombreCampo) const;
-    void actualizarEstadoCampos(); // Actualizar estado editable de campos
+    void actualizarRelacionesConNuevoCampo(const QString &nombreAnterior, const QString &nuevoNombre);
+
 
     bool guardandoMetadatos;
     bool bloqueandoEdicion;
