@@ -26,6 +26,7 @@ SOURCES += \
     tableitem.cpp
 
 HEADERS += \
+    availdatos.h \
     consultawidget.h \
     formulariowidget.h \
     mainwindow.h \

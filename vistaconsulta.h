@@ -41,10 +41,6 @@ public:
     }
 };
 
-
-// -----------------------------
-//  VistaConsulta
-// -----------------------------
 class VistaConsulta : public QWidget
 {
     Q_OBJECT

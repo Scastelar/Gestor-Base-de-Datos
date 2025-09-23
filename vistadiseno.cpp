@@ -1,3 +1,4 @@
+#include "availdatos.h"
 #include "vistadiseno.h"
 #include <QHeaderView>
 #include <QTableWidgetItem>
