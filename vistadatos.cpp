@@ -443,8 +443,13 @@ void VistaDatos::onCellChanged(int row, int column)
                  << "campo:" << nombreCampo << "valor:" << valor;
 
         bool esValido = validador->validarClaveForanea(nombreTablaActual, nombreCampo, valor);
+        bool esFilaNueva = (row >= tablaRegistros->rowCount()-1);
 
         if (!esValido && !valor.isEmpty()) {
+            if (esFilaNueva) {
+                // 🚫 No mostrar mensaje, solo marcar en rojo
+                item->setBackground(QBrush(Qt::red));
+            } else {
             QString mensajeError = QString("CLAVE FORÁNEA INVÁLIDA: El valor '%1' no existe en la tabla relacionada para el campo '%2'")
                                        .arg(valor).arg(nombreCampo);
 
@@ -464,6 +469,7 @@ void VistaDatos::onCellChanged(int row, int column)
             } else {
                 qDebug() << "Limpiando valor inválido";
                 item->setText("");
+            }
             }
 
             validandoFK = false;

@@ -167,24 +167,21 @@ bool ValidadorRelaciones::validarClaveForanea(const QString &tablaForanea,
                 return true;
             }
 
-            if (rel.tipoRelacion == "1:M" || rel.tipoRelacion == "1:1") {
-                // Obtener metadata de la tabla principal
+            if (rel.tipoRelacion == "1:M") {
+                // ✅ Validar FK solo en 1:M
                 Metadata metaPrincipal = obtenerMetadata(rel.tablaPrincipal);
-
-                // Buscar el valor en los registros de la tabla principal
                 for (const auto &registro : metaPrincipal.registros) {
                     QVariant valorPrincipal = registro.value(rel.campoPrincipal);
-
                     if (valorPrincipal.toString() == valor.toString()) {
-                        qDebug() << "✅ FK válida:" << valor.toString() << "encontrado en"
-                                 << rel.tablaPrincipal << "." << rel.campoPrincipal;
                         return true;
                     }
                 }
+                return false; // No se encontró valor válido
+            }
 
-                qDebug() << "❌ FK inválida:" << valor.toString() << "NO encontrado en"
-                         << rel.tablaPrincipal << "." << rel.campoPrincipal;
-                return false;
+            if (rel.tipoRelacion == "1:1") {
+                // 🚫 No se aplica integridad en 1:1, siempre permitir
+                return true;
             }
         }
     }
