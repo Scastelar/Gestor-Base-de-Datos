@@ -584,7 +584,7 @@ void MainWindow::crearRibbonCrear()
     connect(btnReporte, &QToolButton::clicked, this, [=]() {
         QVector<Metadata> metadatos;
 
-        // 🔹 Cargar todas las tablas disponibles
+        //  Cargar todas las tablas disponibles
         QDir dir(QDir::currentPath() + "/tables");
         QStringList archivosMeta = dir.entryList(QStringList() << "*.meta", QDir::Files);
         for (const QString &fileName : archivosMeta) {
@@ -592,7 +592,7 @@ void MainWindow::crearRibbonCrear()
             metadatos.append(meta);
         }
 
-        // 🔹 Crear y mostrar el reporte
+        //  Crear y mostrar el reporte
         ReporteWidget *reporte = new ReporteWidget(this);
         reporte->generarReporte(metadatos);
         reporte->exec();
@@ -702,15 +702,12 @@ void MainWindow::abrirTabla(QListWidgetItem *item)
     if (!item) return;
 
     tablaActualNombre = item->data(Qt::UserRole).toString();
-    Metadata meta;
-
-    // Si el nombre está vacío, significa que el item no es una tabla real
     if (tablaActualNombre.isEmpty()) {
         qDebug() << "Intento de abrir un item sin nombre de tabla.";
         return;
     }
 
-    // Ya existe una pestaña abierta para esta tabla?
+    // Si ya está abierta, solo enfocar
     for (int i = 0; i < zonaCentral->count(); ++i) {
         if (zonaCentral->tabText(i) == tablaActualNombre) {
             zonaCentral->setCurrentIndex(i);
@@ -718,77 +715,80 @@ void MainWindow::abrirTabla(QListWidgetItem *item)
         }
     }
 
+    // Cargar metadata de la tabla
+    Metadata meta;
     try {
         meta = Metadata::cargar(QDir::currentPath() + "/tables/" + tablaActualNombre + ".meta");
     } catch (const std::runtime_error& e) {
         QMessageBox::critical(this, "Error al Abrir Tabla",
-                              QString("No se pudo abrir el archivo de la tabla '%1'. Error: %2").arg(tablaActualNombre).arg(e.what()));
+                              QString("No se pudo abrir el archivo de la tabla '%1'. Error: %2")
+                                  .arg(tablaActualNombre).arg(e.what()));
         return;
     }
 
-    // Crear un widget contenedor para las vistas de la tabla
+    // ⚠️ Obtener campos relacionados ANTES (para bloquear lo que toque desde el inicio)
+    QSet<QString> camposRelacionados = obtenerCamposRelacionados(tablaActualNombre);
+
+    // Contenedor y stacked
     QWidget *tablaContainer = new QWidget();
     QVBoxLayout *containerLayout = new QVBoxLayout(tablaContainer);
     containerLayout->setContentsMargins(0, 0, 0, 0);
-
-    // Crear stacked widget para alternar entre vista diseño y hoja de datos
     QStackedWidget *tablaStacked = new QStackedWidget();
 
-    // Crear ambas vistas
-    VistaDiseno *tablaDesign = new VistaDiseno();
-    VistaDatos *tablaDataSheet = new VistaDatos();
-    connect(tablaDataSheet, &VistaDatos::datosModificados,
-            this, &MainWindow::actualizarFormularioDesdeTabla);
+    // Vistas
+    VistaDiseno *tablaDesign   = new VistaDiseno();
+    VistaDatos  *tablaDataSheet = new VistaDatos();
 
-    // ⭐ CRÍTICO: Establecer nombre de tabla ANTES de cargar metadatos
-    tablaDataSheet->establecerNombreTabla(tablaActualNombre);
+    // 🔴 CRÍTICO: Poner nombre ANTES de cargar para que guardarMetadatos() no aborte
+    // (guardarMetadatos retorna si nombreTablaActual está vacío) :contentReference[oaicite:1]{index=1}
+    tablaDesign->setNombreTabla(tablaActualNombre);              // ← primero el nombre
+    tablaDesign->setCamposRelacionados(camposRelacionados);      // ← bloqueos desde el inicio
+    tablaDataSheet->establecerNombreTabla(tablaActualNombre);    // ya lo hacías bien para VistaDatos
 
-    // Cargar estructura en ambas vistas
+    // Cargar datos
     tablaDesign->cargarCampos(meta.campos);
+    // ✅ Opcional recomendado: persistir estado inicial para que el toggle de PK funcione al primer intento
+    tablaDesign->guardarMetadatos();  // usa nombreTablaActual ya establecido :contentReference[oaicite:2]{index=2}
+
     tablaDataSheet->cargarDesdeMetadata(meta);
     tablaDataSheet->cargarRelaciones("relationships.dat");
 
-    // Añadir ambas vistas al stacked widget
+    // Agregar al stacked
     tablaStacked->addWidget(tablaDesign);
     tablaStacked->addWidget(tablaDataSheet);
+    containerLayout->addWidget(tablaStacked);
 
+    // Agregar tab
+    int newTabIndex = zonaCentral->addTab(tablaContainer, tablaActualNombre);
+    zonaCentral->setCurrentIndex(newTabIndex);
 
-    // Obtener campos relacionados de relationships.dat
-    QSet<QString> camposRelacionados = obtenerCamposRelacionados(tablaActualNombre);
-    tablaDesign->setNombreTabla(tablaActualNombre);
-    tablaDesign->setCamposRelacionados(camposRelacionados);
+    // Guardar referencias en el tab
+    tablaContainer->setProperty("tablaDesign",   QVariant::fromValue(tablaDesign));
+    tablaContainer->setProperty("tablaDataSheet",QVariant::fromValue(tablaDataSheet));
+    tablaContainer->setProperty("tablaStacked",  QVariant::fromValue(tablaStacked));
 
-    // Conectar señal de modificación
+    // Señales de actualización cuando cambien metadatos en diseño
     connect(tablaDesign, &VistaDiseno::metadatosModificados,
-            this, &MainWindow::onMetadatosModificados);
+            this, &MainWindow::onMetadatosModificados, Qt::UniqueConnection);
+    connect(tablaDataSheet, &VistaDatos::datosModificados,
+            this, &MainWindow::actualizarFormularioDesdeTabla);
 
-    // Configurar la vista inicial según comboVista
+    // Vista inicial
     if (comboVista->currentIndex() == 1) {
         tablaStacked->setCurrentWidget(tablaDataSheet);
     } else {
         tablaStacked->setCurrentWidget(tablaDesign);
     }
 
-    containerLayout->addWidget(tablaStacked);
-
-    // Añadir el nuevo tab
-    int newTabIndex = zonaCentral->addTab(tablaContainer, tablaActualNombre);
-    zonaCentral->setCurrentIndex(newTabIndex);
-
-    // Guardar referencias dentro del tab
-    tablaContainer->setProperty("tablaDesign", QVariant::fromValue(tablaDesign));
-    tablaContainer->setProperty("tablaDataSheet", QVariant::fromValue(tablaDataSheet));
-    tablaContainer->setProperty("tablaStacked", QVariant::fromValue(tablaStacked));
-
-    // Conectar botón de PK a la vista activa
-    //disconnect(btnLlavePrimaria, &QToolButton::clicked, 0, 0);
-    actualizarConexionesBotones();
+    // Conexiones de botones (evitar duplicados)
+    QObject::disconnect(btnLlavePrimaria, nullptr, nullptr, nullptr);
+    actualizarConexionesBotones(); // si dentro conecta otras cosas, ok, pero limpiamos PK primero
     if (comboVista->currentIndex() == 1) {
         connect(btnLlavePrimaria, &QToolButton::clicked,
-                tablaDataSheet, &VistaDatos::establecerPK);
+                tablaDataSheet, &VistaDatos::establecerPK, Qt::UniqueConnection);
     } else {
         connect(btnLlavePrimaria, &QToolButton::clicked,
-                tablaDesign, &VistaDiseno::establecerPK);
+                tablaDesign, &VistaDiseno::establecerPK, Qt::UniqueConnection);
     }
 
     // Mostrar ribbon de Inicio
@@ -807,7 +807,7 @@ void MainWindow::cambiarTablaActual(int index)
     if (tabName == "Relaciones") {
         RelacionesWidget *relaciones = qobject_cast<RelacionesWidget*>(zonaCentral->widget(index));
         if (relaciones) {
-            relaciones->refrescarTablas();  // 🔹 ahora refresca sin perder relaciones
+            relaciones->refrescarTablas();  //  ahora refresca sin perder relaciones
             // En el constructor o donde crees RelacionesWidget
             connect(this, &MainWindow::actualizarRelaciones, this, [this]() {
                 // Buscar la pestaña de relaciones y actualizarla
@@ -851,7 +851,7 @@ void MainWindow::actualizarConexionesBotones()
     if (vistaHojaDatos && tablaDataSheet) {
         qDebug() << "🔗 Conectando botones a VistaDatos para tabla:" << tablaActualNombre;
 
-        // ⭐ VERIFICAR que VistaDatos tiene nombre de tabla configurado
+        //  VERIFICAR que VistaDatos tiene nombre de tabla configurado
         if (tablaDataSheet->obtenerNombreTabla().isEmpty()) {
             qDebug() << "⚠️ VistaDatos no tiene nombre de tabla, configurando:" << tablaActualNombre;
             tablaDataSheet->establecerNombreTabla(tablaActualNombre);
@@ -1028,12 +1028,12 @@ void MainWindow::cambiarVista()
 
 void MainWindow::abrirRelaciones()
 {
-    // 🔹 Verificar si ya existe una pestaña "Relaciones"
+    //  Verificar si ya existe una pestaña "Relaciones"
     for (int i = 0; i < zonaCentral->count(); ++i) {
         if (zonaCentral->tabText(i) == "Relaciones") {
             zonaCentral->setCurrentIndex(i); // seleccionar pestaña existente
 
-            // ⭐ REFRESCAR LA PESTAÑA EXISTENTE
+            //  REFRESCAR LA PESTAÑA EXISTENTE
             RelacionesWidget *relacionesWidget = qobject_cast<RelacionesWidget*>(zonaCentral->widget(i));
             if (relacionesWidget) {
                 relacionesWidget->refrescarTablas();
@@ -1043,7 +1043,7 @@ void MainWindow::abrirRelaciones()
         }
     }
 
-    // 🔹 Guardar metadatos de la tabla actual si hay una abierta
+    //  Guardar metadatos de la tabla actual si hay una abierta
     if (tablaActual) {
         VistaDiseno *tablaDesign = tablaActual->property("tablaDesign").value<VistaDiseno*>();
         VistaDatos *tablaDataSheet = tablaActual->property("tablaDataSheet").value<VistaDatos*>();
@@ -1061,7 +1061,7 @@ void MainWindow::abrirRelaciones()
         }
     }
 
-    // 🔹 Crear nueva pestaña de relaciones solo si no existía
+    //  Crear nueva pestaña de relaciones solo si no existía
     RelacionesWidget *relacionesWidget = new RelacionesWidget();
     int tabIndex = zonaCentral->addTab(relacionesWidget, "Relaciones");
     zonaCentral->setCurrentIndex(tabIndex);
@@ -1119,7 +1119,7 @@ void MainWindow::guardarRelacionEnBD(const QString &tabla1, const QString &campo
 
         qDebug() << "✅ Relación guardada correctamente";
 
-        // ⭐ ACTUALIZAR TODAS LAS TABLAS ABIERTAS
+        //  ACTUALIZAR TODAS LAS TABLAS ABIERTAS
         actualizarTablasAbiertasConRelaciones();
 
         // Emitir señal para actualizar otros componentes
@@ -1128,7 +1128,7 @@ void MainWindow::guardarRelacionEnBD(const QString &tabla1, const QString &campo
         qDebug() << "❌ Error al guardar relación en archivo";
     }
 }
-// ⭐ NUEVO MÉTODO: Eliminar relación de BD (si no existe, agregarlo)
+//  NUEVO MÉTODO: Eliminar relación de BD (si no existe, agregarlo)
 void MainWindow::eliminarRelacionDeBD(const QString &tabla1, const QString &campo1,
                                       const QString &tabla2, const QString &campo2)
 {
@@ -1320,7 +1320,7 @@ void MainWindow::crearNuevaTabla() {
         return;
     }
 
-    // 🔹 Inicia la creación del QListWidgetItem con el widget personalizado
+    //  Inicia la creación del QListWidgetItem con el widget personalizado
     QListWidgetItem *item = new QListWidgetItem(listaTablas);
     item->setData(Qt::UserRole, nombreTabla); // Almacenar el nombre de la tabla
 
@@ -1367,7 +1367,7 @@ void MainWindow::crearNuevaTabla() {
     VistaDiseno *tablaDesign = new VistaDiseno();
     VistaDatos *tablaDataSheet = new VistaDatos();
 
-    // ⭐ CRÍTICO: Establecer nombre de tabla ANTES de cargar cualquier cosa
+    //  CRÍTICO: Establecer nombre de tabla ANTES de cargar cualquier cosa
     tablaDataSheet->establecerNombreTabla(nombreTabla);
     // Cargar campos en vista diseño
     tablaDesign->cargarCampos(meta.campos);
@@ -1423,7 +1423,7 @@ void MainWindow::guardarTablasAbiertas()
 
         QString tabName = zonaCentral->tabText(i);
 
-        // 🔹 Ignorar consultas y relaciones
+        //  Ignorar consultas y relaciones
         if (tabName.startsWith("Diseño de Consulta") ||
             tabName.startsWith("Consulta") ||
             tabName.startsWith("Relaciones")) {
@@ -1775,7 +1775,7 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
     // 6. Renombrar relaciones en relationships.dat
     renombrarTablaEnRelaciones(nombreTabla, nuevoNombre);
 
-    // 7. ⭐ ACTUALIZAR LA INTERFAZ RECREANDO EL ITEM COMPLETO
+    // 7.  ACTUALIZAR LA INTERFAZ RECREANDO EL ITEM COMPLETO
     QListWidgetItem* itemToRename = nullptr;
     for (int i = 0; i < listaTablas->count(); ++i) {
         QListWidgetItem* item = listaTablas->item(i);
@@ -1789,7 +1789,7 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
         // Actualizar los datos del item
         itemToRename->setData(Qt::UserRole, nuevoNombre);
 
-        // ⭐ RECREAR COMPLETAMENTE EL WIDGET DEL ITEM CON NUEVAS CONEXIONES
+        //  RECREAR COMPLETAMENTE EL WIDGET DEL ITEM CON NUEVAS CONEXIONES
         QWidget* nuevoItemWidget = new QWidget();
         QHBoxLayout* itemLayout = new QHBoxLayout(nuevoItemWidget);
         QLabel* nameLabel = new QLabel(nuevoNombre);
@@ -1797,12 +1797,12 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
         menuButton->setIcon(QIcon(":/imgs/menu.png"));
         menuButton->setAutoRaise(true);
 
-        // ⭐ CREAR NUEVO MENÚ CON CONEXIONES ACTUALIZADAS
+        //  CREAR NUEVO MENÚ CON CONEXIONES ACTUALIZADAS
         QMenu* menu = new QMenu(this);
         QAction* renameAction = menu->addAction("Editar Nombre");
         QAction* deleteAction = menu->addAction("Eliminar");
 
-        // ⭐ CONECTAR CON EL NUEVO NOMBRE (NO EL VIEJO)
+        //  CONECTAR CON EL NUEVO NOMBRE (NO EL VIEJO)
         connect(renameAction, &QAction::triggered, this, [this, nuevoNombre]() {
             editarNombreTabla(nuevoNombre);
         });
@@ -1818,7 +1818,7 @@ void MainWindow::editarNombreTabla(const QString& nombreTabla)
         itemLayout->addWidget(menuButton);
         itemLayout->setContentsMargins(0, 0, 0, 0);
 
-        // ⭐ REEMPLAZAR EL WIDGET COMPLETO
+        //  REEMPLAZAR EL WIDGET COMPLETO
         itemToRename->setSizeHint(nuevoItemWidget->sizeHint());
         listaTablas->setItemWidget(itemToRename, nuevoItemWidget);
 

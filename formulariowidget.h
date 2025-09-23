@@ -14,8 +14,8 @@
 #include <QDateEdit>
 #include "metadata.h"
 
-class VistaDatos;              // 🔹 Forward declaration
-class ValidadorRelaciones;     // 🔹 Forward declaration
+class VistaDatos;              //  Forward declaration
+class ValidadorRelaciones;     //  Forward declaration
 
 class FormularioWidget : public QWidget
 {

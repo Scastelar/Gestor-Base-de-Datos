@@ -68,7 +68,6 @@ RelacionFK ValidadorRelaciones::procesarRelacion(const QStringList &partes)
     QString tabla2 = partes[2];
     QString campo2 = partes[3];
 
-    // Determinar cuál tabla tiene la PK para establecer la dirección correcta
     Metadata meta1 = obtenerMetadata(tabla1);
     Metadata meta2 = obtenerMetadata(tabla2);
 
@@ -76,26 +75,16 @@ RelacionFK ValidadorRelaciones::procesarRelacion(const QStringList &partes)
     bool tabla2TienePK = meta2.tienePK();
     bool campo1EsPK = false, campo2EsPK = false;
 
-    // Buscar si campo1 es PK en tabla1
     for (const Campo &c : meta1.campos) {
-        if (c.nombre == campo1 && c.esPK) {
-            campo1EsPK = true;
-            break;
-        }
+        if (c.nombre == campo1 && c.esPK) { campo1EsPK = true; break; }
     }
-
-    // Buscar si campo2 es PK en tabla2
     for (const Campo &c : meta2.campos) {
-        if (c.nombre == campo2 && c.esPK) {
-            campo2EsPK = true;
-            break;
-        }
+        if (c.nombre == campo2 && c.esPK) { campo2EsPK = true; break; }
     }
 
     RelacionFK rel;
 
     if (campo1EsPK && !campo2EsPK) {
-        // tabla1 es principal, tabla2 es foránea (1:M)
         rel.tablaPrincipal = tabla1;
         rel.campoPrincipal = campo1;
         rel.tablaForanea = tabla2;
@@ -103,7 +92,6 @@ RelacionFK ValidadorRelaciones::procesarRelacion(const QStringList &partes)
         rel.tipoRelacion = "1:M";
     }
     else if (campo2EsPK && !campo1EsPK) {
-        // tabla2 es principal, tabla1 es foránea (1:M)
         rel.tablaPrincipal = tabla2;
         rel.campoPrincipal = campo2;
         rel.tablaForanea = tabla1;
@@ -111,7 +99,6 @@ RelacionFK ValidadorRelaciones::procesarRelacion(const QStringList &partes)
         rel.tipoRelacion = "1:M";
     }
     else if (campo1EsPK && campo2EsPK) {
-        // Ambos son PK: relación 1:1
         rel.tablaPrincipal = tabla1;
         rel.campoPrincipal = campo1;
         rel.tablaForanea = tabla2;
@@ -119,24 +106,24 @@ RelacionFK ValidadorRelaciones::procesarRelacion(const QStringList &partes)
         rel.tipoRelacion = "1:1";
     }
     else {
-        // NUEVA LÓGICA: M:M solo si NINGUNA tabla tiene PK
-        if (!tabla1TienePK && !tabla2TienePK) {
-            rel.tablaPrincipal = tabla1;
-            rel.campoPrincipal = campo1;
-            rel.tablaForanea = tabla2;
-            rel.campoForaneo = campo2;
-            rel.tipoRelacion = "M:M";
-            qDebug() << "✅ Relación M:M permitida - ninguna tabla tiene PK";
-        } else {
-            // Una o ambas tablas tienen PK pero los campos relacionados no son PK
-            // Esto sería una relación inválida
-            qDebug() << "❌ Relación inválida: tablas con PK pero campos no son PK";
-            return RelacionFK(); // Retornar relación vacía
+        // 🚨 M:M inválida si alguna tabla tiene PK
+        if (tabla1TienePK || tabla2TienePK) {
+            qDebug() << "❌ Relación M:M inválida: al menos una tabla tiene PK, no se guardará.";
+            return RelacionFK(); // ← relación vacía, no se añade a relationships.dat
         }
+
+        // ✅ M:M permitida
+        rel.tablaPrincipal = tabla1;
+        rel.campoPrincipal = campo1;
+        rel.tablaForanea = tabla2;
+        rel.campoForaneo = campo2;
+        rel.tipoRelacion = "M:M";
+        qDebug() << "✅ Relación M:M permitida entre" << tabla1 << "y" << tabla2;
     }
 
     return rel;
 }
+
 
 
 Metadata ValidadorRelaciones::obtenerMetadata(const QString &nombreTabla)

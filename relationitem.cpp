@@ -78,7 +78,7 @@ void RelationItem::updatePosition()
     path.cubicTo(ctrl1, ctrl2, p2);
     setPath(path);
 
-    // 🔹 Reubicar etiquetas al lado del campo (no encima del texto)
+    //  Reubicar etiquetas al lado del campo (no encima del texto)
     for (const CampoVisual &cv : source->getCamposVisuales()) {
         if (cv.nombre == campoSource) {
             QRectF r = cv.rect;

@@ -84,7 +84,7 @@ class Metadata {
 public:
     QString nombreTabla;
     QVector<Campo> campos;
-    QVector<QMap<QString, QVariant>> registros; // 🔹 ahora también almacena registros
+    QVector<QMap<QString, QVariant>> registros; //  ahora también almacena registros
     QVector<Relacion> relaciones;
 
     Metadata(const QString &nombre = "") : nombreTabla(nombre) {}
@@ -171,7 +171,7 @@ public:
     static Metadata cargar(const QString &filePath) {
         Metadata meta;
 
-        // 🔹 Leer archivo .meta
+        //  Leer archivo .meta
         QFile file(filePath);
         if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
             throw std::runtime_error("No se pudo abrir el archivo de metadatos para lectura");
@@ -216,7 +216,7 @@ public:
         }
         file.close();
 
-        // 🔹 Leer archivo .data
+        //  Leer archivo .data
         QDir dir(QDir::currentPath() + "/tables");
         QFile dataFile(dir.filePath(meta.nombreTabla + ".data"));
         if (dataFile.exists()) {

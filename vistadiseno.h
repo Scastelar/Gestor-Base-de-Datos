@@ -9,7 +9,7 @@
 #include <QComboBox>
 #include <QSpinBox>
 #include <QPushButton>
-#include "metadata.h"   // 🔹 Para usar struct Campo
+#include "metadata.h"   //  Para usar struct Campo
 
 class VistaDiseno : public QWidget {
     Q_OBJECT
@@ -17,16 +17,16 @@ class VistaDiseno : public QWidget {
 public:
     explicit VistaDiseno(QWidget *parent = nullptr);
     bool validarPK() const;
-    // 🔹 Manejo de la PK
+    //  Manejo de la PK
     int obtenerFilaPK() const;
     void establecerPK();
     QString obtenerNombrePK() const;
 
-    // 🔹 Manejo de propiedades de campo
+    //  Manejo de propiedades de campo
     void actualizarPropiedades();
     QString obtenerPropiedadesCampo(int row) const;
 
-    // 🔹 Guardado / carga de metadata
+    //  Guardado / carga de metadata
     QVector<Campo> obtenerCampos() const;
     void cargarCampos(const QVector<Campo>& campos);
     void eliminarCampo();
@@ -37,7 +37,7 @@ public:
     void guardarPropiedadFila(int row);
     void actualizarEstadoCampos();
 
-    // 🔹 Nuevos métodos para manejar campos relacionados
+    //  Nuevos métodos para manejar campos relacionados
     void setCamposRelacionados(const QSet<QString>& camposRelacionados);
     void setNombreTabla(const QString& nombre);
     void guardarMetadatos(); // Guardar automáticamente

@@ -55,7 +55,7 @@ QString ReporteWidget::generarTextoResumen(const QVector<Metadata> &metadatos) {
     texto += QString("• Campos totales: %1 · Claves primarias: %2 · Índices sin duplicados: 0\n")
                  .arg(totalCampos).arg(totalPK);
     texto += QString("• Registros totales (todas las tablas): %1\n").arg(totalRegistros);
-    texto += QString("• Relaciones: (por ahora 0)\n"); // 🔹 Aquí puedes integrar con tu relacioneswidget
+    texto += QString("• Relaciones: (por ahora 0)\n"); //  Aquí puedes integrar con tu relacioneswidget
     texto += QString("• Consultas guardadas: 0\n");
     texto += QString("• Formularios guardados: 0\n");
     return texto;

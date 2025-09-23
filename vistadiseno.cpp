@@ -73,22 +73,22 @@ void VistaDiseno::configurarTablaCampos() {
     pkItem->setToolTip("Llave Primaria");
     tablaCampos->setItem(0, 0, pkItem);
 
-    // Columna Field Name (editable QTableWidgetItem)
+    // Columna Nombre
     QTableWidgetItem *nombreItem = new QTableWidgetItem("ID");
     tablaCampos->setItem(0, 1, nombreItem);
 
-    // Columna Data Type (QComboBox en la celda)
+    // Columna Tipo de dato
     QComboBox *tipoCombo = new QComboBox();
     tipoCombo->addItems({"TEXTO", "NUMERO", "FECHA", "MONEDA"});
     tipoCombo->setCurrentText("NUMERO"); // Tipo por defecto para PK
     connect(tipoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this]() {
                 actualizarPropiedades();
-                guardarMetadatos();   // 🔹 Guardar al cambiar tipo
+                guardarMetadatos();   //
             });
     tablaCampos->setCellWidget(0, 2, tipoCombo);
 
-    tablaCampos->horizontalHeader()->setStretchLastSection(true);
+    guardarMetadatos();
 
      nombresAnteriores.clear();
 }
@@ -117,7 +117,7 @@ void VistaDiseno::agregarCampo() {
     QTableWidgetItem *nombreItem = new QTableWidgetItem("Nuevo Campo");
     tablaCampos->setItem(row, 1, nombreItem);
 
-    // 🔹 ALMACENAR NOMBRE INICIAL
+    //  ALMACENAR NOMBRE INICIAL
     nombresAnteriores[row] = "Nuevo Campo";
 
     // Columna Data Type
@@ -290,12 +290,12 @@ QVector<Campo> VistaDiseno::obtenerCampos() const {
     return campos;
 }
 
-// 🔹 Cargar campos desde Metadata con propiedades
+//  Cargar campos desde Metadata con propiedades
 void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
     tablaCampos->blockSignals(true);
     tablaCampos->setRowCount(0); // limpiar
     propiedadesPorFila.clear();
-    nombresAnteriores.clear(); // 🔹 Limpiar nombres anteriores
+    nombresAnteriores.clear(); //  Limpiar nombres anteriores
 
     for (int i = 0; i < campos.size(); i++) {
         const Campo& c = campos[i];
@@ -327,11 +327,11 @@ void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
         connect(tipoCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
                 this, [this]() {
                     actualizarPropiedades();
-                    guardarMetadatos();   // 🔹 Guardar al cambiar tipo
+                    guardarMetadatos();   //  Guardar al cambiar tipo
                 });
         tablaCampos->setCellWidget(row, 2, tipoCombo);
 
-        // ⭐ VALIDAR PROPIEDAD SEGÚN EL TIPO ANTES DE GUARDAR
+        //  VALIDAR PROPIEDAD SEGÚN EL TIPO ANTES DE GUARDAR
                 QVariant propiedadCorrecta;
         if (c.propiedad.isValid()) {
             // Verificar que la propiedad coincida con el tipo
@@ -379,7 +379,7 @@ void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
         propiedadesPorFila[row] = propiedadCorrecta;
     }
 
-    // ⭐ CRÍTICO: Actualizar estado de campos relacionados DESPUÉS de cargar
+    //  CRÍTICO: Actualizar estado de campos relacionados DESPUÉS de cargar
     QTimer::singleShot(100, this, [this]() {
         actualizarEstadoCampos();
         qDebug() << "🔒 Campos relacionados actualizados:" << camposRelacionados;
@@ -393,7 +393,7 @@ void VistaDiseno::cargarCampos(const QVector<Campo>& campos) {
     tablaCampos->blockSignals(false);
 }
 
-// 🔹 Actualizar propiedades cuando cambia el tipo de dato
+//  Actualizar propiedades cuando cambia el tipo de dato
 void VistaDiseno::actualizarPropiedades() {
     tablaPropiedades->clearContents();
     tablaPropiedades->setRowCount(0);
@@ -401,7 +401,7 @@ void VistaDiseno::actualizarPropiedades() {
     int currentRow = tablaCampos->currentRow();
     if (currentRow == -1) return;
 
-    // ⭐ NUEVA VALIDACIÓN: Verificar si el campo está relacionado
+    //  NUEVA VALIDACIÓN: Verificar si el campo está relacionado
     QTableWidgetItem *nombreItem = tablaCampos->item(currentRow, 1);
     bool esRelacionado = nombreItem && esCampoRelacionado(nombreItem->text());
 
@@ -449,7 +449,7 @@ void VistaDiseno::actualizarPropiedades() {
 
         QSpinBox *spinBox = new QSpinBox();
         spinBox->setRange(1, 255);
-        spinBox->setEnabled(!esRelacionado); // ⭐ DESHABILITAR SI ESTÁ RELACIONADO
+        spinBox->setEnabled(!esRelacionado); //  DESHABILITAR SI ESTÁ RELACIONADO
 
         // Cargar valor guardado o usar valor por defecto
         int valor = propiedadesPorFila.value(currentRow, 255).toInt();
@@ -564,7 +564,7 @@ void VistaDiseno::on_tablaCampos_currentCellChanged(int currentRow, int currentC
     }
 }
 
-// 🔹 Método auxiliar para guardar propiedad de una fila específica
+//  Método auxiliar para guardar propiedad de una fila específica
 void VistaDiseno::guardarPropiedadFila(int row) {
     if (tablaPropiedades->rowCount() == 0) return;
 
@@ -601,13 +601,13 @@ void VistaDiseno::guardarPropiedadFila(int row) {
             propiedadesPorFila[row] = valor;
         }
     }
-    // ⭐ GUARDAR AUTOMÁTICAMENTE DESPUÉS DE CAMBIAR FILA
+    //  GUARDAR AUTOMÁTICAMENTE DESPUÉS DE CAMBIAR FILA
     QTimer::singleShot(100, this, [this]() {
         guardarMetadatos();
     });
 }
 
-// 🔹 Limpiar propiedades cuando se elimina una fila
+//  Limpiar propiedades cuando se elimina una fila
 void VistaDiseno::on_tablaCampos_cellChanged(int row, int column) {
 
     if (bloqueandoEdicion) return;
@@ -630,7 +630,7 @@ bool VistaDiseno::validarPK() const {
             countPK++;
         }
     }
-    return countPK == 1;
+    return countPK <= 1;
 }
 
 void VistaDiseno::setCamposRelacionados(const QSet<QString>& camposRel) {
@@ -665,7 +665,7 @@ void VistaDiseno::actualizarEstadoCampos() {
                 nombresAnteriores[row] = nombreCampo;
             }
 
-            // ⭐ BLOQUEAR COMPLETAMENTE SI ESTÁ RELACIONADO
+            //  BLOQUEAR COMPLETAMENTE SI ESTÁ RELACIONADO
                 if (esRelacionado) {
                 // Hacer el campo de solo lectura
                 nombreItem->setFlags(nombreItem->flags() & ~Qt::ItemIsEditable);
@@ -706,7 +706,7 @@ void VistaDiseno::actualizarEstadoCampos() {
                     }
                 }
 
-            // ⭐ DESHABILITAR COMBO DE TIPO SI ESTÁ RELACIONADO
+            //  DESHABILITAR COMBO DE TIPO SI ESTÁ RELACIONADO
             QComboBox *tipoCombo = qobject_cast<QComboBox*>(tablaCampos->cellWidget(row, 2));
             if (tipoCombo) {
                 tipoCombo->setEnabled(!esRelacionado);
@@ -778,7 +778,7 @@ void VistaDiseno::actualizarRelacionesConNuevoCampo(const QString &nombreAnterio
 
             qDebug() << "✅ Relaciones actualizadas en archivo";
 
-            // ⭐ EMITIR SEÑAL PARA ACTUALIZAR OTRAS PARTES DE LA APLICACIÓN
+            //  EMITIR SEÑAL PARA ACTUALIZAR OTRAS PARTES DE LA APLICACIÓN
             emit metadatosModificados(); // Esto activará la actualización en MainWindow
 
         } else {

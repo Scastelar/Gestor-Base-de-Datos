@@ -49,7 +49,7 @@ QWidget* FormularioWidget::crearEditorParaCampo(const Campo &c)
 {
     QWidget *editor = nullptr;
 
-    // 🔹 Si es clave foránea → ComboBox con valores válidos
+    //  Si es clave foránea → ComboBox con valores válidos
     if (validador && validador->esCampoClaveForanea(metadata.nombreTabla, c.nombre)) {
         QComboBox *combo = new QComboBox(this);
         combo->setStyleSheet("QComboBox { font-size: 14px; padding: 6px; }");

@@ -28,12 +28,12 @@ void QueryDesignerWidget::agregarCampo(const QString &tabla, const QString &camp
     grid->setItem(row, 0, new QTableWidgetItem(campo));
     grid->setItem(row, 1, new QTableWidgetItem(tabla));
 
-    // 🔹 Columna Orden
+    //  Columna Orden
     QComboBox *comboOrden = new QComboBox();
     comboOrden->addItems({"", "Ascendente", "Descendente"});
     grid->setCellWidget(row, 2, comboOrden);
 
-    // 🔹 Columna Mostrar
+    //  Columna Mostrar
     QWidget *checkWidget = new QWidget();
     QCheckBox *chk = new QCheckBox();
     QHBoxLayout *h = new QHBoxLayout(checkWidget);
@@ -44,7 +44,7 @@ void QueryDesignerWidget::agregarCampo(const QString &tabla, const QString &camp
     chk->setChecked(true);
     grid->setCellWidget(row, 3, checkWidget);
 
-    // 🔹 Columna Criterios (operador + valor)
+    //  Columna Criterios (operador + valor)
     QWidget *criterioWidget = new QWidget();
     QHBoxLayout *hLayout = new QHBoxLayout(criterioWidget);
     hLayout->setContentsMargins(0, 0, 0, 0);
@@ -81,14 +81,14 @@ QString QueryDesignerWidget::generarSQL() const
 
         if (tabla.isEmpty()) tabla = tablaRow;
 
-        // 🔹 Mostrar
+        //  Mostrar
         QWidget *w = grid->cellWidget(row, 3);
         QCheckBox *chk = w->findChild<QCheckBox*>();
         if (chk && chk->isChecked()) {
             campos << campo;
         }
 
-        // 🔹 Criterios
+        //  Criterios
         QWidget *critWidget = grid->cellWidget(row, 4);
         if (critWidget) {
             QComboBox *combo = critWidget->findChild<QComboBox*>();

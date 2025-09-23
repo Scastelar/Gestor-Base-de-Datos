@@ -18,7 +18,7 @@ class RelacionesWidget : public QWidget
 public:
     explicit RelacionesWidget(QWidget *parent = nullptr);
     ~RelacionesWidget();
-    void cargarRelacionesPrevias(); // 🔹 nuevo método
+    void cargarRelacionesPrevias(); //  nuevo método
     void limpiarTodo();
     void refrescarTablas();
     void refrescarListaTablas();

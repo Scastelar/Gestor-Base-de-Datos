@@ -14,7 +14,7 @@ RelacionDialog::RelacionDialog(const QString &tabla1,
     : QDialog(parent),
     esOrigenPK(esOrigenPK),
     esDestinoPK(esDestinoPK),
-    campoSource(campo1),   // 🔹 Guardar el nombre del campo origen
+    campoSource(campo1),   //  Guardar el nombre del campo origen
     campoDest(campo2)
 {
     setWindowTitle("Crear Relación");
@@ -60,7 +60,7 @@ RelacionDialog::RelacionDialog(const QString &tabla1,
     chkActualizar->setEnabled(false);
     chkEliminar->setEnabled(false);
 
-    // 🔹 Habilitar/Deshabilitar las otras dos según integridad
+    //  Habilitar/Deshabilitar las otras dos según integridad
     connect(chkIntegridad, &QCheckBox::toggled, this, [chkActualizar, chkEliminar](bool checked) {
         chkActualizar->setEnabled(checked);
         chkEliminar->setEnabled(checked);
@@ -98,7 +98,7 @@ void RelacionDialog::validarRelacion(int index)
     QString tipoSeleccionado = cmbTipoRelacion->currentData().toString();
     bool valido = false;
 
-    // 🔹 Nueva validación: nombres de campo deben coincidir (case-insensitive)
+    //  Nueva validación: nombres de campo deben coincidir (case-insensitive)
     if (campoSource.compare(campoDest, Qt::CaseInsensitive) != 0) {
         QMessageBox::warning(this, "Relación inválida",
                              "Los nombres de los campos deben coincidir exactamente (ignorando mayúsculas/minúsculas).");

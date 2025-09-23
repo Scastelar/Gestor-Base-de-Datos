@@ -36,7 +36,7 @@ private:
     QListWidget *listaTablas;
     QueryDesignerWidget *gridDesigner;
     QMap<QString, TableItem*> tablas;
-    QVector<Metadata> metasDisponibles; // 🔹 Metadatos cargados
+    QVector<Metadata> metasDisponibles; //  Metadatos cargados
 
     // Resultados
     VistaConsulta *vistaResultado;

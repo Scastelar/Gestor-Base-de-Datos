@@ -123,7 +123,7 @@ QMap<QString, QString> VistaDatos::obtenerRelacionParaCampo(const QString &nombr
 
 bool VistaDatos::esRelacionMuchosAMuchos(const QMap<QString, QString> &relacion) const
 {
-    // ⭐ NUEVA LÓGICA: Usar ValidadorRelaciones para determinar el tipo correcto
+    //  NUEVA LÓGICA: Usar ValidadorRelaciones para determinar el tipo correcto
     if (!validador) {
         qDebug() << "⚠️ No hay validador para determinar tipo de relación";
         return false; // Sin validador, asumir que NO es M:M
@@ -425,19 +425,19 @@ void VistaDatos::onCellChanged(int row, int column)
 
     validandoFK = true;
 
-    QTableWidgetItem *item = tablaRegistros->item(row, column);  // ⭐ CORREGIDO: era tablaWidget
+    QTableWidgetItem *item = tablaRegistros->item(row, column);  //  CORREGIDO: era tablaWidget
     if (!item) {
         validandoFK = false;
         return;
     }
 
     QString valor = item->text();
-    QString nombreCampo = tablaRegistros->horizontalHeaderItem(column)->text();  // ⭐ CORREGIDO
+    QString nombreCampo = tablaRegistros->horizontalHeaderItem(column)->text();  //  CORREGIDO
 
     qDebug() << "Celda cambiada: fila" << row << "columna" << column
              << "valor:" << valor << "tabla:" << nombreTablaActual;
 
-    // ⭐ VALIDAR FK SOLO UNA VEZ
+    //  VALIDAR FK SOLO UNA VEZ
     if (validador && validador->esCampoClaveForanea(nombreTablaActual, nombreCampo)) {
         qDebug() << "Validando FK en tabla:" << nombreTablaActual
                  << "campo:" << nombreCampo << "valor:" << valor;
@@ -448,14 +448,14 @@ void VistaDatos::onCellChanged(int row, int column)
             QString mensajeError = QString("CLAVE FORÁNEA INVÁLIDA: El valor '%1' no existe en la tabla relacionada para el campo '%2'")
                                        .arg(valor).arg(nombreCampo);
 
-            // ⭐ MOSTRAR ERROR SOLO UNA VEZ POR VALOR/CAMPO
+            //  MOSTRAR ERROR SOLO UNA VEZ POR VALOR/CAMPO
             QString claveError = QString("%1-%2").arg(nombreCampo).arg(valor);
             if (ultimoErrorFK != claveError) {
                 ultimoErrorFK = claveError;
                 QMessageBox::warning(this, "Validación de Clave Foránea", mensajeError);
             }
 
-            // ⭐ RESTAURAR VALOR ANTERIOR O LIMPIAR
+            //  RESTAURAR VALOR ANTERIOR O LIMPIAR
             QPair<int,int> coordenada(row, column);
             if (valoresAnterioresFK.contains(coordenada)) {
                 QString valorAnterior = valoresAnterioresFK[coordenada];
@@ -467,9 +467,9 @@ void VistaDatos::onCellChanged(int row, int column)
             }
 
             validandoFK = false;
-            return; // ⭐ NO GUARDAR SI ES INVÁLIDO
+            return; //  NO GUARDAR SI ES INVÁLIDO
         } else if (esValido) {
-            // ⭐ GUARDAR VALOR VÁLIDO COMO RESPALDO
+            //  GUARDAR VALOR VÁLIDO COMO RESPALDO
             QPair<int,int> coordenada(row, column);
             valoresAnterioresFK[coordenada] = valor;
             ultimoErrorFK.clear(); // Limpiar error anterior
@@ -478,12 +478,12 @@ void VistaDatos::onCellChanged(int row, int column)
     } else {
         qDebug() << "Campo" << nombreCampo << "no es FK, validación pasada";
 
-        // ⭐ GUARDAR VALOR PARA CAMPOS NO-FK TAMBIÉN
+        //  GUARDAR VALOR PARA CAMPOS NO-FK TAMBIÉN
         QPair<int,int> coordenada(row, column);
         valoresAnterioresFK[coordenada] = valor;
     }
 
-    // ⭐ PROCESAR FORMATEO SOLO DESPUÉS DE VALIDAR FK
+    //  PROCESAR FORMATEO SOLO DESPUÉS DE VALIDAR FK
     if (column >= 1) {
         int campoIndex = column - 1;
         if (campoIndex >= 0 && campoIndex < camposMetadata.size()) {
@@ -531,7 +531,7 @@ void VistaDatos::onCellChanged(int row, int column)
 
         QTimer::singleShot(100, this, [this, row]() {
             validarRegistroCompleto(row);
-            guardarRegistros(); // ⭐ GUARDAR SOLO SI LLEGAMOS AQUÍ (datos válidos)
+            guardarRegistros(); //  GUARDAR SOLO SI LLEGAMOS AQUÍ (datos válidos)
         });
         emit registroModificado(row);
     }
@@ -551,7 +551,7 @@ void VistaDatos::onCellDoubleClicked(int row, int column)
     const Campo &campo = camposMetadata[campoIndex];
     QTableWidgetItem *item = tablaRegistros->item(row, column);
 
-    // 🔹 NUEVO: Verificar si es una clave foránea PRIMERO
+    //  NUEVO: Verificar si es una clave foránea PRIMERO
     if (validador && validador->esCampoClaveForanea(nombreTablaActual, campo.nombre)) {
         QStringList valoresValidos = validador->obtenerValoresValidos(nombreTablaActual, campo.nombre);
         if (!valoresValidos.isEmpty()) {
@@ -623,11 +623,11 @@ void VistaDatos::prepararTabla() {
 }
 
 
-// ⭐ MÉTODO PARA LIMPIAR ESTADO AL CAMBIAR DE TABLA
+//  MÉTODO PARA LIMPIAR ESTADO AL CAMBIAR DE TABLA
 void VistaDatos::establecerNombreTabla(const QString &nombre) {
     nombreTablaActual = nombre;
 
-    // ⭐ LIMPIAR ESTADO AL CAMBIAR DE TABLA
+    //  LIMPIAR ESTADO AL CAMBIAR DE TABLA
     valoresAnterioresFK.clear();
     ultimoErrorFK.clear();
     validandoFK = false;
@@ -823,7 +823,7 @@ void VistaDatos::cargarDesdeMetadata(const Metadata &meta)
     indiceActual = -1;
     ultimoID = 0;
 
-    // ⭐ LIMPIAR ESTADO ANTES DE CARGAR
+    //  LIMPIAR ESTADO ANTES DE CARGAR
     valoresAnterioresFK.clear();
     ultimoErrorFK.clear();
 
@@ -841,7 +841,7 @@ void VistaDatos::cargarDesdeMetadata(const Metadata &meta)
             QVariant valor = registro.value(campo.nombre);
             configurarCelda(row, i + 1, valor, campo);
 
-            // ⭐ INICIALIZAR VALOR ANTERIOR PARA ESTA CELDA
+            //  INICIALIZAR VALOR ANTERIOR PARA ESTA CELDA
             QTableWidgetItem *item = tablaRegistros->item(row, i + 1);
             if (item) {
                 QPair<int,int> coordenada(row, i + 1);
@@ -884,13 +884,13 @@ void VistaDatos::eliminarRegistro() {
         );
 
     if (respuesta == QMessageBox::Yes) {
-        // ⭐ LIMPIAR VALORES ANTERIORES DE LA FILA ELIMINADA
+        //  LIMPIAR VALORES ANTERIORES DE LA FILA ELIMINADA
         for (int col = 0; col < tablaRegistros->columnCount(); ++col) {
             QPair<int,int> coordenada(currentRow, col);
             valoresAnterioresFK.remove(coordenada);
         }
 
-        // ⭐ REAJUSTAR ÍNDICES DE FILAS POSTERIORES
+        //  REAJUSTAR ÍNDICES DE FILAS POSTERIORES
         QMap<QPair<int,int>, QString> nuevosValores;
         for (auto it = valoresAnterioresFK.begin(); it != valoresAnterioresFK.end(); ++it) {
             QPair<int,int> coordenada = it.key();
@@ -912,7 +912,7 @@ void VistaDatos::eliminarRegistro() {
     }
 }
 
-// ⭐ MÉTODO MEJORADO: Guardar registros solo con datos válidos
+//  MÉTODO MEJORADO: Guardar registros solo con datos válidos
 void VistaDatos::guardarRegistros()
 {
     if (nombreTablaActual.isEmpty() || validandoFK) {
@@ -1002,7 +1002,7 @@ void VistaDatos::agregarRegistro()
         else { valor = "";}
 
         configurarCelda(row, i + 1, valor, campo);
-        // ⭐ INICIALIZAR VALOR ANTERIOR PARA NUEVA CELDA
+        //  INICIALIZAR VALOR ANTERIOR PARA NUEVA CELDA
         QTableWidgetItem *item = tablaRegistros->item(row, i + 1);
         if (item) {
             QPair<int,int> coordenada(row, i + 1);

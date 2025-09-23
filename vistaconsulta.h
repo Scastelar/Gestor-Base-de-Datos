@@ -43,7 +43,7 @@ public:
 
 
 // -----------------------------
-// 🔹 VistaConsulta
+//  VistaConsulta
 // -----------------------------
 class VistaConsulta : public QWidget
 {

@@ -58,7 +58,7 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
 
         if (tablaDestino.isEmpty() || tablaDestino == tablaDrag) return;
 
-        // 🔹 Determinar tipo automáticamente (1:1, 1:N, N:M)
+        //  Determinar tipo automáticamente (1:1, 1:N, N:M)
         bool origenEsPK = false, destinoEsPK = false;
         for (const Campo &c : tablas[tablaDrag]->getMetadata().campos)
             if (c.nombre == campoDrag) { origenEsPK = c.esPK; break; }
@@ -85,7 +85,7 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
             tipoTexto = "Varios a Varios";
         }
 
-        // 🔹 Validar compatibilidad de tipos ANTES del dialog
+        //  Validar compatibilidad de tipos ANTES del dialog
         const Metadata &metaOrigen = tablas[tablaDrag]->getMetadata();
         const Metadata &metaDestino = tablas[tablaDestino]->getMetadata();
 
@@ -115,7 +115,7 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
             return; // ❌ Cancelar relación
         }
 
-        // 🔹 Validar que los nombres de campo coincidan (case-insensitive)
+        //  Validar que los nombres de campo coincidan (case-insensitive)
         if (campoDrag.compare(campoDestino, Qt::CaseInsensitive) != 0) {
             QMessageBox::warning(this, "Relación inválida",
                                  QString("No se puede relacionar '%1' con '%2' porque los nombres son diferentes.\n"
@@ -127,7 +127,7 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
         RelacionDialog dlg(tablaDrag, campoDrag, tablaDestino, campoDestino,
                            origenEsPK, destinoEsPK, this);
 
-        // 🔹 Preseleccionar tipo correcto
+        //  Preseleccionar tipo correcto
         if (tipo == TipoRelacion::UnoAUno) {
             dlg.setTipoRelacion("1:1");
         } else if (tipo == TipoRelacion::UnoAMuchos) {
@@ -142,7 +142,7 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
 
         QString tipoRelacion = dlg.getTipoRelacion();
 
-        // 🔹 Crear relación en escena
+        //  Crear relación en escena
         RelationItem *rel = nullptr;
 
         if (tipo == TipoRelacion::UnoAMuchos) {
@@ -175,7 +175,7 @@ RelacionesWidget::RelacionesWidget(QWidget *parent)
     crearToolbar();
     crearLayoutPrincipal();
     cargarListaTablas();
-    cargarRelacionesPrevias(); // 🔹 cargar relaciones al abrir
+    cargarRelacionesPrevias(); //  cargar relaciones al abrir
 }
 
 RelacionesWidget::~RelacionesWidget()
@@ -363,7 +363,7 @@ void RelacionesWidget::cargarRelacionesPrevias()
     }
     relacionesFile.close();
 
-    // 🔹 Asegurar que todas las tablas existan en la escena con metadata actualizado
+    //  Asegurar que todas las tablas existan en la escena con metadata actualizado
     QDir dir(QDir::currentPath() + "/tables");
     for (const QStringList &rel : relacionesPendientes) {
         QString t1 = rel[0];
@@ -420,7 +420,7 @@ void RelacionesWidget::cargarRelacionesPrevias()
         }
     }
 
-    // 🔹 Crear relaciones visuales (igual que antes)
+    //  Crear relaciones visuales (igual que antes)
     for (const QStringList &rel : relacionesPendientes) {
         QString t1 = rel[0];
         QString c1 = rel[1];
@@ -533,11 +533,11 @@ void RelacionesWidget::refrescarTablas()
         TableItem *item = it.value();
 
         Metadata meta = Metadata::cargar(dir.filePath(nombreTabla + ".meta"));
-        item->setMetadata(meta);   // 🔹 recarga en vivo, sin borrar
+        item->setMetadata(meta);   //  recarga en vivo, sin borrar
         item->update();
     }
 
-    // 🔹 Validar relaciones existentes después de actualizar metadatos
+    //  Validar relaciones existentes después de actualizar metadatos
     validarRelacionesExistentes();
 
     for (RelationItem *rel : relaciones) {

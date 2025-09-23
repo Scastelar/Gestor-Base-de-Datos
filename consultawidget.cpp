@@ -12,7 +12,7 @@ ConsultaWidget::ConsultaWidget(QWidget *parent)
     stack = new QStackedWidget(this);
 
     // -----------------------
-    // 🔹 Página 1: Diseño
+    //  Página 1: Diseño
     // -----------------------
     paginaDiseno = new QWidget(this);
     QVBoxLayout *layoutDiseno = new QVBoxLayout(paginaDiseno);
@@ -45,7 +45,7 @@ ConsultaWidget::ConsultaWidget(QWidget *parent)
     layoutDiseno->addWidget(gridDesigner);
 
     // -----------------------
-    // 🔹 Página 2: Resultados
+    //  Página 2: Resultados
     // -----------------------
     paginaResultado = new QWidget(this);
     QVBoxLayout *layoutRes = new QVBoxLayout(paginaResultado);
